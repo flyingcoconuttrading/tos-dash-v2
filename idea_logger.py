@@ -363,12 +363,13 @@ class IdeaLogger:
                           call_wall, put_wall, now, data):
         cfg = self._cfg
 
-        # Time expiry
+        # Time expiry — unconfirmed ideas expire at 30 min; confirmed ideas get
+        # a 60-min hard ceiling so stale entries don't accumulate indefinitely.
         age_min = (now - state.surfaced_at).total_seconds() / 60
-        if age_min > 30 and state.status not in (STATUS_CONFIRMED,):
+        if age_min > 60 or (age_min > 30 and state.status not in (STATUS_CONFIRMED,)):
             self._invalidate(key, state, INVALIDATION_TIME, spy_price,
                              mark or state.entry_mark, spy_vol_ratio, now,
-                             detail=f"age={age_min:.1f}min > 30min limit")
+                             detail=f"age={age_min:.1f}min > {'60' if age_min > 60 else '30'}min limit")
             return
 
         # Level cross — use ENTRY walls (walls at time of surface), not current walls.
@@ -480,7 +481,9 @@ class IdeaLogger:
             pnl_pct = ((current - entry) / entry * 100) if entry and entry > 0 else None
             correct = None
             if pnl_pct is not None:
-                correct = 1 if (row["option_type"] == "Call" and pnl_pct > 0) or                                (row["option_type"] == "Put"  and pnl_pct < 0) else 0
+                # Both calls and puts gain value (pnl_pct > 0) when the underlying
+                # moves in the predicted direction, so correct = option appreciated.
+                correct = 1 if pnl_pct > 0 else 0
             for w in [5, 10, 15, 30]:
                 if elapsed_min >= w:
                     col = f"out_{w}m_mark"

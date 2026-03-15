@@ -462,3 +462,147 @@
 2026-03-15 14:01:47,005 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:140 - Server started successfully
 2026-03-15 14:01:47,005 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:424 - Heartbeat interval set to 500ms
 2026-03-15 14:01:47,005 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:145 - Heartbeat interval updated: 200ms -> 500ms
+2026-03-15 15:02:49,985 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:86 - RTD Client instance created
+2026-03-15 15:02:49,985 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:122 - Starting RTD server initialization
+2026-03-15 15:02:49,991 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:140 - Server started successfully
+2026-03-15 15:02:49,991 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:424 - Heartbeat interval set to 500ms
+2026-03-15 15:02:49,991 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:145 - Heartbeat interval updated: 200ms -> 500ms
+2026-03-15 15:13:07,025 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:86 - RTD Client instance created
+2026-03-15 15:13:07,025 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:122 - Starting RTD server initialization
+2026-03-15 15:13:07,031 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:140 - Server started successfully
+2026-03-15 15:13:07,032 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:424 - Heartbeat interval set to 500ms
+2026-03-15 15:13:07,032 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:145 - Heartbeat interval updated: 200ms -> 500ms
+2026-03-15 15:14:11,828 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:86 - RTD Client instance created
+2026-03-15 15:14:11,828 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:122 - Starting RTD server initialization
+2026-03-15 15:14:11,834 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:140 - Server started successfully
+2026-03-15 15:14:11,835 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:424 - Heartbeat interval set to 500ms
+2026-03-15 15:14:11,835 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:145 - Heartbeat interval updated: 200ms -> 500ms
+2026-03-15 15:14:12,379 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY260313C666 VOLUME
+2026-03-15 15:14:12,386 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY260313P670 MARK
+2026-03-15 15:14:12,392 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY260313C675 BID
+2026-03-15 15:14:12,395 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY260313P677 DELTA
+2026-03-15 15:14:12,399 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY260313C679 DELTA
+2026-03-15 15:14:12,405 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY260313P683 GAMMA
+2026-03-15 15:14:12,406 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY260313C684 GAMMA
+2026-03-15 15:14:12,411 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY260313C687 LAST
+2026-03-15 15:15:44,205 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:86 - RTD Client instance created
+2026-03-15 15:15:44,205 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:122 - Starting RTD server initialization
+2026-03-15 15:15:44,212 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:140 - Server started successfully
+2026-03-15 15:15:44,212 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:424 - Heartbeat interval set to 500ms
+2026-03-15 15:15:44,212 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:145 - Heartbeat interval updated: 200ms -> 500ms
+2026-03-15 15:15:44,734 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P650 GAMMA
+2026-03-15 15:15:44,738 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C653 MARK
+2026-03-15 15:15:44,746 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P659 LAST
+2026-03-15 15:15:44,763 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C671 BID
+2026-03-15 15:15:44,766 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C673 AV_TRADE_PRICE
+2026-03-15 15:15:44,768 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C674 IMPL_VOL
+2026-03-15 15:15:44,773 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P677 ASK
+2026-03-15 15:15:44,775 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P678 DELTA
+2026-03-15 15:15:44,776 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C679 IMPL_VOL
+2026-03-15 15:15:44,777 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P679 BID
+2026-03-15 15:15:44,779 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P680 DELTA
+2026-03-15 15:15:44,786 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P685 MARK
+2026-03-15 15:15:44,788 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P686 THETA
+2026-03-15 15:15:44,790 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C688 VOLUME
+2026-03-15 15:15:44,790 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C688 THETA
+2026-03-15 15:31:23,990 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:86 - RTD Client instance created
+2026-03-15 15:31:23,990 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:122 - Starting RTD server initialization
+2026-03-15 15:31:23,996 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:140 - Server started successfully
+2026-03-15 15:31:23,997 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:424 - Heartbeat interval set to 500ms
+2026-03-15 15:31:23,997 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:145 - Heartbeat interval updated: 200ms -> 500ms
+2026-03-15 15:31:24,517 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P650 GAMMA
+2026-03-15 15:31:24,522 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C653 MARK
+2026-03-15 15:31:24,531 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P659 LAST
+2026-03-15 15:31:24,548 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C671 BID
+2026-03-15 15:31:24,551 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C673 AV_TRADE_PRICE
+2026-03-15 15:31:24,553 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C674 IMPL_VOL
+2026-03-15 15:31:24,558 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P677 ASK
+2026-03-15 15:31:24,560 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P678 DELTA
+2026-03-15 15:31:24,561 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C679 IMPL_VOL
+2026-03-15 15:31:24,561 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P679 BID
+2026-03-15 15:31:24,563 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P680 DELTA
+2026-03-15 15:31:24,570 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P685 MARK
+2026-03-15 15:31:24,572 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P686 THETA
+2026-03-15 15:31:24,574 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C688 VOLUME
+2026-03-15 15:31:24,575 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C688 THETA
+2026-03-15 15:36:42,335 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:86 - RTD Client instance created
+2026-03-15 15:36:42,336 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:122 - Starting RTD server initialization
+2026-03-15 15:36:42,343 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:140 - Server started successfully
+2026-03-15 15:36:42,343 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:424 - Heartbeat interval set to 500ms
+2026-03-15 15:36:42,343 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:145 - Heartbeat interval updated: 200ms -> 500ms
+2026-03-15 15:36:42,864 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P650 GAMMA
+2026-03-15 15:36:42,868 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C653 MARK
+2026-03-15 15:36:42,877 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P659 LAST
+2026-03-15 15:36:42,894 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C671 BID
+2026-03-15 15:36:42,898 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C673 AV_TRADE_PRICE
+2026-03-15 15:36:42,900 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C674 IMPL_VOL
+2026-03-15 15:36:42,905 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P677 ASK
+2026-03-15 15:36:42,906 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P678 DELTA
+2026-03-15 15:36:42,908 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C679 IMPL_VOL
+2026-03-15 15:36:42,908 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P679 BID
+2026-03-15 15:36:42,910 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P680 DELTA
+2026-03-15 15:36:42,917 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P685 MARK
+2026-03-15 15:36:42,919 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P686 THETA
+2026-03-15 15:36:42,921 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C688 VOLUME
+2026-03-15 15:36:42,922 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C688 DELTA
+2026-03-15 15:36:42,922 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C688 THETA
+2026-03-15 15:56:20,311 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:86 - RTD Client instance created
+2026-03-15 15:56:20,311 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:122 - Starting RTD server initialization
+2026-03-15 15:56:20,319 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:140 - Server started successfully
+2026-03-15 15:56:20,319 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:424 - Heartbeat interval set to 500ms
+2026-03-15 15:56:20,319 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:145 - Heartbeat interval updated: 200ms -> 500ms
+2026-03-15 15:56:20,836 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P650 GAMMA
+2026-03-15 15:56:20,840 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C653 MARK
+2026-03-15 15:56:20,849 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P659 LAST
+2026-03-15 15:56:20,865 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C671 BID
+2026-03-15 15:56:20,869 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C673 AV_TRADE_PRICE
+2026-03-15 15:56:20,871 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C674 IMPL_VOL
+2026-03-15 15:56:20,875 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P677 ASK
+2026-03-15 15:56:20,877 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P678 DELTA
+2026-03-15 15:56:20,878 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C679 IMPL_VOL
+2026-03-15 15:56:20,879 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P679 BID
+2026-03-15 15:56:20,880 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P680 DELTA
+2026-03-15 15:56:20,888 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P685 MARK
+2026-03-15 15:56:20,890 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P686 THETA
+2026-03-15 15:56:20,892 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C688 VOLUME
+2026-03-15 15:56:20,893 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C688 THETA
+2026-03-15 15:59:00,324 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:86 - RTD Client instance created
+2026-03-15 15:59:00,324 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:122 - Starting RTD server initialization
+2026-03-15 15:59:00,330 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:140 - Server started successfully
+2026-03-15 15:59:00,330 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:424 - Heartbeat interval set to 500ms
+2026-03-15 15:59:00,330 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:145 - Heartbeat interval updated: 200ms -> 500ms
+2026-03-15 15:59:00,848 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P650 GAMMA
+2026-03-15 15:59:00,852 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C653 MARK
+2026-03-15 15:59:00,861 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P659 LAST
+2026-03-15 15:59:00,877 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C671 BID
+2026-03-15 15:59:00,881 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C673 AV_TRADE_PRICE
+2026-03-15 15:59:00,883 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C674 IMPL_VOL
+2026-03-15 15:59:00,888 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P677 ASK
+2026-03-15 15:59:00,890 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P678 DELTA
+2026-03-15 15:59:00,891 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C679 IMPL_VOL
+2026-03-15 15:59:00,891 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P679 BID
+2026-03-15 15:59:00,893 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P680 DELTA
+2026-03-15 15:59:00,900 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P685 MARK
+2026-03-15 15:59:00,902 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P686 THETA
+2026-03-15 15:59:00,904 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C688 VOLUME
+2026-03-15 15:59:00,904 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C688 THETA
+2026-03-15 15:59:03,775 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:86 - RTD Client instance created
+2026-03-15 15:59:03,775 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:122 - Starting RTD server initialization
+2026-03-15 15:59:03,781 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:140 - Server started successfully
+2026-03-15 15:59:03,782 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:424 - Heartbeat interval set to 500ms
+2026-03-15 15:59:03,782 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:145 - Heartbeat interval updated: 200ms -> 500ms
+2026-03-15 15:59:04,302 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P650 GAMMA
+2026-03-15 15:59:04,306 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C653 MARK
+2026-03-15 15:59:04,316 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P659 LAST
+2026-03-15 15:59:04,339 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C671 BID
+2026-03-15 15:59:04,343 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C673 AV_TRADE_PRICE
+2026-03-15 15:59:04,344 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C674 IMPL_VOL
+2026-03-15 15:59:04,349 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P677 ASK
+2026-03-15 15:59:04,351 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P678 DELTA
+2026-03-15 15:59:04,353 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C679 IMPL_VOL
+2026-03-15 15:59:04,353 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P679 BID
+2026-03-15 15:59:04,356 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P680 DELTA
+2026-03-15 15:59:04,363 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P685 MARK
+2026-03-15 15:59:04,365 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309P686 THETA
+2026-03-15 15:59:04,367 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C688 VOLUME
+2026-03-15 15:59:04,367 - RTDClient - INFO - C:\Users\randy\tos-streamlit-dashboard-V2\src\rtd\client.py:182 - Already subscribed to .SPY250309C688 THETA

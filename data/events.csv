@@ -18023,3 +18023,5 @@ id,idea_id,event_time,event_type,score,mark,spy,spy_move,vol_ratio,detail
 347,532,2026-03-14T00:15:02,OUTCOME_FILLED,,2.63,,,,15m mark=2.63 pnl=310.9% correct=0
 348,532,2026-03-14T00:30:02,INVALIDATED,,0.64,662.29,0.0,1.0,TIME_EXPIRED - age=30.0min > 30min limit
 349,532,2026-03-14T00:30:02,OUTCOME_FILLED,,2.63,,,,30m mark=2.63 pnl=310.9% correct=0
+1,533,2026-03-15T15:14:14,SURFACED,60.7,1.755,662.29,,0.0,score=60.7 mark=1.75 delta=1.00 trend=Choppy
+2,534,2026-03-15T15:14:14,SURFACED,59.2,0.77,662.29,,0.0,score=59.2 mark=0.77 delta=1.00 trend=Choppy

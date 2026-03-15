@@ -161,9 +161,11 @@ def _build_checklist(
         add(CL_REGIME, val,
             f"SNAP IMMINENT — explosive move toward {'upside' if val=='Bull' else 'downside'}")
     elif regime == REGIME_TRENDING:
-        val = "Bull" if snap_direction == "Above" else "Bear"
+        # snap_direction=="Above" means net_dex > 0 (dealers long delta = bearish pressure),
+        # matching the bias logic: bias="Bearish" when net_dex > 0.
+        val = "Bear" if snap_direction == "Above" else "Bull"
         add(CL_REGIME, val,
-            f"TRENDING — negative GEX, directional move likely {'up' if val=='Bull' else 'down'}")
+            f"TRENDING — negative GEX, directional move likely {'down' if val=='Bear' else 'up'}")
     elif regime == REGIME_PINNED:
         add(CL_REGIME, "Neutral",
             "PINNED — positive GEX anchoring price, mean reversion dominant")
@@ -330,8 +332,8 @@ def analyze(
 
     for strike in strikes:
         try:
-            cs = next(s for s in option_symbols if f'C{strike}' in s)
-            ps = next(s for s in option_symbols if f'P{strike}' in s)
+            cs = next(s for s in option_symbols if s.endswith(f'C{strike}'))
+            ps = next(s for s in option_symbols if s.endswith(f'P{strike}'))
         except StopIteration:
             continue
 
@@ -365,7 +367,9 @@ def analyze(
 
     if net_dex > 0:
         snap_direction = "Above"
-        running = net_dex
+        # Start with only below-price DEX; net_dex already includes above strikes
+        # so using net_dex as seed would double-count them.
+        running = sum(dex_by_strike.get(s, 0) for s in below)
         for s in above:
             running += dex_by_strike.get(s, 0)
             if running <= 0:
@@ -373,7 +377,8 @@ def analyze(
                 break
     else:
         snap_direction = "Below"
-        running = net_dex
+        # Start with only above-price DEX; accumulate downward.
+        running = sum(dex_by_strike.get(s, 0) for s in above)
         for s in below:
             running += dex_by_strike.get(s, 0)
             if running >= 0:
@@ -383,10 +388,13 @@ def analyze(
     snap_distance = abs(current_price - snap_level) if snap_level else None
 
     # ── Regime ────────────────────────────────────────────────────────────────
-    gex_threshold = abs(net_gex) * 0.10
+    # TRANSITION when net GEX is near zero (dealers not meaningfully anchored).
+    # Fixed absolute threshold; the old `abs(net_gex) * 0.10` was self-referential
+    # and always False (abs(x) < abs(x)*0.10 ≡ 1 < 0.10).
+    GEX_TRANSITION_THRESHOLD = 5_000_000   # $5 M — tune via observation
     if snap_distance is not None and snap_distance <= critical_distance:
         regime = REGIME_SNAP_IMMINENT
-    elif abs(net_gex) < gex_threshold:
+    elif abs(net_gex) < GEX_TRANSITION_THRESHOLD:
         regime = REGIME_TRANSITION
     elif net_gex > 0:
         regime = REGIME_PINNED

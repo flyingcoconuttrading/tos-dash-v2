@@ -2792,3 +2792,146 @@ id,logged_at,alert_zone,alert_message,spy_price,snap_level,snap_distance,snap_di
 173,2026-03-12T01:50:58,critical,⚡ SNAP CRITICAL — $0.33 from flip at $676! Dealers about to reverse bearish,676.33,676,0.3300000000000409,Below,SNAP IMMINENT,Bearish,0.0,0.0
 174,2026-03-12T01:51:58,critical,⚡ SNAP CRITICAL — $0.33 from flip at $676! Dealers about to reverse bearish,676.33,676,0.3300000000000409,Below,SNAP IMMINENT,Bearish,0.0,0.0
 1,2026-03-13T09:56:47,warning,⚠️ SNAP WARNING — $0.86 from $670. Watch for downside acceleration,670.86,670,0.8600000000000136,Below,TRENDING,Bullish,0.0,0.0
+1,2026-03-15T15:14:13,critical,⚡ SNAP CRITICAL — $0.29 from flip at $662! Dealers about to reverse bearish,662.29,662,0.2899999999999636,Below,SNAP IMMINENT,Bearish,0.0,0.0
+2,2026-03-15T15:15:45,warning,⚠️ SNAP WARNING — $0.77 from $663. Watch for downside acceleration,663.77,663,0.7699999999999818,Below,TRANSITION,Neutral,0.0,0.0
+3,2026-03-15T15:15:57,critical,⚡ SNAP CRITICAL — $0.75 from flip at $663! Dealers about to reverse bearish,663.75,663,0.75,Below,SNAP IMMINENT,Bearish,0.0,0.0
+4,2026-03-15T15:16:19,warning,⚠️ SNAP WARNING — $0.83 from $663. Watch for downside acceleration,663.83,663,0.8300000000000409,Below,TRANSITION,Neutral,0.0,0.0
+5,2026-03-15T15:16:29,critical,⚡ SNAP CRITICAL — $0.60 from flip at $663! Dealers about to reverse bearish,663.6,663,0.6000000000000227,Below,SNAP IMMINENT,Bearish,0.0,0.0
+6,2026-03-15T15:17:29,critical,⚡ SNAP CRITICAL — $0.51 from flip at $663! Dealers about to reverse bearish,663.51,663,0.5099999999999909,Below,SNAP IMMINENT,Bearish,0.0,0.0
+7,2026-03-15T15:17:44,warning,⚠️ SNAP WARNING — $0.90 from $663. Watch for downside acceleration,663.9,663,0.8999999999999773,Below,TRANSITION,Neutral,0.0,0.0
+8,2026-03-15T15:17:55,critical,⚡ SNAP CRITICAL — $0.74 from flip at $663! Dealers about to reverse bearish,663.74,663,0.7400000000000091,Below,SNAP IMMINENT,Bearish,0.0,0.0
+9,2026-03-15T15:18:55,critical,⚡ SNAP CRITICAL — $0.17 from flip at $663! Dealers about to reverse bearish,663.17,663,0.16999999999995907,Below,SNAP IMMINENT,Bearish,0.0,0.0
+10,2026-03-15T15:19:06,warning,⚠️ SNAP WARNING — $0.77 from $662. Watch for downside acceleration,662.77,662,0.7699999999999818,Below,TRANSITION,Neutral,0.0,0.0
+11,2026-03-15T15:19:23,critical,⚡ SNAP CRITICAL — $0.15 from flip at $663! Dealers about to reverse bearish,663.15,663,0.14999999999997726,Below,SNAP IMMINENT,Bearish,0.0,0.0
+12,2026-03-15T15:20:10,warning,⚠️ SNAP WARNING — $0.93 from $662. Watch for downside acceleration,662.93,662,0.92999999999995,Below,TRANSITION,Neutral,0.0,0.0
+13,2026-03-15T15:20:21,critical,⚡ SNAP CRITICAL — $0.74 from flip at $662! Dealers about to reverse bearish,662.74,662,0.7400000000000091,Below,SNAP IMMINENT,Bearish,0.0,0.0
+14,2026-03-15T15:20:40,warning,⚠️ SNAP WARNING — $0.77 from $663. Watch for downside acceleration,663.77,663,0.7699999999999818,Below,TRANSITION,Neutral,0.0,0.0
+15,2026-03-15T15:20:52,critical,⚡ SNAP CRITICAL — $0.73 from flip at $663! Dealers about to reverse bearish,663.73,663,0.7300000000000182,Below,SNAP IMMINENT,Bearish,0.0,0.0
+16,2026-03-15T15:21:02,warning,⚠️ SNAP WARNING — $0.83 from $663. Watch for downside acceleration,663.83,663,0.8300000000000409,Below,TRANSITION,Neutral,0.0,0.0
+17,2026-03-15T15:21:12,critical,⚡ SNAP CRITICAL — $0.47 from flip at $664! Dealers about to reverse bearish,664.465,664,0.46500000000003183,Below,SNAP IMMINENT,Bearish,0.0,0.0
+18,2026-03-15T15:21:23,warning,⚠️ SNAP WARNING — $0.93 from $663. Watch for downside acceleration,663.93,663,0.92999999999995,Below,TRANSITION,Neutral,0.0,0.0
+19,2026-03-15T15:21:38,critical,⚡ SNAP CRITICAL — $0.06 from flip at $664! Dealers about to reverse bearish,664.06,664,0.05999999999994543,Below,SNAP IMMINENT,Bearish,0.0,0.0
+20,2026-03-15T15:22:10,warning,⚠️ SNAP WARNING — $0.98 from $663. Watch for downside acceleration,663.98,663,0.9800000000000182,Below,TRANSITION,Neutral,0.0,0.0
+21,2026-03-15T15:22:20,critical,⚡ SNAP CRITICAL — $0.03 from flip at $664! Dealers about to reverse bearish,664.03,664,0.029999999999972715,Below,SNAP IMMINENT,Bearish,0.0,0.0
+22,2026-03-15T15:22:39,warning,⚠️ SNAP WARNING — $0.95 from $663. Watch for downside acceleration,663.95,663,0.9500000000000455,Below,TRANSITION,Neutral,0.0,0.0
+23,2026-03-15T15:22:50,critical,⚡ SNAP CRITICAL — $0.74 from flip at $663! Dealers about to reverse bearish,663.74,663,0.7400000000000091,Below,SNAP IMMINENT,Bearish,0.0,0.0
+24,2026-03-15T15:23:28,warning,⚠️ SNAP WARNING — $0.81 from $664. Watch for downside acceleration,664.81,664,0.8099999999999454,Below,TRANSITION,Neutral,0.0,0.0
+25,2026-03-15T15:23:38,critical,⚡ SNAP CRITICAL — $0.73 from flip at $664! Dealers about to reverse bearish,664.73,664,0.7300000000000182,Below,SNAP IMMINENT,Bearish,0.0,0.0
+26,2026-03-15T15:24:38,critical,⚡ SNAP CRITICAL — $0.11 from flip at $664! Dealers about to reverse bearish,664.11,664,0.11000000000001364,Below,SNAP IMMINENT,Bearish,0.0,0.0
+27,2026-03-15T15:24:55,warning,⚠️ SNAP WARNING — $0.98 from $663. Watch for downside acceleration,663.98,663,0.9800000000000182,Below,TRANSITION,Neutral,0.0,0.0
+28,2026-03-15T15:25:07,critical,⚡ SNAP CRITICAL — $0.03 from flip at $664! Dealers about to reverse bearish,664.03,664,0.029999999999972715,Below,SNAP IMMINENT,Bearish,0.0,0.0
+29,2026-03-15T15:25:18,warning,⚠️ SNAP WARNING — $0.93 from $663. Watch for downside acceleration,663.93,663,0.92999999999995,Below,TRANSITION,Neutral,0.0,0.0
+30,2026-03-15T15:25:31,critical,⚡ SNAP CRITICAL — $0.08 from flip at $664! Dealers about to reverse bearish,664.08,664,0.08000000000004093,Below,SNAP IMMINENT,Bearish,0.0,0.0
+31,2026-03-15T15:25:42,warning,⚠️ SNAP WARNING — $0.94 from $663. Watch for downside acceleration,663.944,663,0.94399999999996,Below,TRANSITION,Neutral,0.0,0.0
+32,2026-03-15T15:25:52,critical,⚡ SNAP CRITICAL — $0.23 from flip at $664! Dealers about to reverse bearish,664.23,664,0.2300000000000182,Below,SNAP IMMINENT,Bearish,0.0,0.0
+33,2026-03-15T15:26:23,warning,⚠️ SNAP WARNING — $0.90 from $663. Watch for downside acceleration,663.9,663,0.8999999999999773,Below,TRANSITION,Neutral,0.0,0.0
+34,2026-03-15T15:26:36,critical,⚡ SNAP CRITICAL — $0.05 from flip at $664! Dealers about to reverse bearish,664.0544,664,0.0543999999999869,Below,SNAP IMMINENT,Bearish,0.0,0.0
+35,2026-03-15T15:27:36,critical,⚡ SNAP CRITICAL — $0.30 from flip at $664! Dealers about to reverse bearish,664.3,664,0.2999999999999545,Below,SNAP IMMINENT,Bearish,0.0,0.0
+36,2026-03-15T15:28:12,warning,⚠️ SNAP WARNING — $0.79 from $664. Watch for downside acceleration,664.79,664,0.7899999999999636,Below,TRANSITION,Neutral,0.0,0.0
+37,2026-03-15T15:28:22,critical,⚡ SNAP CRITICAL — $0.06 from flip at $665! Dealers about to reverse bearish,665.06,665,0.05999999999994543,Below,SNAP IMMINENT,Bearish,0.0,0.0
+38,2026-03-15T15:29:22,critical,⚡ SNAP CRITICAL — $0.31 from flip at $665! Dealers about to reverse bearish,665.31,665,0.30999999999994543,Below,SNAP IMMINENT,Bearish,0.0,0.0
+39,2026-03-15T15:29:37,warning,⚠️ SNAP WARNING — $0.80 from $665. Watch for downside acceleration,665.8,665,0.7999999999999545,Below,TRANSITION,Neutral,0.0,0.0
+40,2026-03-15T15:29:47,critical,⚡ SNAP CRITICAL — $0.67 from flip at $665! Dealers about to reverse bearish,665.67,665,0.6699999999999591,Below,SNAP IMMINENT,Bearish,0.0,0.0
+41,2026-03-15T15:30:06,warning,⚠️ SNAP WARNING — $0.76 from $665. Watch for downside acceleration,665.76,665,0.7599999999999909,Below,TRANSITION,Neutral,0.0,0.0
+42,2026-03-15T15:30:19,critical,⚡ SNAP CRITICAL — $0.67 from flip at $665! Dealers about to reverse bearish,665.67,665,0.6699999999999591,Below,SNAP IMMINENT,Bearish,0.0,0.0
+43,2026-03-15T15:30:57,warning,⚠️ SNAP WARNING — $0.98 from $664. Watch for downside acceleration,664.98,664,0.9800000000000182,Below,TRANSITION,Neutral,0.0,0.0
+44,2026-03-15T15:31:11,critical,⚡ SNAP CRITICAL — $0.37 from flip at $663! Dealers about to reverse bearish,663.3732,663,0.3731999999999971,Below,SNAP IMMINENT,Bearish,0.0,0.0
+45,2026-03-15T15:31:21,warning,⚠️ SNAP WARNING — $0.86 from $663. Watch for downside acceleration,663.86,663,0.8600000000000136,Below,TRANSITION,Neutral,0.0,0.0
+1,2026-03-15T15:31:23,warning,⚠️ SNAP WARNING — $0.86 from $663. Watch for downside acceleration,663.86,663,0.8600000000000136,Below,TRANSITION,Neutral,0.0,0.0
+2,2026-03-15T15:31:33,critical,⚡ SNAP CRITICAL — $0.09 from flip at $663! Dealers about to reverse bearish,663.09,663,0.09000000000003183,Below,SNAP IMMINENT,Bearish,0.0,0.0
+3,2026-03-15T15:32:34,critical,⚡ SNAP CRITICAL — $0.44 from flip at $663! Dealers about to reverse bearish,663.44,663,0.44000000000005457,Below,SNAP IMMINENT,Bearish,0.0,0.0
+4,2026-03-15T15:33:11,warning,⚠️ SNAP WARNING — $0.77 from $663. Watch for downside acceleration,663.77,663,0.7699999999999818,Below,TRANSITION,Neutral,0.0,0.0
+5,2026-03-15T15:33:21,critical,⚡ SNAP CRITICAL — $0.33 from flip at $663! Dealers about to reverse bearish,663.33,663,0.3300000000000409,Below,SNAP IMMINENT,Bearish,0.0,0.0
+6,2026-03-15T15:33:56,warning,⚠️ SNAP WARNING — $0.97 from $662. Watch for downside acceleration,662.97,662,0.9700000000000273,Below,TRANSITION,Neutral,0.0,0.0
+7,2026-03-15T15:34:07,critical,⚡ SNAP CRITICAL — $0.00 from flip at $663! Dealers about to reverse bearish,663.0,663,0.0,Below,SNAP IMMINENT,Bearish,0.0,0.0
+8,2026-03-15T15:35:08,critical,⚡ SNAP CRITICAL — $0.44 from flip at $663! Dealers about to reverse bearish,663.44,663,0.44000000000005457,Below,SNAP IMMINENT,Bearish,0.0,0.0
+9,2026-03-15T15:35:27,warning,⚠️ SNAP WARNING — $0.90 from $662. Watch for downside acceleration,662.9,662,0.8999999999999773,Below,TRANSITION,Neutral,0.0,0.0
+10,2026-03-15T15:35:37,critical,⚡ SNAP CRITICAL — $0.27 from flip at $663! Dealers about to reverse bearish,663.27,663,0.2699999999999818,Below,SNAP IMMINENT,Bearish,0.0,0.0
+11,2026-03-15T15:36:11,warning,⚠️ SNAP WARNING — $0.98 from $662. Watch for downside acceleration,662.98,662,0.9800000000000182,Below,TRANSITION,Neutral,0.0,0.0
+12,2026-03-15T15:36:24,critical,⚡ SNAP CRITICAL — $0.75 from flip at $662! Dealers about to reverse bearish,662.75,662,0.75,Below,SNAP IMMINENT,Bearish,0.0,0.0
+13,2026-03-15T15:36:34,warning,⚠️ SNAP WARNING — $0.82 from $662. Watch for downside acceleration,662.82,662,0.82000000000005,Below,TRANSITION,Neutral,0.0,0.0
+14,2026-03-15T15:36:44,critical,⚡ SNAP CRITICAL — $0.64 from flip at $662! Dealers about to reverse bearish,662.64,662,0.6399999999999864,Below,SNAP IMMINENT,Bearish,0.0,0.0
+15,2026-03-15T15:37:12,warning,⚠️ SNAP WARNING — $0.81 from $662. Watch for downside acceleration,662.81,662,0.8099999999999454,Below,TRANSITION,Neutral,0.0,0.0
+16,2026-03-15T15:37:26,critical,⚡ SNAP CRITICAL — $0.72 from flip at $662! Dealers about to reverse bearish,662.72,662,0.7200000000000273,Below,SNAP IMMINENT,Bearish,0.0,0.0
+17,2026-03-15T15:37:36,warning,⚠️ SNAP WARNING — $0.77 from $662. Watch for downside acceleration,662.77,662,0.7699999999999818,Below,TRANSITION,Neutral,0.0,0.0
+18,2026-03-15T15:37:46,critical,⚡ SNAP CRITICAL — $0.69 from flip at $662! Dealers about to reverse bearish,662.6868,662,0.6867999999999483,Below,SNAP IMMINENT,Bearish,0.0,0.0
+19,2026-03-15T15:38:17,warning,⚠️ SNAP WARNING — $0.77 from $662. Watch for downside acceleration,662.77,662,0.7699999999999818,Below,TRANSITION,Neutral,0.0,0.0
+20,2026-03-15T15:38:27,critical,⚡ SNAP CRITICAL — $0.57 from flip at $662! Dealers about to reverse bearish,662.57,662,0.57000000000005,Below,SNAP IMMINENT,Bearish,0.0,0.0
+21,2026-03-15T15:38:42,warning,⚠️ SNAP WARNING — $0.82 from $662. Watch for downside acceleration,662.82,662,0.82000000000005,Below,TRANSITION,Neutral,0.0,0.0
+22,2026-03-15T15:38:54,critical,⚡ SNAP CRITICAL — $0.74 from flip at $662! Dealers about to reverse bearish,662.74,662,0.7400000000000091,Below,SNAP IMMINENT,Bearish,0.0,0.0
+23,2026-03-15T15:39:15,warning,⚠️ SNAP WARNING — $0.91 from $662. Watch for downside acceleration,662.91,662,0.9099999999999682,Below,TRANSITION,Neutral,0.0,0.0
+24,2026-03-15T15:39:25,critical,⚡ SNAP CRITICAL — $0.03 from flip at $663! Dealers about to reverse bearish,663.03,663,0.029999999999972715,Below,SNAP IMMINENT,Bearish,0.0,0.0
+25,2026-03-15T15:39:36,warning,⚠️ SNAP WARNING — $0.96 from $662. Watch for downside acceleration,662.96,662,0.9600000000000364,Below,TRANSITION,Neutral,0.0,0.0
+26,2026-03-15T15:39:46,critical,⚡ SNAP CRITICAL — $0.07 from flip at $663! Dealers about to reverse bearish,663.07,663,0.07000000000005002,Below,SNAP IMMINENT,Bearish,0.0,0.0
+27,2026-03-15T15:40:47,critical,⚡ SNAP CRITICAL — $0.28 from flip at $663! Dealers about to reverse bearish,663.28,663,0.2799999999999727,Below,SNAP IMMINENT,Bearish,0.0,0.0
+28,2026-03-15T15:41:00,warning,⚠️ SNAP WARNING — $0.97 from $662. Watch for downside acceleration,662.97,662,0.9700000000000273,Below,TRANSITION,Neutral,0.0,0.0
+29,2026-03-15T15:41:13,critical,⚡ SNAP CRITICAL — $0.00 from flip at $663! Dealers about to reverse bearish,663.0,663,0.0,Below,SNAP IMMINENT,Bearish,0.0,0.0
+30,2026-03-15T15:41:23,warning,⚠️ SNAP WARNING — $0.87 from $662. Watch for downside acceleration,662.87,662,0.8700000000000045,Below,TRANSITION,Neutral,0.0,0.0
+31,2026-03-15T15:41:35,critical,⚡ SNAP CRITICAL — $0.05 from flip at $663! Dealers about to reverse bearish,663.05,663,0.049999999999954525,Below,SNAP IMMINENT,Bearish,0.0,0.0
+32,2026-03-15T15:41:54,warning,⚠️ SNAP WARNING — $0.84 from $663. Watch for downside acceleration,663.84,663,0.8400000000000318,Below,TRANSITION,Neutral,0.0,0.0
+33,2026-03-15T15:42:04,critical,⚡ SNAP CRITICAL — $0.58 from flip at $663! Dealers about to reverse bearish,663.58,663,0.5800000000000409,Below,SNAP IMMINENT,Bearish,0.0,0.0
+34,2026-03-15T15:42:32,warning,⚠️ SNAP WARNING — $0.76 from $663. Watch for downside acceleration,663.76,663,0.7599999999999909,Below,TRANSITION,Neutral,0.0,0.0
+35,2026-03-15T15:42:43,critical,⚡ SNAP CRITICAL — $0.67 from flip at $663! Dealers about to reverse bearish,663.67,663,0.6699999999999591,Below,SNAP IMMINENT,Bearish,0.0,0.0
+36,2026-03-15T15:43:05,warning,⚠️ SNAP WARNING — $0.80 from $663. Watch for downside acceleration,663.8,663,0.7999999999999545,Below,TRANSITION,Neutral,0.0,0.0
+37,2026-03-15T15:43:15,critical,⚡ SNAP CRITICAL — $0.59 from flip at $663! Dealers about to reverse bearish,663.59,663,0.5900000000000318,Below,SNAP IMMINENT,Bearish,0.0,0.0
+38,2026-03-15T15:43:32,warning,⚠️ SNAP WARNING — $0.80 from $663. Watch for downside acceleration,663.8,663,0.7999999999999545,Below,TRANSITION,Neutral,0.0,0.0
+39,2026-03-15T15:43:42,critical,⚡ SNAP CRITICAL — $0.67 from flip at $663! Dealers about to reverse bearish,663.6746,663,0.6746000000000549,Below,SNAP IMMINENT,Bearish,0.0,0.0
+40,2026-03-15T15:43:54,warning,⚠️ SNAP WARNING — $0.78 from $663. Watch for downside acceleration,663.78,663,0.7799999999999727,Below,TRANSITION,Neutral,0.0,0.0
+41,2026-03-15T15:44:04,critical,⚡ SNAP CRITICAL — $0.07 from flip at $664! Dealers about to reverse bearish,664.07,664,0.07000000000005002,Below,SNAP IMMINENT,Bearish,0.0,0.0
+42,2026-03-15T15:44:21,warning,⚠️ SNAP WARNING — $0.95 from $663. Watch for downside acceleration,663.95,663,0.9500000000000455,Below,TRANSITION,Neutral,0.0,0.0
+43,2026-03-15T15:44:32,critical,⚡ SNAP CRITICAL — $0.71 from flip at $663! Dealers about to reverse bearish,663.71,663,0.7100000000000364,Below,SNAP IMMINENT,Bearish,0.0,0.0
+44,2026-03-15T15:44:42,warning,⚠️ SNAP WARNING — $0.96 from $663. Watch for downside acceleration,663.96,663,0.9600000000000364,Below,TRANSITION,Neutral,0.0,0.0
+45,2026-03-15T15:44:55,critical,⚡ SNAP CRITICAL — $0.03 from flip at $664! Dealers about to reverse bearish,664.03,664,0.029999999999972715,Below,SNAP IMMINENT,Bearish,0.0,0.0
+46,2026-03-15T15:45:07,warning,⚠️ SNAP WARNING — $0.97 from $663. Watch for downside acceleration,663.97,663,0.9700000000000273,Below,TRANSITION,Neutral,0.0,0.0
+47,2026-03-15T15:45:17,critical,⚡ SNAP CRITICAL — $0.73 from flip at $663! Dealers about to reverse bearish,663.73,663,0.7300000000000182,Below,SNAP IMMINENT,Bearish,0.0,0.0
+48,2026-03-15T15:45:27,warning,⚠️ SNAP WARNING — $0.75 from $663. Watch for downside acceleration,663.755,663,0.7549999999999955,Below,TRANSITION,Neutral,0.0,0.0
+49,2026-03-15T15:45:37,critical,⚡ SNAP CRITICAL — $0.75 from flip at $663! Dealers about to reverse bearish,663.75,663,0.75,Below,SNAP IMMINENT,Bearish,0.0,0.0
+50,2026-03-15T15:45:47,warning,⚠️ SNAP WARNING — $0.89 from $663. Watch for downside acceleration,663.89,663,0.8899999999999864,Below,TRANSITION,Neutral,0.0,0.0
+51,2026-03-15T15:45:57,critical,⚡ SNAP CRITICAL — $0.03 from flip at $664! Dealers about to reverse bearish,664.035,664,0.03499999999996817,Below,SNAP IMMINENT,Bearish,0.0,0.0
+52,2026-03-15T15:46:09,warning,⚠️ SNAP WARNING — $0.93 from $663. Watch for downside acceleration,663.93,663,0.92999999999995,Below,TRANSITION,Neutral,0.0,0.0
+53,2026-03-15T15:46:20,critical,⚡ SNAP CRITICAL — $0.46 from flip at $663! Dealers about to reverse bearish,663.46,663,0.4600000000000364,Below,SNAP IMMINENT,Bearish,0.0,0.0
+54,2026-03-15T15:47:19,warning,⚠️ SNAP WARNING — $0.83 from $663. Watch for downside acceleration,663.83,663,0.8300000000000409,Below,TRANSITION,Neutral,0.0,0.0
+55,2026-03-15T15:47:30,critical,⚡ SNAP CRITICAL — $0.00 from flip at $664! Dealers about to reverse bearish,664.0,664,0.0,Below,SNAP IMMINENT,Bearish,0.0,0.0
+56,2026-03-15T15:48:00,warning,⚠️ SNAP WARNING — $0.77 from $664. Watch for downside acceleration,664.77,664,0.7699999999999818,Below,TRANSITION,Neutral,0.0,0.0
+57,2026-03-15T15:48:10,critical,⚡ SNAP CRITICAL — $0.28 from flip at $665! Dealers about to reverse bearish,665.285,665,0.28499999999996817,Below,SNAP IMMINENT,Bearish,0.0,0.0
+58,2026-03-15T15:49:10,critical,⚡ SNAP CRITICAL — $0.32 from flip at $665! Dealers about to reverse bearish,665.32,665,0.32000000000005,Below,SNAP IMMINENT,Bearish,0.0,0.0
+59,2026-03-15T15:49:20,warning,⚠️ SNAP WARNING — $0.89 from $664. Watch for downside acceleration,664.89,664,0.8899999999999864,Below,TRANSITION,Neutral,0.0,0.0
+60,2026-03-15T15:49:31,critical,⚡ SNAP CRITICAL — $0.04 from flip at $665! Dealers about to reverse bearish,665.04,665,0.03999999999996362,Below,SNAP IMMINENT,Bearish,0.0,0.0
+61,2026-03-15T15:50:31,critical,⚡ SNAP CRITICAL — $0.25 from flip at $665! Dealers about to reverse bearish,665.2507,665,0.25070000000005166,Below,SNAP IMMINENT,Bearish,0.0,0.0
+62,2026-03-15T15:51:19,warning,⚠️ SNAP WARNING — $0.95 from $664. Watch for downside acceleration,664.95,664,0.9500000000000455,Below,TRANSITION,Neutral,0.0,0.0
+63,2026-03-15T15:51:29,critical,⚡ SNAP CRITICAL — $0.71 from flip at $664! Dealers about to reverse bearish,664.71,664,0.7100000000000364,Below,SNAP IMMINENT,Bearish,0.0,0.0
+64,2026-03-15T15:51:49,warning,⚠️ SNAP WARNING — $0.79 from $664. Watch for downside acceleration,664.79,664,0.7899999999999636,Below,TRANSITION,Neutral,0.0,0.0
+65,2026-03-15T15:52:02,critical,⚡ SNAP CRITICAL — $0.68 from flip at $664! Dealers about to reverse bearish,664.68,664,0.67999999999995,Below,SNAP IMMINENT,Bearish,0.0,0.0
+66,2026-03-15T15:52:23,warning,⚠️ SNAP WARNING — $0.95 from $663. Watch for downside acceleration,663.95,663,0.9500000000000455,Below,TRANSITION,Neutral,0.0,0.0
+67,2026-03-15T15:52:37,critical,⚡ SNAP CRITICAL — $0.02 from flip at $664! Dealers about to reverse bearish,664.02,664,0.01999999999998181,Below,SNAP IMMINENT,Bearish,0.0,0.0
+68,2026-03-15T15:52:47,warning,⚠️ SNAP WARNING — $0.93 from $663. Watch for downside acceleration,663.93,663,0.92999999999995,Below,TRANSITION,Neutral,0.0,0.0
+69,2026-03-15T15:53:15,critical,⚡ SNAP CRITICAL — $0.00 from flip at $664! Dealers about to reverse bearish,664.0,664,0.0,Below,SNAP IMMINENT,Bearish,0.0,0.0
+1,2026-03-15T15:56:20,warning,⚠️ SNAP WARNING — $0.99 from $663. Watch for downside acceleration,663.985,663,0.9850000000000136,Below,TRANSITION,Neutral,0.0,0.0
+2,2026-03-15T15:56:30,critical,⚡ SNAP CRITICAL — $0.41 from flip at $664! Dealers about to reverse bearish,664.41,664,0.40999999999996817,Below,SNAP IMMINENT,Bearish,0.0,0.0
+3,2026-03-15T15:56:40,warning,⚠️ SNAP WARNING — $0.85 from $664. Watch for downside acceleration,664.85,664,0.8500000000000227,Below,TRANSITION,Neutral,0.0,0.0
+4,2026-03-15T15:56:58,critical,⚡ SNAP CRITICAL — $0.02 from flip at $665! Dealers about to reverse bearish,665.02,665,0.01999999999998181,Below,SNAP IMMINENT,Bearish,0.0,0.0
+5,2026-03-15T15:57:09,warning,⚠️ SNAP WARNING — $0.77 from $664. Watch for downside acceleration,664.77,664,0.7699999999999818,Below,TRANSITION,Neutral,0.0,0.0
+6,2026-03-15T15:57:19,critical,⚡ SNAP CRITICAL — $0.69 from flip at $664! Dealers about to reverse bearish,664.6878,664,0.6878000000000384,Below,SNAP IMMINENT,Bearish,0.0,0.0
+7,2026-03-15T15:57:42,warning,⚠️ SNAP WARNING — $0.76 from $664. Watch for downside acceleration,664.76,664,0.7599999999999909,Below,TRANSITION,Neutral,0.0,0.0
+8,2026-03-15T15:58:03,critical,⚡ SNAP CRITICAL — $0.75 from flip at $664! Dealers about to reverse bearish,664.75,664,0.75,Below,SNAP IMMINENT,Bearish,0.0,0.0
+9,2026-03-15T15:58:13,warning,⚠️ SNAP WARNING — $0.81 from $664. Watch for downside acceleration,664.81,664,0.8099999999999454,Below,TRANSITION,Neutral,0.0,0.0
+10,2026-03-15T15:58:34,critical,⚡ SNAP CRITICAL — $0.75 from flip at $664! Dealers about to reverse bearish,664.75,664,0.75,Below,SNAP IMMINENT,Bearish,0.0,0.0
+11,2026-03-15T15:59:03,warning,⚠️ SNAP WARNING — $0.78 from $664. Watch for downside acceleration,664.78,664,0.7799999999999727,Below,TRANSITION,Neutral,0.0,0.0
+12,2026-03-15T15:59:13,critical,⚡ SNAP CRITICAL — $0.73 from flip at $664! Dealers about to reverse bearish,664.73,664,0.7300000000000182,Below,SNAP IMMINENT,Bearish,0.0,0.0
+13,2026-03-15T15:59:23,warning,⚠️ SNAP WARNING — $0.95 from $664. Watch for downside acceleration,664.95,664,0.9500000000000455,Below,TRANSITION,Neutral,0.0,0.0
+14,2026-03-15T15:59:33,critical,⚡ SNAP CRITICAL — $0.12 from flip at $665! Dealers about to reverse bearish,665.12,665,0.12000000000000455,Below,SNAP IMMINENT,Bearish,0.0,0.0
+15,2026-03-15T15:59:43,warning,⚠️ SNAP WARNING — $0.87 from $664. Watch for downside acceleration,664.87,664,0.8700000000000045,Below,TRANSITION,Neutral,0.0,0.0
+16,2026-03-15T15:59:54,critical,⚡ SNAP CRITICAL — $0.02 from flip at $665! Dealers about to reverse bearish,665.02,665,0.01999999999998181,Below,SNAP IMMINENT,Bearish,0.0,0.0
+17,2026-03-15T16:00:06,warning,⚠️ SNAP WARNING — $0.99 from $664. Watch for downside acceleration,664.99,664,0.9900000000000091,Below,TRANSITION,Neutral,0.0,0.0
+18,2026-03-15T16:00:16,critical,⚡ SNAP CRITICAL — $0.01 from flip at $665! Dealers about to reverse bearish,665.01,665,0.009999999999990905,Below,SNAP IMMINENT,Bearish,0.0,0.0
+19,2026-03-15T16:00:27,warning,⚠️ SNAP WARNING — $0.94 from $664. Watch for downside acceleration,664.94,664,0.9400000000000546,Below,TRANSITION,Neutral,0.0,0.0
+20,2026-03-15T16:01:05,critical,⚡ SNAP CRITICAL — $0.05 from flip at $665! Dealers about to reverse bearish,665.05,665,0.049999999999954525,Below,SNAP IMMINENT,Bearish,0.0,0.0
+21,2026-03-15T16:01:21,warning,⚠️ SNAP WARNING — $0.99 from $664. Watch for downside acceleration,664.99,664,0.9900000000000091,Below,TRANSITION,Neutral,0.0,0.0
+22,2026-03-15T16:01:31,critical,⚡ SNAP CRITICAL — $0.09 from flip at $665! Dealers about to reverse bearish,665.09,665,0.09000000000003183,Below,SNAP IMMINENT,Bearish,0.0,0.0
+23,2026-03-15T16:01:47,warning,⚠️ SNAP WARNING — $0.80 from $665. Watch for downside acceleration,665.8,665,0.7999999999999545,Below,TRANSITION,Neutral,0.0,0.0
+24,2026-03-15T16:01:57,critical,⚡ SNAP CRITICAL — $0.02 from flip at $666! Dealers about to reverse bearish,666.02,666,0.01999999999998181,Below,SNAP IMMINENT,Bearish,0.0,0.0
+25,2026-03-15T16:02:07,warning,⚠️ SNAP WARNING — $0.83 from $665. Watch for downside acceleration,665.83,665,0.8300000000000409,Below,TRANSITION,Neutral,0.0,0.0
+26,2026-03-15T16:02:17,critical,⚡ SNAP CRITICAL — $0.69 from flip at $665! Dealers about to reverse bearish,665.69,665,0.6900000000000546,Below,SNAP IMMINENT,Bearish,0.0,0.0
+27,2026-03-15T16:02:30,warning,⚠️ SNAP WARNING — $0.79 from $665. Watch for downside acceleration,665.7899,665,0.7898999999999887,Below,TRANSITION,Neutral,0.0,0.0
+28,2026-03-15T16:02:40,critical,⚡ SNAP CRITICAL — $0.72 from flip at $665! Dealers about to reverse bearish,665.72,665,0.7200000000000273,Below,SNAP IMMINENT,Bearish,0.0,0.0
+29,2026-03-15T16:02:51,warning,⚠️ SNAP WARNING — $0.76 from $665. Watch for downside acceleration,665.76,665,0.7599999999999909,Below,TRANSITION,Neutral,0.0,0.0

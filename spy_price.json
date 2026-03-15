@@ -1,14 +1,14 @@
 {
   "symbol": "SPY",
-  "last": 662.29,
-  "bid": 663.05,
-  "ask": 663.1,
-  "mark": 663.05,
-  "volume": 97200242.0,
-  "bid_size": 80.0,
-  "ask_size": 40.0,
-  "tick": 312922,
-  "timestamp": "2026-03-15T11:00:19.548",
-  "expiry": "2026-03-13",
-  "test_mode": false
+  "last": 665.8564,
+  "bid": 665.83,
+  "ask": 665.86,
+  "mark": 665.856,
+  "volume": 23159640.0,
+  "bid_size": 240.0,
+  "ask_size": 120.0,
+  "tick": 481,
+  "timestamp": "2026-03-15T16:03:06.436",
+  "expiry": "2025-03-09",
+  "test_mode": true
 }

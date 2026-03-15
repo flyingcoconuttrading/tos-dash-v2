@@ -227,7 +227,7 @@ class ScalpAdvisor:
             for opt_type in ("Call", "Put"):
                 marker = "C" if opt_type == "Call" else "P"
                 try:
-                    sym = next(s for s in option_symbols if f'{marker}{strike}' in s)
+                    sym = next(s for s in option_symbols if s.endswith(f'{marker}{strike}'))
                 except StopIteration:
                     continue
 
@@ -406,21 +406,25 @@ class ScalpAdvisor:
     ) -> tuple[bool, float]:
         """
         Returns (is_surging, ratio).
-        is_surging = True if:
-          - current vol >= mult × rolling avg of last DEFAULT_VOL_TICKS ticks AND
-          - the baseline has at least 2 ticks (avoid false positive on first tick)
-        ratio = current / baseline (1.0 if no baseline)
+        TOS VOLUME is cumulative (total contracts today), so we compute
+        per-tick deltas before comparing current activity to baseline.
+        is_surging = True if current tick delta >= mult × avg of prior deltas.
+        ratio = current_delta / baseline_avg (1.0 if no baseline).
         """
         self._update_vol_history(sym, vol)
         history = self._vol_history.get(sym)
         if not history or len(history) < 2:
             return False, 1.0
-        # baseline = avg of all but the most recent tick
-        baseline_ticks = list(history)[:-1]
-        baseline = sum(baseline_ticks) / len(baseline_ticks)
+        items = list(history)
+        # Convert cumulative volumes to per-tick deltas; EOD resets → 0
+        deltas = [max(items[i] - items[i - 1], 0) for i in range(1, len(items))]
+        if len(deltas) < 2:
+            return False, 1.0
+        current_delta = deltas[-1]
+        baseline = sum(deltas[:-1]) / len(deltas[:-1])
         if baseline <= 0:
             return False, 1.0
-        ratio = vol / baseline
+        ratio = current_delta / baseline
         return ratio >= mult, round(ratio, 2)
 
     def _update_candle(self, price: float, now: object):
@@ -507,12 +511,12 @@ class ScalpAdvisor:
     # ------------------------------------------------------------------
 
     def _net_gex_at_price(self, data, strikes, option_symbols, price) -> float:
-        nearest = sorted(strikes, key=lambda s: abs(s - price))[:3]
+        # Use all strikes for consistency with market_structure.analyze()
         total = 0.0
-        for strike in nearest:
+        for strike in strikes:
             try:
-                cs = next(s for s in option_symbols if f'C{strike}' in s)
-                ps = next(s for s in option_symbols if f'P{strike}' in s)
+                cs = next(s for s in option_symbols if s.endswith(f'C{strike}'))
+                ps = next(s for s in option_symbols if s.endswith(f'P{strike}'))
                 total += ((self._sf(data, f"{cs}:OPEN_INT") * self._sf(data, f"{cs}:GAMMA")) -
                           (self._sf(data, f"{ps}:OPEN_INT") * self._sf(data, f"{ps}:GAMMA"))) \
                          * 100 * price * price * 0.01
@@ -521,12 +525,12 @@ class ScalpAdvisor:
         return total
 
     def _net_dex_near_price(self, data, strikes, option_symbols, price) -> float:
-        nearest = sorted(strikes, key=lambda s: abs(s - price))[:5]
+        # Use all strikes for consistency with market_structure.analyze()
         total = 0.0
-        for strike in nearest:
+        for strike in strikes:
             try:
-                cs = next(s for s in option_symbols if f'C{strike}' in s)
-                ps = next(s for s in option_symbols if f'P{strike}' in s)
+                cs = next(s for s in option_symbols if s.endswith(f'C{strike}'))
+                ps = next(s for s in option_symbols if s.endswith(f'P{strike}'))
                 total += (self._sf(data, f"{cs}:OPEN_INT") * self._sf(data, f"{cs}:DELTA") +
                           self._sf(data, f"{ps}:OPEN_INT") * self._sf(data, f"{ps}:DELTA")) \
                          * 100 * price

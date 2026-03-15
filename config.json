@@ -11,7 +11,7 @@
   "ema_ticks": 4,
   "sma_ticks": 18,
   "poll_ms": 500,
-  "test_mode": false,
+  "test_mode": true,
   "test_date": "2025-03-09",
   "risk_cap": 2.0,
   "stop_pct": 0.5,

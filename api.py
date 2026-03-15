@@ -59,6 +59,7 @@ from scalp_advisor import ScalpAdvisor
 volume_tracker  = VolumeTracker()
 scalp_advisor   = ScalpAdvisor()
 cfg_snapshot    = {}   # latest config, shared with idea_logger
+_last_snapshot: dict = {}   # cached by tick_loop; served by GET /snapshot
 
 # SPY volume tracker — rolling tick volume rate
 _spy_vol_history: deque = deque(maxlen=50)
@@ -88,8 +89,10 @@ def _reconfigure_advisor(cfg: dict):
     sma = cfg.get('sma_ticks', 20)
     # EMA ticks -> price history window (direction detection)
     scalp_advisor._price_history = deque(scalp_advisor._price_history, maxlen=ema)
-    # SMA ticks -> score smoothing window (rebuild history with new maxlen)
-    for sym in scalp_advisor._score_history:
+    # SMA ticks -> score smoothing window (rebuild history with new maxlen).
+    # Iterate list(keys()) so a concurrent tick adding a new symbol mid-loop
+    # cannot raise RuntimeError: dictionary changed size during iteration.
+    for sym in list(scalp_advisor._score_history.keys()):
         scalp_advisor._score_history[sym] = deque(scalp_advisor._score_history[sym], maxlen=sma)
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -280,7 +283,11 @@ def build_snapshot() -> dict:
 
     try:
         volume_tracker.update(data, option_symbols)
-        surge_df   = volume_tracker.get_surge_table()
+        surge_df   = volume_tracker.get_surge_table(
+            threshold_pct = cfg.get("surge_threshold", 50.0),
+            ema_span      = cfg.get("ema_ticks", 3),
+            sma_window    = cfg.get("sma_ticks", 20),
+        )
         surge_syms = set(surge_df["Symbol"].tolist()) if not surge_df.empty else set()
     except Exception:
         surge_syms = set()
@@ -488,7 +495,9 @@ def get_chain():
 
 @app.get("/snapshot")
 def get_snapshot():
-    return build_snapshot()
+    # Return the last snapshot built by tick_loop to avoid double-advancing
+    # advisor/tracker/logger state on every REST poll.
+    return _last_snapshot if _last_snapshot else build_snapshot()
 
 @app.get("/config")
 def get_config():
@@ -546,11 +555,13 @@ async def websocket_stream(ws: WebSocket):
         logger.info(f"WS client disconnected ({len(subscribers)} total)")
 
 async def tick_loop():
+    global _last_snapshot
     last_tick = -1
     last_send = 0
     while True:
         try:
             snap = build_snapshot()
+            _last_snapshot = snap   # cache for GET /snapshot
             tick = snap.get("tick", -1)
             now  = asyncio.get_event_loop().time()
             # Always build snapshot (keeps advisor/tracker state warm)

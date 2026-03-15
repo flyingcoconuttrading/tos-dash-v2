@@ -735,6 +735,245 @@ header {
 .chain-table td.vol-cell { font-size: 11px; color: var(--text); }
 .chain-table td.oi-cell  { font-size: 11px; color: var(--text); }
 
+/* ══════════════════ AI FEATURES ══════════════════ */
+
+/* Auto-commentary bar */
+.ai-commentary {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 9px 20px;
+  background: rgba(0,212,255,0.03);
+  border-bottom: 1px solid rgba(0,212,255,0.10);
+  flex-shrink: 0;
+  min-height: 38px;
+  cursor: pointer;
+}
+.ai-commentary:hover { background: rgba(0,212,255,0.055); }
+.ai-commentary-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding-top: 2px;
+  flex-shrink: 0;
+  user-select: none;
+}
+.ai-commentary-text {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.55;
+  flex: 1;
+}
+.ai-commentary-text.muted { color: var(--muted); font-style: italic; }
+.ai-commentary-age {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  white-space: nowrap;
+  padding-top: 3px;
+  flex-shrink: 0;
+}
+.ai-commentary-pause {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 0;
+  padding: 1px 5px;
+  cursor: pointer;
+  flex-shrink: 0;
+  align-self: center;
+  line-height: 1.4;
+  opacity: 0.7;
+}
+.ai-commentary-pause:hover { opacity: 1; }
+.ai-inline-spinner {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border: 1.5px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+/* AI chat sidebar */
+.ai-chat-sidebar {
+  position: fixed;
+  top: 44px;
+  right: 0;
+  width: 390px;
+  height: calc(100vh - 44px);
+  background: #080b0f;
+  border-left: 1px solid rgba(0,212,255,0.16);
+  display: flex;
+  flex-direction: column;
+  z-index: 500;
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: -8px 0 32px rgba(0,0,0,0.5);
+}
+.ai-chat-sidebar.open { transform: translateX(0); }
+
+.ai-chat-header {
+  display: flex;
+  align-items: center;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  flex-shrink: 0;
+  background: var(--panel);
+}
+.ai-chat-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  text-transform: uppercase;
+  flex: 1;
+}
+.ai-chat-model-tag {
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+.ai-chat-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  transition: color 0.15s;
+  line-height: 1;
+}
+.ai-chat-close:hover { color: var(--text); }
+
+.ai-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 14px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.ai-chat-bubble {
+  padding: 10px 13px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ai-chat-bubble.user {
+  background: rgba(0,212,255,0.07);
+  border: 1px solid rgba(0,212,255,0.14);
+  color: var(--text);
+  font-family: var(--sans);
+  align-self: flex-end;
+  max-width: 90%;
+}
+.ai-chat-bubble.assistant {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--sans);
+  align-self: flex-start;
+}
+.ai-chat-bubble.sys {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  text-align: center;
+  padding: 2px 0;
+  align-self: center;
+}
+.ai-chat-thinking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 6px 4px;
+  align-self: flex-start;
+}
+
+.ai-chat-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  background: #080b0f;
+  align-items: flex-end;
+}
+.ai-chat-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 12px;
+  padding: 8px 10px;
+  outline: none;
+  resize: none;
+  min-height: 36px;
+  max-height: 110px;
+  line-height: 1.5;
+  transition: border-color 0.15s;
+}
+.ai-chat-input:focus { border-color: var(--accent); }
+.ai-chat-input::placeholder { color: var(--muted); }
+
+.ai-chat-send {
+  background: rgba(0,212,255,0.09);
+  border: 1px solid rgba(0,212,255,0.28);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.15s;
+  height: 36px;
+  flex-shrink: 0;
+}
+.ai-chat-send:hover:not(:disabled) { background: rgba(0,212,255,0.18); }
+.ai-chat-send:disabled { opacity: 0.38; cursor: not-allowed; }
+
+/* AI nav toggle button */
+.ai-nav-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 4px 11px;
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--accent);
+  border: 1px solid rgba(0,212,255,0.28);
+  background: rgba(0,212,255,0.05);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.ai-nav-btn:hover { background: rgba(0,212,255,0.12); }
+.ai-nav-btn.active { background: rgba(0,212,255,0.16); border-color: var(--accent); }
+
 /* Call/Put wall row highlight */
 .chain-table tr.call-wall-row td { background: rgba(0,230,118,0.10) !important; }
 .chain-table tr.call-wall-row td.strike-cell { background: rgba(0,230,118,0.25) !important; color:#00ff88; }
@@ -759,6 +998,7 @@ header {
     <button class="nav-tab" onclick="showPage('ideas')">IDEA LOG</button>
     <button class="nav-tab" onclick="showPage('settings')">SETTINGS</button>
   </nav>
+  <button class="ai-nav-btn" id="aiToggleBtn" onclick="toggleAIChat()">AI CHAT</button>
   <div class="header-right">
     <div class="status-dot" id="statusDot"></div>
     <span class="status-txt" id="statusTxt">CONNECTING</span>
@@ -771,6 +1011,13 @@ header {
 
 <!-- ══ DASHBOARD PAGE ══ -->
 <div class="page active" id="pageDashboard">
+
+  <div class="ai-commentary" id="aiCommentaryBar" onclick="refreshAICommentary(true)" title="Click to refresh">
+    <div class="ai-commentary-label">AI</div>
+    <div class="ai-commentary-text muted" id="aiCommentaryText">Add API key in Settings to enable auto-commentary.</div>
+    <div class="ai-commentary-age" id="aiCommentaryAge"></div>
+    <button class="ai-commentary-pause" id="aiCommentaryPauseBtn" onclick="event.stopPropagation(); toggleAICommentaryPause()">⏸ PAUSE</button>
+  </div>
 
   <div class="price-hero">
     <div class="spy-price-block">
@@ -1309,6 +1556,21 @@ header {
   </div>
 </div>
 
+<!-- ══ AI CHAT SIDEBAR ══ -->
+<div class="ai-chat-sidebar" id="aiChatSidebar">
+  <div class="ai-chat-header">
+    <span class="ai-chat-title">AI ASSISTANT</span>
+    <span class="ai-chat-model-tag">claude-sonnet-4-5</span>
+    <button class="ai-chat-close" onclick="toggleAIChat()" title="Close">✕</button>
+  </div>
+  <div class="ai-chat-messages" id="aiChatMessages"></div>
+  <div class="ai-chat-input-row">
+    <input class="ai-chat-input" id="aiChatInput" type="text" placeholder="Ask about current market conditions…"
+           onkeydown="if(event.key==='Enter')sendAIChat()">
+    <button class="ai-chat-send" onclick="sendAIChat()">▶</button>
+  </div>
+</div>
+
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <script>
 const API = 'http://127.0.0.1:8001';
@@ -1374,6 +1636,10 @@ function update(snap) {
   if (document.getElementById('pageChain')?.classList.contains('active')) {
     renderChain();
   }
+
+  // AI commentary — fire on first snap, then every ~60s
+  if (_aiFirstSnap) { _aiFirstSnap = false; refreshAICommentary(); }
+  else { refreshAICommentary(); }
 
   const ms = snap.market_structure || {};
 
@@ -2341,6 +2607,222 @@ async function loadIdeas() {
       </table>`;
   } catch(e) {
     container.innerHTML = `<div class="trades-empty">Error loading ideas: ${e}</div>`;
+  }
+}
+
+// ── AI Features ───────────────────────────────────────────────────────────────
+
+const AI_SYSTEM_PROMPT = `You are an expert options scalp trading assistant monitoring SPY in real time.
+You have access to live Greeks data, GEX/DEX regime metrics, option walls, max pain, snap levels, and the current scalp idea queue.
+
+Key concepts:
+- GEX (Gamma Exposure): negative = trending market, positive = pinned/mean-reverting market
+- DEX (Delta Exposure): positive = bearish dealer hedging pressure (dealers short delta), negative = bullish
+- Max Pain: price where option sellers (MMs) lose least — price tends to gravitate toward it near expiry
+- Snap Level: price where dealer delta-hedging flips direction — crossing it can accelerate a move
+- Call Wall / Put Wall: strikes with highest call/put open interest — act as resistance/support
+- Scalp Score: 0-100 composite ranking of option contracts for scalp suitability (GEX regime, direction, proximity to levels, volume surge, Greeks)
+- TRENDING regime: GEX < 0 — breakouts sustained, momentum favored
+- PINNED regime: GEX > 0 — reversals favored, fade extremes
+- TRANSITION regime: GEX near zero — expect volatility, avoid large size
+
+When answering:
+- Be specific about price levels, walls, and regime
+- Note whether current conditions favor calls, puts, or neither
+- Flag if price is near a key level (snap, max pain, call/put wall)
+- Keep responses concise and actionable for a scalper`;
+
+const AI_USER_PROMPT = "In 2-3 sentences, summarize current market conditions and whether calls, puts, or neither are favored right now. Be specific about price vs walls.";
+
+let _aiFirstSnap = true;
+let _aiLastRefresh = 0;
+let _aiCommentaryPaused = false;
+
+function toggleAICommentaryPause() {
+  _aiCommentaryPaused = !_aiCommentaryPaused;
+  const btn = document.getElementById('aiCommentaryPauseBtn');
+  if (btn) btn.textContent = _aiCommentaryPaused ? '▶ RESUME' : '⏸ PAUSE';
+}
+let _aiChatHistory = [];
+
+function _buildSnapshotContext(snap) {
+  if (!snap) return "No snapshot available.";
+  const ms = snap.market_structure || {};
+  const ideas = (snap.ideas || []).slice(0, 5);
+  const walls = snap.walls || {};
+  const lines = [
+    `=== LIVE SNAPSHOT ===`,
+    `Price: ${snap.price ?? '--'}  Bid: ${snap.bid ?? '--'}  Ask: ${snap.ask ?? '--'}`,
+    `Timestamp: ${snap.timestamp ?? '--'}  Tick: ${snap.tick ?? '--'}`,
+    ``,
+    `=== MARKET STRUCTURE ===`,
+    `GEX Regime: ${ms.regime ?? '--'}`,
+    `Net GEX: ${ms.net_gex ?? '--'}`,
+    `Net DEX: ${ms.net_dex ?? '--'}`,
+    `Snap Level: ${ms.snap_level ?? '--'}  (${ms.snap_direction ?? '--'} price)`,
+    `GEX Direction: ${ms.gex_direction ?? '--'}`,
+    `DEX Direction: ${ms.dex_direction ?? '--'}`,
+    `Alert Zone: ${ms.alert_zone ?? 'normal'}`,
+    `Invalidation: ${ms.invalidation ?? '--'}`,
+    ``,
+    `=== LEVELS ===`,
+    `Max Pain: ${snap.max_pain ?? '--'}`,
+    `Call Wall: ${walls.call_wall ?? '--'}  (OI: ${walls.call_wall_oi ?? '--'})`,
+    `Put Wall: ${walls.put_wall ?? '--'}  (OI: ${walls.put_wall_oi ?? '--'})`,
+    ``,
+    `=== TOP SCALP IDEAS ===`,
+  ];
+  if (ideas.length === 0) {
+    lines.push("No active ideas.");
+  } else {
+    ideas.forEach((idea, i) => {
+      lines.push(`${i+1}. ${idea.symbol ?? '--'} | Score: ${idea.score ?? '--'} | ${idea.status ?? '--'} | Entry: ${idea.entry_price ?? '--'}`);
+    });
+  }
+  const surges = snap.volume_surges || [];
+  if (surges.length > 0) {
+    lines.push(``, `=== VOLUME SURGES ===`);
+    surges.slice(0,5).forEach(s => {
+      lines.push(`${s.symbol ?? '--'}  ratio: ${s.ratio?.toFixed(2) ?? '--'}x`);
+    });
+  }
+  return lines.join('\n');
+}
+
+function _buildCompactContext(snap) {
+  if (!snap) return '';
+  const ms = snap.market_structure || {};
+  return `[Price: ${snap.price ?? '--'} | Regime: ${ms.regime ?? '--'} | GEX: ${ms.net_gex ?? '--'} | Snap: ${ms.snap_level ?? '--'} (${ms.snap_direction ?? '--'})]`;
+}
+
+async function _callClaude(messages, maxTokens = 300) {
+  const apiKey = localStorage.getItem('ai_api_key') || '';
+  if (!apiKey) throw new Error('NO_KEY');
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: maxTokens,
+      system: AI_SYSTEM_PROMPT,
+      messages,
+    }),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${resp.status}`);
+  }
+  const data = await resp.json();
+  return data.content?.[0]?.text ?? '';
+}
+
+// Auto-commentary
+async function refreshAICommentary(force = false) {
+  if (!force && _aiCommentaryPaused) return;
+  const now = Date.now();
+  if (!force && now - _aiLastRefresh < 58000) return;
+  const apiKey = localStorage.getItem('ai_api_key') || '';
+  const textEl = document.getElementById('aiCommentaryText');
+  const ageEl  = document.getElementById('aiCommentaryAge');
+  if (!textEl) return;
+  if (!apiKey) {
+    textEl.className = 'ai-commentary-text muted';
+    textEl.textContent = 'Add API key in Settings to enable auto-commentary.';
+    ageEl.textContent = '';
+    return;
+  }
+  _aiLastRefresh = now;
+  textEl.className = 'ai-commentary-text';
+  textEl.innerHTML = '<span class="ai-inline-spinner"></span>';
+  ageEl.textContent = '';
+  try {
+    const ctx = _buildSnapshotContext(_chainSnap);
+    const reply = await _callClaude([
+      { role: 'user', content: `${ctx}\n\n${AI_USER_PROMPT}` },
+    ], 200);
+    textEl.textContent = reply;
+    const refreshTime = new Date();
+    ageEl.textContent = refreshTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  } catch(e) {
+    textEl.className = 'ai-commentary-text muted';
+    textEl.textContent = e.message === 'NO_KEY' ? 'Add API key in Settings.' : `Error: ${e.message}`;
+    ageEl.textContent = '';
+  }
+}
+
+// Chat sidebar
+function toggleAIChat() {
+  const sidebar = document.getElementById('aiChatSidebar');
+  const btn = document.getElementById('aiToggleBtn');
+  const isOpen = sidebar.classList.toggle('open');
+  btn.classList.toggle('active', isOpen);
+  if (isOpen && _aiChatHistory.length === 0) {
+    _appendChatMsg('sys', 'Connected. Ask about current market conditions, levels, or trade ideas.');
+  }
+  if (isOpen) {
+    document.getElementById('aiChatInput')?.focus();
+  }
+}
+
+function _appendChatMsg(role, text) {
+  const msgs = document.getElementById('aiChatMessages');
+  if (!msgs) return;
+  const div = document.createElement('div');
+  div.className = `ai-chat-bubble ${role}`;
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function _appendThinking() {
+  const msgs = document.getElementById('aiChatMessages');
+  if (!msgs) return null;
+  const div = document.createElement('div');
+  div.className = 'ai-chat-thinking';
+  div.innerHTML = '<span></span><span></span><span></span>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+async function sendAIChat() {
+  const input = document.getElementById('aiChatInput');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  const apiKey = localStorage.getItem('ai_api_key') || '';
+  if (!apiKey) {
+    _appendChatMsg('sys', 'Add your API key in Settings to use AI Chat.');
+    return;
+  }
+  input.value = '';
+  _appendChatMsg('user', text);
+
+  // Build message array with context injection on first user turn
+  let userContent = text;
+  if (_aiChatHistory.length === 0) {
+    userContent = `${_buildSnapshotContext(_chainSnap)}\n\n${text}`;
+  } else {
+    userContent = `${_buildCompactContext(_chainSnap)}\n\n${text}`;
+  }
+  _aiChatHistory.push({ role: 'user', content: userContent });
+
+  const thinking = _appendThinking();
+  try {
+    const reply = await _callClaude([..._aiChatHistory], 500);
+    thinking?.remove();
+    _aiChatHistory.push({ role: 'assistant', content: reply });
+    _appendChatMsg('assistant', reply);
+  } catch(e) {
+    thinking?.remove();
+    const msg = e.message === 'NO_KEY' ? 'Add API key in Settings.' : `Error: ${e.message}`;
+    _appendChatMsg('sys', msg);
+    _aiChatHistory.pop(); // remove failed user message
   }
 }
 

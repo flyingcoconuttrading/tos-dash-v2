@@ -57620,3 +57620,217 @@ TypeError: tuple indices must be integers or slices, not str
 2026-03-15 14:01:46 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:166 - Writer started (PID 69560)
 2026-03-15 14:01:46 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:538 - WS client connected (1 total)
 2026-03-15 14:01:51 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:546 - WS client disconnected (0 total)
+2026-03-15 15:02:49 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:143 - IdeaLogger v2.1 initialised — C:\Users\randy\tos-dash-v2\data\ideas.db
+2026-03-15 15:02:49 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:82 - tos-dash-v2 starting up — root=C:\Users\randy\tos-dash-v2
+2026-03-15 15:02:49 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:658 - Starting tos-dash-v2 on http://127.0.0.1:8001
+2026-03-15 15:02:49 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:659 - Dashboard: http://127.0.0.1:8001/
+2026-03-15 15:02:49 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:660 - Config:    http://127.0.0.1:8001/config
+2026-03-15 15:02:49 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:159 - Starting spy_writer.py...
+2026-03-15 15:02:49 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:166 - Writer started (PID 81136)
+2026-03-15 15:02:51 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:538 - WS client connected (1 total)
+2026-03-15 15:02:54 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:546 - WS client disconnected (0 total)
+2026-03-15 15:13:06 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:143 - IdeaLogger v2.1 initialised — C:\Users\randy\tos-dash-v2\data\ideas.db
+2026-03-15 15:13:06 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:83 - tos-dash-v2 starting up — root=C:\Users\randy\tos-dash-v2
+2026-03-15 15:13:06 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:669 - Starting tos-dash-v2 on http://127.0.0.1:8001
+2026-03-15 15:13:06 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:670 - Dashboard: http://127.0.0.1:8001/
+2026-03-15 15:13:06 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:671 - Config:    http://127.0.0.1:8001/config
+2026-03-15 15:13:06 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:162 - Starting spy_writer.py...
+2026-03-15 15:13:06 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:169 - Writer started (PID 10716)
+2026-03-15 15:13:10 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:547 - WS client connected (1 total)
+2026-03-15 15:14:09 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:555 - WS client disconnected (0 total)
+2026-03-15 15:14:11 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:143 - IdeaLogger v2.1 initialised — C:\Users\randy\tos-dash-v2\data\ideas.db
+2026-03-15 15:14:11 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:83 - tos-dash-v2 starting up — root=C:\Users\randy\tos-dash-v2
+2026-03-15 15:14:11 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:669 - Starting tos-dash-v2 on http://127.0.0.1:8001
+2026-03-15 15:14:11 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:670 - Dashboard: http://127.0.0.1:8001/
+2026-03-15 15:14:11 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:671 - Config:    http://127.0.0.1:8001/config
+2026-03-15 15:14:11 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:162 - Starting spy_writer.py...
+2026-03-15 15:14:11 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:169 - Writer started (PID 22800)
+2026-03-15 15:14:12 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:547 - WS client connected (1 total)
+2026-03-15 15:14:13 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=662.29  ⚡ SNAP CRITICAL — $0.29 from flip at $662! Dealers about to reverse bearish
+2026-03-15 15:14:14 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:333 - IDEA #533 SURFACED  .SPY260313C660  score=60.7  mark=1.75  spy=662.29  delta=1.00
+2026-03-15 15:14:14 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:333 - IDEA #534 SURFACED  .SPY260313C661  score=59.2  mark=0.77  spy=662.29  delta=1.00
+2026-03-15 15:14:50 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:547 - WS client connected (2 total)
+2026-03-15 15:15:43 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:154 - Stopping existing writer process...
+2026-03-15 15:15:43 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:162 - Starting spy_writer.py...
+2026-03-15 15:15:43 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:169 - Writer started (PID 10212)
+2026-03-15 15:15:45 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.77  ⚠️ SNAP WARNING — $0.77 from $663. Watch for downside acceleration
+2026-03-15 15:15:57 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.75  ⚡ SNAP CRITICAL — $0.75 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:16:19 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.83  ⚠️ SNAP WARNING — $0.83 from $663. Watch for downside acceleration
+2026-03-15 15:16:29 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.60  ⚡ SNAP CRITICAL — $0.60 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:17:29 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.51  ⚡ SNAP CRITICAL — $0.51 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:17:44 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.90  ⚠️ SNAP WARNING — $0.90 from $663. Watch for downside acceleration
+2026-03-15 15:17:55 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.74  ⚡ SNAP CRITICAL — $0.74 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:18:55 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.17  ⚡ SNAP CRITICAL — $0.17 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:19:06 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=662.77  ⚠️ SNAP WARNING — $0.77 from $662. Watch for downside acceleration
+2026-03-15 15:19:23 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.15  ⚡ SNAP CRITICAL — $0.15 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:20:10 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=662.93  ⚠️ SNAP WARNING — $0.93 from $662. Watch for downside acceleration
+2026-03-15 15:20:21 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=662.74  ⚡ SNAP CRITICAL — $0.74 from flip at $662! Dealers about to reverse bearish
+2026-03-15 15:20:40 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.77  ⚠️ SNAP WARNING — $0.77 from $663. Watch for downside acceleration
+2026-03-15 15:20:52 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.73  ⚡ SNAP CRITICAL — $0.73 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:21:02 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.83  ⚠️ SNAP WARNING — $0.83 from $663. Watch for downside acceleration
+2026-03-15 15:21:12 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.47  ⚡ SNAP CRITICAL — $0.47 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:21:23 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.93  ⚠️ SNAP WARNING — $0.93 from $663. Watch for downside acceleration
+2026-03-15 15:21:38 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.06  ⚡ SNAP CRITICAL — $0.06 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:22:10 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.98  ⚠️ SNAP WARNING — $0.98 from $663. Watch for downside acceleration
+2026-03-15 15:22:20 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.03  ⚡ SNAP CRITICAL — $0.03 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:22:39 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.95  ⚠️ SNAP WARNING — $0.95 from $663. Watch for downside acceleration
+2026-03-15 15:22:50 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.74  ⚡ SNAP CRITICAL — $0.74 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:23:28 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.81  ⚠️ SNAP WARNING — $0.81 from $664. Watch for downside acceleration
+2026-03-15 15:23:38 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.73  ⚡ SNAP CRITICAL — $0.73 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:24:38 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.11  ⚡ SNAP CRITICAL — $0.11 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:24:55 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.98  ⚠️ SNAP WARNING — $0.98 from $663. Watch for downside acceleration
+2026-03-15 15:25:07 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.03  ⚡ SNAP CRITICAL — $0.03 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:25:18 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.93  ⚠️ SNAP WARNING — $0.93 from $663. Watch for downside acceleration
+2026-03-15 15:25:31 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.08  ⚡ SNAP CRITICAL — $0.08 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:25:42 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.94  ⚠️ SNAP WARNING — $0.94 from $663. Watch for downside acceleration
+2026-03-15 15:25:52 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.23  ⚡ SNAP CRITICAL — $0.23 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:26:23 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.90  ⚠️ SNAP WARNING — $0.90 from $663. Watch for downside acceleration
+2026-03-15 15:26:36 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.05  ⚡ SNAP CRITICAL — $0.05 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:27:36 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.30  ⚡ SNAP CRITICAL — $0.30 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:28:12 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.79  ⚠️ SNAP WARNING — $0.79 from $664. Watch for downside acceleration
+2026-03-15 15:28:22 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.06  ⚡ SNAP CRITICAL — $0.06 from flip at $665! Dealers about to reverse bearish
+2026-03-15 15:29:22 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.31  ⚡ SNAP CRITICAL — $0.31 from flip at $665! Dealers about to reverse bearish
+2026-03-15 15:29:37 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=665.80  ⚠️ SNAP WARNING — $0.80 from $665. Watch for downside acceleration
+2026-03-15 15:29:47 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.67  ⚡ SNAP CRITICAL — $0.67 from flip at $665! Dealers about to reverse bearish
+2026-03-15 15:30:06 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=665.76  ⚠️ SNAP WARNING — $0.76 from $665. Watch for downside acceleration
+2026-03-15 15:30:19 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.67  ⚡ SNAP CRITICAL — $0.67 from flip at $665! Dealers about to reverse bearish
+2026-03-15 15:30:57 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.98  ⚠️ SNAP WARNING — $0.98 from $664. Watch for downside acceleration
+2026-03-15 15:31:11 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.37  ⚡ SNAP CRITICAL — $0.37 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:31:21 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:555 - WS client disconnected (1 total)
+2026-03-15 15:31:21 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:555 - WS client disconnected (0 total)
+2026-03-15 15:31:21 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.86  ⚠️ SNAP WARNING — $0.86 from $663. Watch for downside acceleration
+2026-03-15 15:31:23 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:143 - IdeaLogger v2.1 initialised — C:\Users\randy\tos-dash-v2\data\ideas.db
+2026-03-15 15:31:23 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:83 - tos-dash-v2 starting up — root=C:\Users\randy\tos-dash-v2
+2026-03-15 15:31:23 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:669 - Starting tos-dash-v2 on http://127.0.0.1:8001
+2026-03-15 15:31:23 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:670 - Dashboard: http://127.0.0.1:8001/
+2026-03-15 15:31:23 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:671 - Config:    http://127.0.0.1:8001/config
+2026-03-15 15:31:23 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:162 - Starting spy_writer.py...
+2026-03-15 15:31:23 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:169 - Writer started (PID 50820)
+2026-03-15 15:31:23 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.86  ⚠️ SNAP WARNING — $0.86 from $663. Watch for downside acceleration
+2026-03-15 15:31:24 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:547 - WS client connected (1 total)
+2026-03-15 15:31:24 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:547 - WS client connected (2 total)
+2026-03-15 15:31:33 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.09  ⚡ SNAP CRITICAL — $0.09 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:31:46 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:555 - WS client disconnected (1 total)
+2026-03-15 15:31:46 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:547 - WS client connected (2 total)
+2026-03-15 15:32:34 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.44  ⚡ SNAP CRITICAL — $0.44 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:33:11 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.77  ⚠️ SNAP WARNING — $0.77 from $663. Watch for downside acceleration
+2026-03-15 15:33:21 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.33  ⚡ SNAP CRITICAL — $0.33 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:33:56 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=662.97  ⚠️ SNAP WARNING — $0.97 from $662. Watch for downside acceleration
+2026-03-15 15:34:07 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.00  ⚡ SNAP CRITICAL — $0.00 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:35:08 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.44  ⚡ SNAP CRITICAL — $0.44 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:35:27 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=662.90  ⚠️ SNAP WARNING — $0.90 from $662. Watch for downside acceleration
+2026-03-15 15:35:37 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.27  ⚡ SNAP CRITICAL — $0.27 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:36:11 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=662.98  ⚠️ SNAP WARNING — $0.98 from $662. Watch for downside acceleration
+2026-03-15 15:36:24 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=662.75  ⚡ SNAP CRITICAL — $0.75 from flip at $662! Dealers about to reverse bearish
+2026-03-15 15:36:34 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=662.82  ⚠️ SNAP WARNING — $0.82 from $662. Watch for downside acceleration
+2026-03-15 15:36:42 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:154 - Stopping existing writer process...
+2026-03-15 15:36:42 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:162 - Starting spy_writer.py...
+2026-03-15 15:36:42 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:169 - Writer started (PID 51108)
+2026-03-15 15:36:44 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=662.64  ⚡ SNAP CRITICAL — $0.64 from flip at $662! Dealers about to reverse bearish
+2026-03-15 15:37:12 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=662.81  ⚠️ SNAP WARNING — $0.81 from $662. Watch for downside acceleration
+2026-03-15 15:37:26 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=662.72  ⚡ SNAP CRITICAL — $0.72 from flip at $662! Dealers about to reverse bearish
+2026-03-15 15:37:36 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=662.77  ⚠️ SNAP WARNING — $0.77 from $662. Watch for downside acceleration
+2026-03-15 15:37:46 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=662.69  ⚡ SNAP CRITICAL — $0.69 from flip at $662! Dealers about to reverse bearish
+2026-03-15 15:38:17 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=662.77  ⚠️ SNAP WARNING — $0.77 from $662. Watch for downside acceleration
+2026-03-15 15:38:27 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=662.57  ⚡ SNAP CRITICAL — $0.57 from flip at $662! Dealers about to reverse bearish
+2026-03-15 15:38:42 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=662.82  ⚠️ SNAP WARNING — $0.82 from $662. Watch for downside acceleration
+2026-03-15 15:38:54 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=662.74  ⚡ SNAP CRITICAL — $0.74 from flip at $662! Dealers about to reverse bearish
+2026-03-15 15:39:15 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=662.91  ⚠️ SNAP WARNING — $0.91 from $662. Watch for downside acceleration
+2026-03-15 15:39:25 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.03  ⚡ SNAP CRITICAL — $0.03 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:39:36 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=662.96  ⚠️ SNAP WARNING — $0.96 from $662. Watch for downside acceleration
+2026-03-15 15:39:46 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.07  ⚡ SNAP CRITICAL — $0.07 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:40:47 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.28  ⚡ SNAP CRITICAL — $0.28 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:41:00 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=662.97  ⚠️ SNAP WARNING — $0.97 from $662. Watch for downside acceleration
+2026-03-15 15:41:13 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.00  ⚡ SNAP CRITICAL — $0.00 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:41:23 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=662.87  ⚠️ SNAP WARNING — $0.87 from $662. Watch for downside acceleration
+2026-03-15 15:41:35 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.05  ⚡ SNAP CRITICAL — $0.05 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:41:54 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.84  ⚠️ SNAP WARNING — $0.84 from $663. Watch for downside acceleration
+2026-03-15 15:42:04 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.58  ⚡ SNAP CRITICAL — $0.58 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:42:32 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.76  ⚠️ SNAP WARNING — $0.76 from $663. Watch for downside acceleration
+2026-03-15 15:42:43 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.67  ⚡ SNAP CRITICAL — $0.67 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:43:05 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.80  ⚠️ SNAP WARNING — $0.80 from $663. Watch for downside acceleration
+2026-03-15 15:43:15 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.59  ⚡ SNAP CRITICAL — $0.59 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:43:32 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.80  ⚠️ SNAP WARNING — $0.80 from $663. Watch for downside acceleration
+2026-03-15 15:43:42 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.67  ⚡ SNAP CRITICAL — $0.67 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:43:54 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.78  ⚠️ SNAP WARNING — $0.78 from $663. Watch for downside acceleration
+2026-03-15 15:44:04 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.07  ⚡ SNAP CRITICAL — $0.07 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:44:21 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.95  ⚠️ SNAP WARNING — $0.95 from $663. Watch for downside acceleration
+2026-03-15 15:44:32 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.71  ⚡ SNAP CRITICAL — $0.71 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:44:42 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.96  ⚠️ SNAP WARNING — $0.96 from $663. Watch for downside acceleration
+2026-03-15 15:44:55 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.03  ⚡ SNAP CRITICAL — $0.03 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:45:07 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.97  ⚠️ SNAP WARNING — $0.97 from $663. Watch for downside acceleration
+2026-03-15 15:45:17 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.73  ⚡ SNAP CRITICAL — $0.73 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:45:27 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.75  ⚠️ SNAP WARNING — $0.75 from $663. Watch for downside acceleration
+2026-03-15 15:45:37 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.75  ⚡ SNAP CRITICAL — $0.75 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:45:47 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.89  ⚠️ SNAP WARNING — $0.89 from $663. Watch for downside acceleration
+2026-03-15 15:45:57 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.03  ⚡ SNAP CRITICAL — $0.03 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:46:09 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.93  ⚠️ SNAP WARNING — $0.93 from $663. Watch for downside acceleration
+2026-03-15 15:46:20 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=663.46  ⚡ SNAP CRITICAL — $0.46 from flip at $663! Dealers about to reverse bearish
+2026-03-15 15:47:19 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.83  ⚠️ SNAP WARNING — $0.83 from $663. Watch for downside acceleration
+2026-03-15 15:47:30 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.00  ⚡ SNAP CRITICAL — $0.00 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:48:00 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.77  ⚠️ SNAP WARNING — $0.77 from $664. Watch for downside acceleration
+2026-03-15 15:48:10 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.28  ⚡ SNAP CRITICAL — $0.28 from flip at $665! Dealers about to reverse bearish
+2026-03-15 15:49:10 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.32  ⚡ SNAP CRITICAL — $0.32 from flip at $665! Dealers about to reverse bearish
+2026-03-15 15:49:20 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.89  ⚠️ SNAP WARNING — $0.89 from $664. Watch for downside acceleration
+2026-03-15 15:49:31 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.04  ⚡ SNAP CRITICAL — $0.04 from flip at $665! Dealers about to reverse bearish
+2026-03-15 15:50:31 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.25  ⚡ SNAP CRITICAL — $0.25 from flip at $665! Dealers about to reverse bearish
+2026-03-15 15:51:19 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.95  ⚠️ SNAP WARNING — $0.95 from $664. Watch for downside acceleration
+2026-03-15 15:51:29 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.71  ⚡ SNAP CRITICAL — $0.71 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:51:49 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.79  ⚠️ SNAP WARNING — $0.79 from $664. Watch for downside acceleration
+2026-03-15 15:52:02 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.68  ⚡ SNAP CRITICAL — $0.68 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:52:23 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.95  ⚠️ SNAP WARNING — $0.95 from $663. Watch for downside acceleration
+2026-03-15 15:52:37 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.02  ⚡ SNAP CRITICAL — $0.02 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:52:47 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.93  ⚠️ SNAP WARNING — $0.93 from $663. Watch for downside acceleration
+2026-03-15 15:53:15 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.00  ⚡ SNAP CRITICAL — $0.00 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:53:17 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:555 - WS client disconnected (1 total)
+2026-03-15 15:53:17 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:555 - WS client disconnected (0 total)
+2026-03-15 15:56:20 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:143 - IdeaLogger v2.1 initialised — C:\Users\randy\tos-dash-v2\data\ideas.db
+2026-03-15 15:56:20 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:83 - tos-dash-v2 starting up — root=C:\Users\randy\tos-dash-v2
+2026-03-15 15:56:20 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:669 - Starting tos-dash-v2 on http://127.0.0.1:8001
+2026-03-15 15:56:20 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:670 - Dashboard: http://127.0.0.1:8001/
+2026-03-15 15:56:20 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:671 - Config:    http://127.0.0.1:8001/config
+2026-03-15 15:56:20 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:162 - Starting spy_writer.py...
+2026-03-15 15:56:20 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:169 - Writer started (PID 89052)
+2026-03-15 15:56:20 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=663.99  ⚠️ SNAP WARNING — $0.99 from $663. Watch for downside acceleration
+2026-03-15 15:56:20 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:547 - WS client connected (1 total)
+2026-03-15 15:56:21 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:547 - WS client connected (2 total)
+2026-03-15 15:56:25 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:555 - WS client disconnected (1 total)
+2026-03-15 15:56:26 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:547 - WS client connected (2 total)
+2026-03-15 15:56:30 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.41  ⚡ SNAP CRITICAL — $0.41 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:56:31 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:555 - WS client disconnected (1 total)
+2026-03-15 15:56:36 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:555 - WS client disconnected (0 total)
+2026-03-15 15:56:36 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:547 - WS client connected (1 total)
+2026-03-15 15:56:40 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.85  ⚠️ SNAP WARNING — $0.85 from $664. Watch for downside acceleration
+2026-03-15 15:56:58 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.02  ⚡ SNAP CRITICAL — $0.02 from flip at $665! Dealers about to reverse bearish
+2026-03-15 15:57:09 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.77  ⚠️ SNAP WARNING — $0.77 from $664. Watch for downside acceleration
+2026-03-15 15:57:19 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.69  ⚡ SNAP CRITICAL — $0.69 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:57:42 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.76  ⚠️ SNAP WARNING — $0.76 from $664. Watch for downside acceleration
+2026-03-15 15:58:03 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.75  ⚡ SNAP CRITICAL — $0.75 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:58:13 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.81  ⚠️ SNAP WARNING — $0.81 from $664. Watch for downside acceleration
+2026-03-15 15:58:34 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.75  ⚡ SNAP CRITICAL — $0.75 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:59:00 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:154 - Stopping existing writer process...
+2026-03-15 15:59:00 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:162 - Starting spy_writer.py...
+2026-03-15 15:59:00 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:169 - Writer started (PID 51224)
+2026-03-15 15:59:03 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.78  ⚠️ SNAP WARNING — $0.78 from $664. Watch for downside acceleration
+2026-03-15 15:59:03 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:154 - Stopping existing writer process...
+2026-03-15 15:59:03 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:162 - Starting spy_writer.py...
+2026-03-15 15:59:03 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:169 - Writer started (PID 42188)
+2026-03-15 15:59:13 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=664.73  ⚡ SNAP CRITICAL — $0.73 from flip at $664! Dealers about to reverse bearish
+2026-03-15 15:59:23 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.95  ⚠️ SNAP WARNING — $0.95 from $664. Watch for downside acceleration
+2026-03-15 15:59:33 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.12  ⚡ SNAP CRITICAL — $0.12 from flip at $665! Dealers about to reverse bearish
+2026-03-15 15:59:43 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.87  ⚠️ SNAP WARNING — $0.87 from $664. Watch for downside acceleration
+2026-03-15 15:59:54 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.02  ⚡ SNAP CRITICAL — $0.02 from flip at $665! Dealers about to reverse bearish
+2026-03-15 16:00:06 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.99  ⚠️ SNAP WARNING — $0.99 from $664. Watch for downside acceleration
+2026-03-15 16:00:16 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.01  ⚡ SNAP CRITICAL — $0.01 from flip at $665! Dealers about to reverse bearish
+2026-03-15 16:00:27 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.94  ⚠️ SNAP WARNING — $0.94 from $664. Watch for downside acceleration
+2026-03-15 16:01:05 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.05  ⚡ SNAP CRITICAL — $0.05 from flip at $665! Dealers about to reverse bearish
+2026-03-15 16:01:21 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=664.99  ⚠️ SNAP WARNING — $0.99 from $664. Watch for downside acceleration
+2026-03-15 16:01:31 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.09  ⚡ SNAP CRITICAL — $0.09 from flip at $665! Dealers about to reverse bearish
+2026-03-15 16:01:47 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=665.80  ⚠️ SNAP WARNING — $0.80 from $665. Watch for downside acceleration
+2026-03-15 16:01:57 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=666.02  ⚡ SNAP CRITICAL — $0.02 from flip at $666! Dealers about to reverse bearish
+2026-03-15 16:02:07 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=665.83  ⚠️ SNAP WARNING — $0.83 from $665. Watch for downside acceleration
+2026-03-15 16:02:17 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.69  ⚡ SNAP CRITICAL — $0.69 from flip at $665! Dealers about to reverse bearish
+2026-03-15 16:02:30 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=665.79  ⚠️ SNAP WARNING — $0.79 from $665. Watch for downside acceleration
+2026-03-15 16:02:40 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [critical] spy=665.72  ⚡ SNAP CRITICAL — $0.72 from flip at $665! Dealers about to reverse bearish
+2026-03-15 16:02:51 - tos_dash.idea_logger - WARNING - C:\Users\randy\tos-dash-v2\idea_logger.py:689 - ALERT [warning] spy=665.76  ⚠️ SNAP WARNING — $0.76 from $665. Watch for downside acceleration
+2026-03-15 16:03:06 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:555 - WS client disconnected (0 total)

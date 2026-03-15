@@ -31,8 +31,8 @@ def calculate_max_pain(data: dict, strikes: list, option_symbols: list) -> float
 
     for strike in strikes:
         try:
-            call_sym = next(sym for sym in option_symbols if f'C{strike}' in sym)
-            put_sym  = next(sym for sym in option_symbols if f'P{strike}' in sym)
+            call_sym = next(sym for sym in option_symbols if sym.endswith(f'C{strike}'))
+            put_sym  = next(sym for sym in option_symbols if sym.endswith(f'P{strike}'))
 
             def safe(key):
                 try:
@@ -54,16 +54,17 @@ def calculate_max_pain(data: dict, strikes: list, option_symbols: list) -> float
     for K in strikes:
         pain = 0.0
         for s in strikes:
-            # Calls are ITM if K > s  → put holders lose max(K-s, 0)
-            pain += put_oi_map[s]  * max(K - s, 0) * 100
-            # Puts are ITM if K < s  → call holders lose max(s-K, 0)
-            pain += call_oi_map[s] * max(s - K, 0) * 100
+            # Calls are ITM when K > s → call holders receive max(K-s, 0)
+            pain += call_oi_map[s] * max(K - s, 0) * 100
+            # Puts are ITM when s > K → put holders receive max(s-K, 0)
+            pain += put_oi_map[s]  * max(s - K, 0) * 100
 
         if min_pain is None or pain < min_pain:
             min_pain = pain
             max_pain_strike = K
 
     return max_pain_strike
+
 
 
 def calculate_walls(data: dict, strikes: list, option_symbols: list) -> tuple:
@@ -88,8 +89,8 @@ def calculate_walls(data: dict, strikes: list, option_symbols: list) -> tuple:
 
     for strike in strikes:
         try:
-            call_sym = next(sym for sym in option_symbols if f'C{strike}' in sym)
-            put_sym  = next(sym for sym in option_symbols if f'P{strike}' in sym)
+            call_sym = next(sym for sym in option_symbols if sym.endswith(f'C{strike}'))
+            put_sym  = next(sym for sym in option_symbols if sym.endswith(f'P{strike}'))
 
             c_oi = safe(f"{call_sym}:OPEN_INT")
             p_oi = safe(f"{put_sym}:OPEN_INT")
@@ -224,8 +225,8 @@ class GammaChartBuilder:
 
         for strike in strikes:
             try:
-                call_symbol = next(sym for sym in option_symbols if f'C{strike}' in sym)
-                put_symbol  = next(sym for sym in option_symbols if f'P{strike}' in sym)
+                call_symbol = next(sym for sym in option_symbols if sym.endswith(f'C{strike}'))
+                put_symbol  = next(sym for sym in option_symbols if sym.endswith(f'P{strike}'))
 
                 try:
                     call_gamma = float(data.get(f"{call_symbol}:GAMMA", 0))
@@ -452,8 +453,8 @@ class DeltaChartBuilder:
 
         for strike in strikes:
             try:
-                call_sym = next(sym for sym in option_symbols if f'C{strike}' in sym)
-                put_sym  = next(sym for sym in option_symbols if f'P{strike}' in sym)
+                call_sym = next(sym for sym in option_symbols if sym.endswith(f'C{strike}'))
+                put_sym  = next(sym for sym in option_symbols if sym.endswith(f'P{strike}'))
 
                 def safe_float(key, default=0.0):
                     try:
