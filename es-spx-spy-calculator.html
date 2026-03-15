@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ES / SPX / SPY Converter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg: #0a0c0f;
+    --panel: #111318;
+    --border: #1e2330;
+    --accent: #00e5ff;
+    --accent2: #ff3d6b;
+    --accent3: #b3ff59;
+    --text: #c8d0e0;
+    --dim: #4a5260;
+    --up: #26de7b;
+    --down: #ff3d6b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow Condensed', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 520px;
+  }
+
+  .header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #fff;
+    text-transform: uppercase;
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+    color: var(--dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+
+  .ratio-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    align-items: center;
+  }
+
+  .ratio-label {
+    font-size: 0.7rem;
+    color: var(--dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .ratio-inputs {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .ratio-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .ratio-group label {
+    font-size: 0.65rem;
+    color: var(--dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .ratio-group input {
+    background: #0d1016;
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    padding: 5px 8px;
+    width: 100%;
+    outline: none;
+    text-align: center;
+  }
+
+  .ratio-group input:focus {
+    border-color: var(--accent);
+  }
+
+  .cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 18px 20px;
+    position: relative;
+    transition: border-color 0.15s;
+  }
+
+  .card.active {
+    border-color: var(--accent);
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+  }
+
+  .card:nth-child(1)::before { background: var(--accent); }
+  .card:nth-child(2)::before { background: var(--accent2); }
+  .card:nth-child(3)::before { background: var(--accent3); }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .card-ticker {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #fff;
+  }
+
+  .card-name {
+    font-size: 0.7rem;
+    color: var(--dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .price-input {
+    flex: 1;
+    background: #0d1016;
+    border: 1px solid var(--border);
+    color: #fff;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.5rem;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.15s;
+    letter-spacing: 0.05em;
+  }
+
+  .price-input:focus {
+    border-color: var(--accent);
+  }
+
+  .price-input::placeholder {
+    color: var(--dim);
+    font-size: 1rem;
+  }
+
+  .equiv-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .equiv-chip {
+    flex: 1;
+    background: #0d1016;
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .equiv-chip .chip-label {
+    font-size: 0.6rem;
+    color: var(--dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .equiv-chip .chip-value {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    color: var(--text);
+    letter-spacing: 0.04em;
+  }
+
+  .equiv-chip .chip-value.highlight {
+    color: var(--accent3);
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 20px 0;
+  }
+
+  .points-section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 18px 20px;
+  }
+
+  .section-title {
+    font-size: 0.75rem;
+    color: var(--dim);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .points-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .pt-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .pt-group label {
+    font-size: 0.65rem;
+    color: var(--dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .pt-group input {
+    background: #0d1016;
+    border: 1px solid var(--border);
+    color: #fff;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    padding: 7px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .pt-group input:focus { border-color: var(--accent); }
+
+  .points-result {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .pt-result {
+    background: #0d1016;
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: center;
+  }
+
+  .pt-result .r-label {
+    font-size: 0.6rem;
+    color: var(--dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+
+  .pt-result .r-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+  }
+
+  .r-val.pos { color: var(--up); }
+  .r-val.neg { color: var(--down); }
+  .r-val.neutral { color: var(--text); }
+
+  .footer-note {
+    margin-top: 16px;
+    font-size: 0.65rem;
+    color: var(--dim);
+    letter-spacing: 0.1em;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .clear-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 14px;
+    width: 100%;
+  }
+
+  .clear-btn:hover {
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>ES · SPX · SPY</h1>
+  </div>
+  <div class="subtitle">Futures / Index / ETF Converter</div>
+
+  <!-- Ratio Config -->
+  <div class="ratio-bar">
+    <span class="ratio-label">Ratios</span>
+    <div class="ratio-inputs">
+      <div class="ratio-group">
+        <label>ES→SPX ÷</label>
+        <input type="number" id="r_es_spx" value="10" step="0.1">
+      </div>
+      <div class="ratio-group">
+        <label>SPX→SPY ÷</label>
+        <input type="number" id="r_spx_spy" value="10" step="0.01">
+      </div>
+    </div>
+  </div>
+
+  <!-- Cards -->
+  <div class="cards">
+
+    <!-- ES -->
+    <div class="card" id="card-es">
+      <div class="card-header">
+        <div>
+          <div class="card-ticker">ES</div>
+          <div class="card-name">E-mini S&amp;P 500 Futures</div>
+        </div>
+        <div class="card-name">1 pt = $50</div>
+      </div>
+      <div class="input-row">
+        <input class="price-input" type="number" id="in_es" placeholder="Enter ES price…" step="0.25">
+      </div>
+      <div class="equiv-row">
+        <div class="equiv-chip">
+          <span class="chip-label">→ SPX</span>
+          <span class="chip-value" id="out_es_spx">—</span>
+        </div>
+        <div class="equiv-chip">
+          <span class="chip-label">→ SPY</span>
+          <span class="chip-value highlight" id="out_es_spy">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPX -->
+    <div class="card" id="card-spx">
+      <div class="card-header">
+        <div>
+          <div class="card-ticker">SPX</div>
+          <div class="card-name">S&amp;P 500 Index (Cash)</div>
+        </div>
+        <div class="card-name">~10× SPY</div>
+      </div>
+      <div class="input-row">
+        <input class="price-input" type="number" id="in_spx" placeholder="Enter SPX price…" step="0.01">
+      </div>
+      <div class="equiv-row">
+        <div class="equiv-chip">
+          <span class="chip-label">→ ES</span>
+          <span class="chip-value" id="out_spx_es">—</span>
+        </div>
+        <div class="equiv-chip">
+          <span class="chip-label">→ SPY</span>
+          <span class="chip-value highlight" id="out_spx_spy">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPY -->
+    <div class="card" id="card-spy">
+      <div class="card-header">
+        <div>
+          <div class="card-ticker">SPY</div>
+          <div class="card-name">SPDR S&amp;P 500 ETF</div>
+        </div>
+        <div class="card-name">~0.1× SPX</div>
+      </div>
+      <div class="input-row">
+        <input class="price-input" type="number" id="in_spy" placeholder="Enter SPY price…" step="0.01">
+      </div>
+      <div class="equiv-row">
+        <div class="equiv-chip">
+          <span class="chip-label">→ ES</span>
+          <span class="chip-value" id="out_spy_es">—</span>
+        </div>
+        <div class="equiv-chip">
+          <span class="chip-label">→ SPX</span>
+          <span class="chip-value" id="out_spy_spx">—</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Point Move Calculator -->
+  <div class="points-section">
+    <div class="section-title">⬆ Point / Move Calculator</div>
+    <div class="points-grid">
+      <div class="pt-group">
+        <label>From Price (any)</label>
+        <input type="number" id="pt_from" placeholder="e.g. 5800" step="0.01">
+      </div>
+      <div class="pt-group">
+        <label>To Price (any)</label>
+        <input type="number" id="pt_to" placeholder="e.g. 5850" step="0.01">
+      </div>
+    </div>
+    <div class="points-result">
+      <div class="pt-result">
+        <div class="r-label">ES pts</div>
+        <div class="r-val neutral" id="res_es">—</div>
+      </div>
+      <div class="pt-result">
+        <div class="r-label">SPX pts</div>
+        <div class="r-val neutral" id="res_spx">—</div>
+      </div>
+      <div class="pt-result">
+        <div class="r-label">SPY pts</div>
+        <div class="r-val neutral" id="res_spy">—</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="clear-btn" onclick="clearAll()">⟳ Clear All</button>
+
+  <div class="footer-note">
+    ES≈SPX (small fair-value basis) · SPY ≈ SPX ÷ 10 (tracking ratio, not exact)<br>
+    Adjust ratio fields above if needed for current market conditions
+  </div>
+</div>
+
+<script>
+  function getRatios() {
+    const r1 = parseFloat(document.getElementById('r_es_spx').value) || 10;
+    const r2 = parseFloat(document.getElementById('r_spx_spy').value) || 10;
+    return { r1, r2 };
+  }
+
+  function fmt(n, dec=2) {
+    if (isNaN(n) || n === null) return '—';
+    return n.toFixed(dec);
+  }
+
+  function calcFromES(val) {
+    const { r1, r2 } = getRatios();
+    const spx = val * r1;     // ES * 10 ≈ SPX (ES is ~SPX, ratio ≈1 but field allows tuning)
+    // Actually ES ≈ SPX directly (ES tracks SPX cash with small basis)
+    // Standard: SPX ≈ ES (1:1 roughly), SPY = SPX/10
+    // Let's use: ES→SPX = ES (1:1 basis), SPX→SPY = SPX/r_spx_spy
+    const spx2 = val; // ES ≈ SPX 1:1 (basis aside)
+    const spy = spx2 / r2;
+    document.getElementById('out_es_spx').textContent = fmt(spx2, 2);
+    document.getElementById('out_es_spy').textContent = fmt(spy, 2);
+  }
+
+  function calcFromSPX(val) {
+    const { r1, r2 } = getRatios();
+    const es = val;  // SPX ≈ ES 1:1
+    const spy = val / r2;
+    document.getElementById('out_spx_es').textContent = fmt(es, 2);
+    document.getElementById('out_spx_spy').textContent = fmt(spy, 2);
+  }
+
+  function calcFromSPY(val) {
+    const { r2 } = getRatios();
+    const spx = val * r2;
+    const es = spx;
+    document.getElementById('out_spy_spx').textContent = fmt(spx, 2);
+    document.getElementById('out_spy_es').textContent = fmt(es, 2);
+  }
+
+  function calcPoints() {
+    const from = parseFloat(document.getElementById('pt_from').value);
+    const to = parseFloat(document.getElementById('pt_to').value);
+    const { r2 } = getRatios();
+    if (isNaN(from) || isNaN(to)) return;
+    const diff = to - from;
+    const cls = diff >= 0 ? 'pos' : 'neg';
+    const sign = diff >= 0 ? '+' : '';
+
+    // Determine what instrument the input likely is by magnitude
+    // If > 1000 → probably ES/SPX, if < 200 → probably SPY
+    const isSPY = Math.abs(from) < 400;
+    let esDiff, spxDiff, spyDiff;
+    if (isSPY) {
+      spyDiff = diff;
+      spxDiff = diff * r2;
+      esDiff = spxDiff;
+    } else {
+      esDiff = diff;
+      spxDiff = diff;
+      spyDiff = diff / r2;
+    }
+
+    ['res_es','res_spx','res_spy'].forEach(id => {
+      const el = document.getElementById(id);
+      el.className = 'r-val ' + cls;
+    });
+    document.getElementById('res_es').textContent  = sign + fmt(esDiff,2);
+    document.getElementById('res_spx').textContent = sign + fmt(spxDiff,2);
+    document.getElementById('res_spy').textContent = sign + fmt(spyDiff,2);
+  }
+
+  function clearAll() {
+    ['in_es','in_spx','in_spy','pt_from','pt_to'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    ['out_es_spx','out_es_spy','out_spx_es','out_spx_spy','out_spy_es','out_spy_spx',
+     'res_es','res_spx','res_spy'].forEach(id => {
+      const el = document.getElementById(id);
+      el.textContent = '—';
+      if (el.classList.contains('r-val')) el.className = 'r-val neutral';
+    });
+  }
+
+  document.getElementById('in_es').addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    if (!isNaN(v)) calcFromES(v);
+  });
+
+  document.getElementById('in_spx').addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    if (!isNaN(v)) calcFromSPX(v);
+  });
+
+  document.getElementById('in_spy').addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    if (!isNaN(v)) calcFromSPY(v);
+  });
+
+  ['pt_from','pt_to'].forEach(id => {
+    document.getElementById(id).addEventListener('input', calcPoints);
+  });
+
+  ['r_es_spx','r_spx_spy'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      ['in_es','in_spx','in_spy'].forEach(inp => {
+        const el = document.getElementById(inp);
+        if (el.value) el.dispatchEvent(new Event('input'));
+      });
+      calcPoints();
+    });
+  });
+</script>
+</body>
+</html>

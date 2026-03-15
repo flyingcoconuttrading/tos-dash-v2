@@ -1,0 +1,16 @@
+{
+  "symbol": "SPY",
+  "strike_range": 10,
+  "strike_spacing": 1.0,
+  "expiry_date": null,
+  "warn_distance": 2.0,
+  "critical_distance": 1.0,
+  "surge_window": 10,
+  "surge_threshold": 2.0,
+  "ema_ticks": 3,
+  "sma_ticks": 20,
+  "poll_ms": 1000,
+  "test_mode": false,
+  "test_date": "2024-07-08",
+  "risk_cap": 5.0
+}

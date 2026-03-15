@@ -1,0 +1,14 @@
+{
+  "symbol": "SPY",
+  "last": 662.29,
+  "bid": 663.05,
+  "ask": 663.1,
+  "mark": 663.05,
+  "volume": 97200242.0,
+  "bid_size": 80.0,
+  "ask_size": 40.0,
+  "tick": 312922,
+  "timestamp": "2026-03-15T11:00:19.548",
+  "expiry": "2026-03-13",
+  "test_mode": false
+}
