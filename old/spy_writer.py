@@ -17,12 +17,15 @@ from pathlib import Path
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 THIS_DIR = Path(__file__).parent
+V2_ROOT  = Path(r"C:/Users/randy/tos-streamlit-dashboard-V2")
 
 sys.path.insert(0, str(THIS_DIR))
+sys.path.insert(0, str(V2_ROOT))
 
-from rtd.client import RTDClient
-from rtd.quote_types import QuoteType
-from rtd.option_symbol_builder import OptionSymbolBuilder
+from src.rtd.client import RTDClient
+from src.core.settings import SETTINGS
+from config.quote_types import QuoteType
+from src.utils.option_symbol_builder import OptionSymbolBuilder
 
 # ── Load config ───────────────────────────────────────────────────────────────
 def load_config() -> dict:
@@ -40,9 +43,7 @@ SYMBOL_RAW    = cfg.get("symbol", "SPY")
 SYMBOL        = SYMBOL_RAW                                    # used for RTD subscriptions
 OPTION_BASE   = SYMBOL_RAW.lstrip("/")                       # used for option chain e.g. .ES250321C5800
 IS_FUTURES    = SYMBOL_RAW.startswith("/")
-STRIKE_RANGE  = cfg.get("strike_range", 10)
-WALL_RANGE    = cfg.get("wall_range", 25)   # wider range for wall/max_pain accuracy
-_SUB_RANGE    = max(STRIKE_RANGE, WALL_RANGE)  # subscribe to the larger
+STRIKE_RANGE  = cfg.get("strike_range", 20)
 STRIKE_SPACING= cfg.get("strike_spacing", 1.0)
 POLL_MS       = cfg.get("poll_ms", 500)
 TEST_MODE     = cfg.get("test_mode", False)
@@ -124,7 +125,7 @@ def safe_float(val):
 # ── Initialize COM + RTDClient ────────────────────────────────────────────────
 print(f"[writer] Starting RTDClient for {SYMBOL}...", file=sys.stderr)
 pythoncom.CoInitialize()
-client = RTDClient(heartbeat_ms=cfg.get('rtd_heartbeat_ms', 200))
+client = RTDClient(heartbeat_ms=SETTINGS['timing']['initial_heartbeat'])
 client.initialize()
 print("[writer] RTDClient initialized", file=sys.stderr)
 
@@ -157,7 +158,7 @@ option_symbols = OptionSymbolBuilder.build_symbols(
     base_symbol    = OPTION_BASE,   # strip slash for option symbol format e.g. .ES250321C5800
     expiry         = expiry,
     current_price  = initial_price,
-    strike_range   = _SUB_RANGE,
+    strike_range   = STRIKE_RANGE,
     strike_spacing = STRIKE_SPACING,
 )
 expiry_type = "quarterly" if IS_FUTURES else "0DTE"

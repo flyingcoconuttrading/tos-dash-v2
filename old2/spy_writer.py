@@ -17,12 +17,14 @@ from pathlib import Path
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 THIS_DIR = Path(__file__).parent
+V2_ROOT  = THIS_DIR.parent / "tos-streamlit-dashboard-V2"  # Step 2: flatten RTD core here
 
 sys.path.insert(0, str(THIS_DIR))
+sys.path.insert(0, str(V2_ROOT))
 
-from rtd.client import RTDClient
-from rtd.quote_types import QuoteType
-from rtd.option_symbol_builder import OptionSymbolBuilder
+from src.rtd.client import RTDClient
+from config.quote_types import QuoteType
+from src.utils.option_symbol_builder import OptionSymbolBuilder
 
 # ── Load config ───────────────────────────────────────────────────────────────
 def load_config() -> dict:
