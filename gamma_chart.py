@@ -6,105 +6,116 @@ except ImportError:
     _PLOTLY_OK = False
 
 
+# ---------------------------------------------------------------------------
+# Internal helper
+# ---------------------------------------------------------------------------
+
+def _strike_from_sym(sym: str):
+    """Extract the numeric strike from an option symbol like .SPY260316C660."""
+    for sep in ("C", "P"):
+        if sep in sym[1:]:
+            try:
+                f = float(sym[1:].split(sep)[-1])
+                return int(f) if f == int(f) else f
+            except (ValueError, IndexError):
+                return None
+    return None
+
 
 # ---------------------------------------------------------------------------
 # Shared utility
 # ---------------------------------------------------------------------------
 
-def calculate_max_pain(data: dict, strikes: list, option_symbols: list) -> float | None:
+def calculate_max_pain(data: dict, strikes: list, option_symbols: list,
+                       debug: bool = False) -> float | None:
     """
-    Calculate the max pain strike — the price at which the total intrinsic
-    value of all expiring options (calls + puts) is minimized.
+    Max pain = strike K that minimises total intrinsic value of all expiring options.
 
-    For each candidate strike K:
-        pain(K) = Σ put_OI[i]  * max(K - strike[i], 0) * 100   (calls ITM)
-                + Σ call_OI[i] * max(strike[i] - K, 0) * 100   (puts ITM)
-
-    Returns the strike with the lowest total pain, or None if data is missing.
+    Formula (matches Streamlit reference implementation):
+        pain(K) = sum over every strike s:
+            put_oi(s)  * max(K - s, 0) * 100
+          + call_oi(s) * max(s - K, 0) * 100
+    Return the K with the lowest pain.
     """
     if not strikes or not option_symbols:
         return None
 
-    # Gather OI per strike
-    call_oi_map = {}
-    put_oi_map = {}
-
-    for strike in strikes:
+    def _oi(sym: str) -> float:
         try:
-            call_sym = next(sym for sym in option_symbols if sym.endswith(f'C{strike}'))
-            put_sym  = next(sym for sym in option_symbols if sym.endswith(f'P{strike}'))
+            v = data.get(f"{sym}:OPEN_INT")
+            return float(v) if v else 0.0
+        except (ValueError, TypeError):
+            return 0.0
 
-            def safe(key):
-                try:
-                    v = data.get(key)
-                    return float(v) if v is not None else 0.0
-                except (ValueError, TypeError):
-                    return 0.0
+    call_oi: dict = {}
+    put_oi:  dict = {}
+    for s in strikes:
+        c_sym = next((sym for sym in option_symbols if f'C{s}' in sym), None)
+        p_sym = next((sym for sym in option_symbols if f'P{s}' in sym), None)
+        call_oi[s] = _oi(c_sym) if c_sym else 0.0
+        put_oi[s]  = _oi(p_sym) if p_sym else 0.0
 
-            call_oi_map[strike] = safe(f"{call_sym}:OPEN_INT")
-            put_oi_map[strike]  = safe(f"{put_sym}:OPEN_INT")
-        except StopIteration:
-            call_oi_map[strike] = 0.0
-            put_oi_map[strike]  = 0.0
-
-    # For each candidate settlement price K, sum total pain
-    min_pain = None
-    max_pain_strike = None
-
+    pain: dict = {}
     for K in strikes:
-        pain = 0.0
+        total = 0.0
         for s in strikes:
-            # Calls are ITM when K > s → call holders receive max(K-s, 0)
-            pain += call_oi_map[s] * max(K - s, 0) * 100
-            # Puts are ITM when s > K → put holders receive max(s-K, 0)
-            pain += put_oi_map[s]  * max(s - K, 0) * 100
+            total += put_oi[s]  * max(K - s, 0) * 100
+            total += call_oi[s] * max(s - K, 0) * 100
+        pain[K] = total
 
-        if min_pain is None or pain < min_pain:
-            min_pain = pain
-            max_pain_strike = K
+    result = min(pain, key=pain.get)
 
-    return max_pain_strike
+    if debug:
+        ranked = sorted(pain.items(), key=lambda x: x[1])
+        print(f"[maxpain] {len(strikes)} strikes  ${min(strikes)}-${max(strikes)}")
+        print(f"[maxpain] top 5 lowest-pain strikes:")
+        for k, p in ranked[:5]:
+            tag = "  <-- SELECTED" if k == result else ""
+            print(f"[maxpain]   K=${k:<6}  pain={p/1e6:>9.3f}M{tag}")
+
+    return result
 
 
-
-def calculate_walls(data: dict, strikes: list, option_symbols: list) -> tuple:
+def calculate_walls(data: dict, strikes: list, option_symbols: list,
+                    debug: bool = False) -> tuple:
     """
-    Call Wall  — strike with highest call open interest. Acts as resistance.
-    Put Wall   — strike with highest put open interest.  Acts as support.
-    Raw OI matches Streamlit and standard market convention.
-    Returns (call_wall, put_wall), either may be None.
+    Call Wall = strike with highest call OI within the provided strikes window.
+    Put Wall  = strike with highest put  OI within the provided strikes window.
+
+    The caller is responsible for pre-filtering strikes to the desired ±range
+    around current price (wall_range config key).  Global max within that
+    window matches the Streamlit reference implementation.
+
+    Returns (call_wall, put_wall); either may be None.
     """
     if not strikes or not option_symbols:
         return None, None
 
-    max_call_oi, max_put_oi = -1.0, -1.0
-    call_wall, put_wall = None, None
-
-    def safe(key):
+    def _oi(sym: str) -> float:
         try:
-            v = data.get(key)
-            return float(v) if v is not None else 0.0
+            v = data.get(f"{sym}:OPEN_INT")
+            return float(v) if v else 0.0
         except (ValueError, TypeError):
             return 0.0
 
-    for strike in strikes:
-        try:
-            call_sym = next(sym for sym in option_symbols if sym.endswith(f'C{strike}'))
-            put_sym  = next(sym for sym in option_symbols if sym.endswith(f'P{strike}'))
+    call_oi: dict = {}
+    put_oi:  dict = {}
+    for s in strikes:
+        c_sym = next((sym for sym in option_symbols if f'C{s}' in sym), None)
+        p_sym = next((sym for sym in option_symbols if f'P{s}' in sym), None)
+        call_oi[s] = _oi(c_sym) if c_sym else 0.0
+        put_oi[s]  = _oi(p_sym) if p_sym else 0.0
 
-            c_oi = safe(f"{call_sym}:OPEN_INT")
-            p_oi = safe(f"{put_sym}:OPEN_INT")
+    call_wall = max(call_oi, key=call_oi.get) if call_oi else None
+    put_wall  = max(put_oi,  key=put_oi.get)  if put_oi  else None
 
-            if c_oi > max_call_oi:
-                max_call_oi = c_oi
-                call_wall = strike
-
-            if p_oi > max_put_oi:
-                max_put_oi = p_oi
-                put_wall = strike
-
-        except StopIteration:
-            continue
+    if debug:
+        top_calls = sorted(call_oi.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_puts  = sorted(put_oi.items(),  key=lambda x: x[1], reverse=True)[:5]
+        print(f"[walls] {len(strikes)} strikes  ${min(strikes)}-${max(strikes)}")
+        print(f"[walls] top 5 call OI: {[(s, int(oi)) for s, oi in top_calls]}")
+        print(f"[walls] top 5 put  OI: {[(s, int(oi)) for s, oi in top_puts]}")
+        print(f"[walls] call_wall=${call_wall}  put_wall=${put_wall}")
 
     return call_wall, put_wall
 
@@ -123,8 +134,14 @@ class GammaChartBuilder:
         self._set_layout(fig, 1)
         return fig
 
-    def create_chart(self, data: dict, strikes: list, option_symbols: list) -> "go.Figure":
-        """Build and return the gamma exposure chart"""
+    def create_chart(self, data: dict, strikes: list, option_symbols: list,
+                     wall_range: float = None, current_price_override: float = None) -> "go.Figure":
+        """Build and return the gamma exposure chart.
+
+        wall_range / current_price_override — when provided, walls are computed
+        from only the strikes within ±wall_range of current price (matching the
+        build_snapshot() behaviour).  Bars are still drawn for all strikes.
+        """
         if not _PLOTLY_OK:
             raise ImportError("plotly not installed")
         fig = go.Figure()
@@ -154,9 +171,19 @@ class GammaChartBuilder:
         padding = max_abs_value * 0.3
         chart_range = max_abs_value + padding
 
-        # Max pain + walls
-        max_pain = calculate_max_pain(data, strikes, option_symbols)
-        call_wall, put_wall = calculate_walls(data, strikes, option_symbols)
+        # Apply wall_range filter so wall lines match build_snapshot() calculation
+        price_ref = current_price_override or current_price
+        if wall_range and price_ref:
+            wall_strike_set = {s for s in strikes if abs(s - price_ref) <= wall_range}
+            wall_syms = [sym for sym in option_symbols if _strike_from_sym(sym) in wall_strike_set]
+            wall_strikes_list = sorted(wall_strike_set)
+        else:
+            wall_strikes_list = strikes
+            wall_syms = option_symbols
+
+        # Max pain + walls (filtered to wall_range window around current price)
+        max_pain = calculate_max_pain(data, wall_strikes_list, wall_syms)
+        call_wall, put_wall = calculate_walls(data, wall_strikes_list, wall_syms, debug=True)
 
         self._add_traces(fig, pos_values, neg_values, strikes,
                          max_pos_strike, max_pos, max_neg_strike, min_neg)
@@ -262,6 +289,10 @@ class GammaChartBuilder:
                 pos_gex_values.append(0)
                 neg_gex_values.append(gex)
 
+        nonzero = sum(1 for v in pos_gex_values + neg_gex_values if v != 0)
+        print(f"[gex] {nonzero}/{len(strikes)} strikes have non-zero GEX  "
+              f"(strikes scanned: {len(strikes)}, symbols: {len(option_symbols)})")
+
         return pos_gex_values, neg_gex_values
 
     def _add_traces(self, fig, pos_values, neg_values, strikes,
@@ -337,7 +368,8 @@ class DeltaChartBuilder:
         self._set_layout(fig, 1)
         return fig
 
-    def create_chart(self, data: dict, strikes: list, option_symbols: list) -> "go.Figure":
+    def create_chart(self, data: dict, strikes: list, option_symbols: list,
+                     wall_range: float = None, current_price_override: float = None) -> "go.Figure":
         fig = go.Figure()
 
         current_price = float(data.get(f"{self.symbol}:LAST", 0))
@@ -367,9 +399,19 @@ class DeltaChartBuilder:
                      if peak_neg_strike else "Negative DEX")
         vol_label = f"Options Volume  |  Total: {total_vol:,.0f}"
 
-        # Max pain + walls
-        max_pain = calculate_max_pain(data, strikes, option_symbols)
-        call_wall, put_wall = calculate_walls(data, strikes, option_symbols)
+        # Apply wall_range filter so wall lines match build_snapshot() calculation
+        price_ref = current_price_override or current_price
+        if wall_range and price_ref:
+            wall_strike_set = {s for s in strikes if abs(s - price_ref) <= wall_range}
+            wall_syms = [sym for sym in option_symbols if _strike_from_sym(sym) in wall_strike_set]
+            wall_strikes_list = sorted(wall_strike_set)
+        else:
+            wall_strikes_list = strikes
+            wall_syms = option_symbols
+
+        # Max pain + walls (filtered to wall_range window around current price)
+        max_pain = calculate_max_pain(data, wall_strikes_list, wall_syms)
+        call_wall, put_wall = calculate_walls(data, wall_strikes_list, wall_syms, debug=True)
 
         # DEX bars
         fig.add_trace(go.Bar(

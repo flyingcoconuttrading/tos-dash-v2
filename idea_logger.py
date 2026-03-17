@@ -142,10 +142,12 @@ class IdeaLogger:
         self._ensure_storage()
         self._log.info("IdeaLogger %s initialised — %s", MODEL_VERSION, DB_PATH)
 
-        # Alert dedup — suppress same zone repeating every tick
+        # Alert dedup — zone-level and per-snap-level cooldowns
         self._last_alert_zone: str   = "normal"
         self._last_alert_time: float = 0.0
-        self._alert_cooldown_s: int  = 60   # min seconds between same-zone alerts
+        self._alert_cooldown_s: int  = 60    # min seconds between same-zone alerts
+        self._alert_snap_times: dict = {}    # snap_level -> last fire monotonic time
+        self._snap_alert_cooldown_s  = 300   # 5 min per snap level
 
     def update_cfg(self, cfg: dict):
         with self._lock:
@@ -190,18 +192,29 @@ class IdeaLogger:
         # 3. Outcome filling
         self._fill_outcomes(data, now)
 
-        # 4. Alerts — deduplicated:
-        #    - same zone: suppress for alert_cooldown_s seconds (default 60s)
-        #    - zone change: allow, but enforce 10s minimum floor to stop warning/critical thrash
+        # 4. Alerts — two-level dedup:
+        #    - zone level:      same zone suppressed for alert_cooldown_s (60s); zone change has 10s floor
+        #    - snap level:      same snap_level suppressed for snap_alert_cooldown_s (300s = 5 min)
+        #                       repeat snap fires are logged at DEBUG, not WARNING, and not written to CSV
         if ms and getattr(ms, "alert_zone", "normal") != "normal":
             import time as _time
-            now_ts   = _time.monotonic()
-            new_zone = ms.alert_zone
-            elapsed  = now_ts - self._last_alert_time
+            now_ts       = _time.monotonic()
+            new_zone     = ms.alert_zone
+            snap_lv      = getattr(ms, "snap_level", "") or ""
+            elapsed      = now_ts - self._last_alert_time
             zone_changed = new_zone != self._last_alert_zone
-            cooldown = 10 if zone_changed else self._alert_cooldown_s
-            if elapsed >= cooldown:
-                self._log_alert(ms)
+            zone_cooldown = 10 if zone_changed else self._alert_cooldown_s
+            if elapsed >= zone_cooldown:
+                snap_last    = self._alert_snap_times.get(snap_lv, 0.0)
+                snap_elapsed = now_ts - snap_last
+                if snap_elapsed >= self._snap_alert_cooldown_s:
+                    self._log_alert(ms)
+                    self._alert_snap_times[snap_lv] = now_ts
+                else:
+                    self._log.debug(
+                        "ALERT repeat suppressed [%s] snap=%s (%.0fs / %ds cooldown)",
+                        new_zone, snap_lv, snap_elapsed, self._snap_alert_cooldown_s,
+                    )
                 self._last_alert_zone = new_zone
                 self._last_alert_time = now_ts
 
@@ -424,7 +437,7 @@ class IdeaLogger:
 
         # Confirmation
         if score is not None and state.status in (STATUS_ACTIVE, STATUS_WEAKENING):
-            conf_score = cfg.get("confirm_score", 65)
+            conf_score = cfg.get("confirm_score", 58)
             conf_ticks = cfg.get("confirm_ticks_surge", 5) if vol_surge else cfg.get("confirm_ticks", 10)
             state.confirm_ticks_count = state.confirm_ticks_count + 1 if score >= conf_score else 0
             if state.confirm_ticks_count >= conf_ticks and state.status != STATUS_CONFIRMED:
@@ -623,7 +636,9 @@ class IdeaLogger:
                     csv.DictWriter(f, fieldnames=headers).writeheader()
 
     def _connect(self):
-        return sqlite3.connect(str(DB_PATH), check_same_thread=False)
+        conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        return conn
 
     def _db_insert_idea(self, row: dict) -> int:
         cols = [k for k in IDEA_HEADERS if k != "id" and k in row]

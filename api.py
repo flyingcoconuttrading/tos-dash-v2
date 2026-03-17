@@ -29,7 +29,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -55,6 +55,7 @@ from gamma_chart import calculate_max_pain, calculate_walls
 import market_structure as ms_mod
 from volume_tracker import VolumeTracker
 from scalp_advisor import ScalpAdvisor
+import news_fetcher
 
 volume_tracker  = VolumeTracker()
 scalp_advisor   = ScalpAdvisor()
@@ -99,7 +100,7 @@ def _reconfigure_advisor(cfg: dict):
 DEFAULT_CONFIG = {
     "symbol":         "SPY",
     "strike_range":   10,
-    "wall_range":     25,
+    "wall_range":     10,
     "strike_spacing": 1.0,
     "expiry_date":    None,
     "warn_distance":  2.0,
@@ -130,6 +131,8 @@ DEFAULT_CONFIG = {
     # Change #6
     "open_gate_minutes":     30,
     "rtd_heartbeat_ms":      200,   # Step 2: replaces config.yaml timing.initial_heartbeat
+    "alpaca_api_key":        "",
+    "alpaca_secret_key":     "",
 }
 
 def load_config() -> dict:
@@ -272,12 +275,12 @@ def build_snapshot() -> dict:
 
     # Calculations — walls/max_pain use wall_strikes for accuracy
     try:
-        max_pain = calculate_max_pain(data, wall_strikes, wall_option_symbols)
+        max_pain = calculate_max_pain(data, wall_strikes, wall_option_symbols, debug=True)
     except Exception:
         max_pain = None
 
     try:
-        call_wall, put_wall = calculate_walls(data, wall_strikes, wall_option_symbols)
+        call_wall, put_wall = calculate_walls(data, wall_strikes, wall_option_symbols, debug=True)
     except Exception:
         call_wall = put_wall = None
 
@@ -433,6 +436,7 @@ def build_snapshot() -> dict:
 class ConfigUpdate(BaseModel):
     symbol:           Optional[str]   = None
     strike_range:     Optional[int]   = None
+    wall_range:       Optional[int]   = None
     strike_spacing:   Optional[float] = None
     expiry_date:      Optional[str]   = None
     warn_distance:    Optional[float] = None
@@ -458,6 +462,8 @@ class ConfigUpdate(BaseModel):
     open_gate_minutes:       Optional[int]   = None
     iv_cap:                  Optional[float] = None
     vol_surge_mult:          Optional[float] = None
+    alpaca_api_key:          Optional[str]   = None
+    alpaca_secret_key:       Optional[str]   = None
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(title="tos-dash-v2")
@@ -472,10 +478,12 @@ app.add_middleware(
 async def startup():
     start_writer()
     asyncio.create_task(tick_loop())
+    news_fetcher.start(load_config)
 
 @app.on_event("shutdown")
 async def shutdown():
     stop_writer()
+    news_fetcher.stop()
 
 # ── REST endpoints ────────────────────────────────────────────────────────────
 @app.get("/")
@@ -622,15 +630,36 @@ def get_charts():
             pass
     strikes = sorted(strikes)
 
+    cfg        = load_config()
+    wall_range = cfg.get("wall_range", 10)
+    price_val  = price_data.get("last")
+
+    # Limit chart bars to ±wall_range window — matches Streamlit strike_range behavior
+    if price_val:
+        price_f = float(price_val)
+        chart_strike_set = {s for s in strikes if abs(s - price_f) <= wall_range}
+        chart_strikes = sorted(chart_strike_set)
+        chart_syms = [sym for sym in option_symbols
+                      if any(f'C{s}' in sym or f'P{s}' in sym for s in chart_strike_set)]
+    else:
+        chart_strikes = strikes
+        chart_syms    = option_symbols
+
     try:
-        gex_fig = GammaChartBuilder(symbol).create_chart(data, strikes, option_symbols)
+        gex_fig = GammaChartBuilder(symbol).create_chart(
+            data, chart_strikes, chart_syms,
+            wall_range=wall_range, current_price_override=price_val,
+        )
         gex_json = gex_fig.to_json()
     except Exception as e:
         logger.warning("GEX chart error: %s", e, exc_info=True)
         gex_json = None
 
     try:
-        dex_fig = DeltaChartBuilder(symbol).create_chart(data, strikes, option_symbols)
+        dex_fig = DeltaChartBuilder(symbol).create_chart(
+            data, chart_strikes, chart_syms,
+            wall_range=wall_range, current_price_override=price_val,
+        )
         dex_json = dex_fig.to_json()
     except Exception as e:
         logger.warning("DEX chart error: %s", e, exc_info=True)
@@ -650,6 +679,26 @@ def get_ideas():
     except Exception as e:
         logger.error("Ideas endpoint error: %s", e)
         return {"stats": {}, "rows": [], "active": []}
+
+
+@app.get("/news")
+def get_news():
+    """Return cached market news headlines. Updates every 60s in background."""
+    return news_fetcher.get_news()
+
+
+@app.get("/news/config")
+def get_news_config():
+    """Return current news feed configuration."""
+    return news_fetcher.get_config()
+
+
+@app.post("/news/config")
+async def update_news_config(request: Request):
+    """Save news feed configuration. Takes effect on next fetch cycle (no restart needed)."""
+    body = await request.json()
+    news_fetcher.save_config(body)
+    return {"status": "ok"}
 
 
 @app.get("/log")
