@@ -1,0 +1,133 @@
+2026-03-16 15:06:01 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:143 - IdeaLogger v2.1 initialised — C:\Users\randy\tos-dash-v2\data\ideas.db
+2026-03-16 15:06:01 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:84 - tos-dash-v2 starting up — root=C:\Users\randy\tos-dash-v2
+C:\Users\randy\tos-dash-v2\api.py:476: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+C:\Users\randy\tos-dash-v2\api.py:482: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("shutdown")
+2026-03-16 15:06:01 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:692 - Starting tos-dash-v2 on http://127.0.0.1:8001
+2026-03-16 15:06:01 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:693 - Dashboard: http://127.0.0.1:8001/
+2026-03-16 15:06:01 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:694 - Config:    http://127.0.0.1:8001/config
+2026-03-16 15:06:01 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:165 - Starting spy_writer.py...
+2026-03-16 15:06:01 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:172 - Writer started (PID 20508)
+2026-03-16 15:06:01 - tos_dash.news - INFO - C:\Users\randy\tos-dash-v2\news_fetcher.py:203 - News fetcher started
+[writer] Config: symbol=SPY (option_base=SPY futures=False) range=±20 spacing=1.0 poll=500ms test=False
+[writer] Starting RTDClient for SPY...
+[writer] RTDClient initialized
+[writer] Subscribed to SPY underlying
+[writer] SPY price: $669.35  option_base=SPY
+[writer] Expiry: 2026-03-16 (0DTE) | 102 option symbols
+[writer] Subscribed to 1224 option fields — poll loop starting
+[writer] tick=0 SPY=$669.354 live=1182
+2026-03-16 15:06:02 - tos_dash.api - INFO - C:\Users\randy\tos-dash-v2\api.py:554 - WS client connected (1 total)
+2026-03-16 15:06:04 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:333 - IDEA #610 SURFACED  .SPY260316P669  score=50.1  mark=0.47  spy=669.30  delta=0.42
+2026-03-16 15:06:05 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:333 - IDEA #611 SURFACED  .SPY260316C670  score=50.8  mark=0.29  spy=669.27  delta=0.31
+2026-03-16 15:06:05 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:333 - IDEA #612 SURFACED  .SPY260316P670  score=50.8  mark=0.98  spy=669.27  delta=0.70
+2026-03-16 15:06:08 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:333 - IDEA #613 SURFACED  .SPY260316C669  score=50.1  mark=0.81  spy=669.33  delta=0.58
+2026-03-16 15:06:09 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:333 - IDEA #614 SURFACED  .SPY260316P668  score=51.2  mark=0.20  spy=669.32  delta=0.21
+2026-03-16 15:06:11 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:333 - IDEA #615 SURFACED  .SPY260316C668  score=50.1  mark=1.53  spy=669.30  delta=0.77
+2026-03-16 15:06:11 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:333 - IDEA #616 SURFACED  .SPY260316P671  score=50.8  mark=1.78  spy=669.30  delta=0.88
+2026-03-16 15:06:20 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:333 - IDEA #617 SURFACED  .SPY260316P667  score=51.9  mark=0.10  spy=669.35  delta=0.11
+[writer] tick=60 SPY=$669.37 live=1206
+[writer] tick=120 SPY=$669.32 live=1206
+[writer] tick=180 SPY=$669.39 live=1206
+[writer] tick=240 SPY=$669.32 live=1206
+[writer] tick=300 SPY=$669.51 live=1206
+2026-03-16 15:08:34 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:333 - IDEA #618 SURFACED  .SPY260316C671  score=50.7  mark=0.10  spy=669.54  delta=0.15
+[writer] tick=360 SPY=$669.55 live=1206
+2026-03-16 15:09:13 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:452 - IDEA #614 INVALIDATED  .SPY260316P668  reason=VOL_CONFIRMED_MOVE  spy_move=0.53  vol=1  move_against=0.53 threshold=0.49 vol_ratio=4.6 confirmed
+2026-03-16 15:09:13 - tos_dash.idea_logg[writer] tick=840 SPY=$669.96 live=1206
+[writer] tick=900 SPY=$671.43 live=1206
+[writer] tick=960 SPY=$671.63 live=1206
+[writer] tick=1020 SPY=$670.91 live=1206
+[writer] tick=1080 SPY=$670.43 live=1206
+[writer] tick=1140 SPY=$670.58 live=1206
+[writer] tick=1200 SPY=$670.39 live=1206
+[writer] tick=1260 SPY=$670.08 live=1206
+[writer] tick=1320 SPY=$669.85 live=1206
+[writer] tick=1380 SPY=$669.735 live=1206
+[writer] tick=1440 SPY=$670.01 live=1206
+[writer] tick=1500 SPY=$669.855 live=1206
+[writer] tick=1560 SPY=$669.89 live=1206
+[writer] tick=1620 SPY=$669.96 live=1206
+[writer] tick=1680 SPY=$670.15 live=1206
+[writer] tick=1740 SPY=$670.09 live=1206
+[writer] tick=1800 SPY=$670.09 live=1206
+[writer] tick=1860 SPY=$670.1135 live=1206
+[writer] tick=1920 SPY=$670.11 live=1206
+[writer] tick=1980 SPY=$669.77 live=1206
+[writer] tick=2040 SPY=$669.53 live=1206
+[writer] tick=2100 SPY=$669.43 live=1206
+[writer] tick=2160 SPY=$669.4 live=1206
+[writer] tick=2220 SPY=$669.42 live=1206
+[writer] tick=2280 SPY=$669.52 live=1206
+[writer] tick=2340 SPY=$669.52 live=1206
+[writer] tick=2400 SPY=$669.5 live=1206
+[writer] tick=2460 SPY=$669.71 live=1206
+[writer] tick=2520 SPY=$669.34 live=1206
+[writer] tick=2580 SPY=$669.25 live=1206
+[writer] tick=2640 SPY=$669.31 live=1206
+[writer] tick=2700 SPY=$669.16 live=1206
+[writer] tick=2760 SPY=$669.04 live=1206
+[writer] tick=2820 SPY=$668.84 live=1206
+[writer] tick=2880 SPY=$668.81 live=1206
+[writer] tick=2940 SPY=$668.98 live=1206
+[writer] tick=3000 SPY=$668.8889 live=1206
+[writer] tick=3060 SPY=$668.92 live=1206
+[writer] tick=3120 SPY=$668.82 live=1206
+[writer] tick=3180 SPY=$668.74 live=1206
+[writer] tick=3240 SPY=$669.38 live=1206
+[writer] tick=3300 SPY=$669.22 live=1206
+[writer] tick=3360 SPY=$669.2 live=1206
+[writer] tick=3420 SPY=$668.96 live=1206
+[writer] tick=3480 SPY=$669.33 live=1206
+[writer] tick=3540 SPY=$669.12 live=1206
+[writer] tick=3600 SPY=$669.15 live=1206
+[writer] tick=3660 SPY=$669.17 live=1206
+[writer] tick=3720 SPY=$669.17 live=1206
+[writer] tick=3780 SPY=$669.09 live=1206
+[writer] tick=3840 SPY=$669.02 live=1206
+[writer] tick=3900 SPY=$669.035 live=1206
+[writer] tick=3960 SPY=$668.95 live=1206
+[writer] tick=4020 SPY=$668.89 live=1206
+[writer] tick=4080 SPY=$669.03 live=1206
+[writer] tick=4140 SPY=$669.18 live=1206
+[writer] tick=4200 SPY=$669.27 live=1207
+[writer] tick=4260 SPY=$669.03 live=1207
+[writer] tick=4320 SPY=$669.05 live=1207
+[writer] tick=4380 SPY=$669.06 live=1207
+[writer] tick=4440 SPY=$668.96 live=1207
+[writer] tick=4500 SPY=$668.91 live=1207
+[writer] tick=4560 SPY=$669.04 live=1207
+[writer] tick=4620 SPY=$668.92 live=1207
+[writer] tick=4680 SPY=$668.94 live=1207
+[writer] tick=4740 SPY=$668.7799 live=1207
+[writer] tick=4800 SPY=$668.57 live=1207
+[writer] tick=4860 SPY=$668.46 live=1207
+[writer] tick=4920 SPY=$668.53 live=1207
+[writer] tick=4980 SPY=$668.585 live=1207
+[writer] tick=5040 SPY=$668.53 live=1207
+[writer] tick=5100 SPY=$668.61 live=1207
+[writer] tick=5160 SPY=$668.64 live=1207
+INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:356 - IDEA #614 REENTRY #1  .SPY260316P668  score=50.6  spy=670.68
+2026-03-16 15:11:10 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:452 - IDEA #614 INVALIDATED  .SPY260316P668  reason=VOL_CONFIRMED_MOVE  spy_move=1.07  vol=1  move_against=1.07 threshold=1.02 vol_ratio=5.8 confirmed
+2026-03-16 15:11:12 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:356 - IDEA #616 REENTRY #1  .SPY260316P671  score=54.0  spy=670.42
+2026-03-16 15:11:18 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:452 - IDEA #610 INVALIDATED  .SPY260316P669  reason=VOL_CONFIRMED_MOVE  spy_move=1.29  vol=1  move_against=1.29 threshold=1.25 vol_ratio=2.3 confirmed
+2026-03-16 15:11:20 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:356 - IDEA #617 REENTRY #1  .SPY260316P667  score=52.6  spy=670.47
+2026-03-16 15:11:24 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:452 - IDEA #617 INVALIDATED  .SPY260316P667  reason=VOL_CONFIRMED_MOVE  spy_move=1.18  vol=1  move_against=1.18 threshold=0.79 vol_ratio=11.9 confirmed
+[writer] tick=660 SPY=$670.55 live=1206
+2026-03-16 15:11:33 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:452 - IDEA #612 INVALIDATED  .SPY260316P670  reason=VOL_CONFIRMED_MOVE  spy_move=1.43  vol=1  move_against=1.43 threshold=1.41 vol_ratio=2.5 confirmed
+2026-03-16 15:11:51 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:452 - IDEA #616 INVALIDATED  .SPY260316P671  reason=VOL_CONFIRMED_MOVE  spy_move=1.42  vol=1  move_against=1.42 threshold=1.41 vol_ratio=2.2 confirmed
+[writer] tick=720 SPY=$670.56 live=1206
+[writer] tick=780 SPY=$670.35 live=1206
+2026-03-16 15:12:33 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:452 - IDEA #620 INVALIDATED  .SPY260316C673  reason=VOL_CONFIRMED_MOVE  spy_move=-0.45  vol=1  move_against=0.45 threshold=0.42 vol_ratio=1.9 confirmed
+2026-03-16 15:12:35 - tos_dash.idea_logger - INFO - C:\Users\randy\tos-dash-v2\idea_logger.py:452 - IDEA #619 INVALIDATED  .SPY260316C672  reason=VOL_CONFIRMED_MOVE  spy_move=-0.49  vol=1  move_against=0.49 threshold=0.46 vol_ratio=4.3 confirmed

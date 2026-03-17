@@ -117,6 +117,7 @@ def _fetch_rss(name: str, url: str) -> list:
     try:
         import feedparser
         feed  = feedparser.parse(url)
+        total = len(feed.entries)
         items = []
         for entry in feed.entries[:50]:
             title = getattr(entry, "title", "").strip()
@@ -130,9 +131,14 @@ def _fetch_rss(name: str, url: str) -> list:
                 "_dt":          _parse_date(entry),
                 "sentiment":    _sentiment(title),
             })
+        logger.debug("RSS %-14s  feed_entries=%d  parsed=%d", name, total, len(items))
+        if total > 0 and len(items) == 0:
+            logger.warning("RSS %s: %d feed entries but 0 parsed (all titles empty?)", name, total)
+        elif total == 0:
+            logger.warning("RSS %s: feed returned 0 entries (unreachable or empty)", name)
         return items
     except Exception as e:
-        logger.debug("RSS %s error: %s", name, e)
+        logger.warning("RSS %s fetch error: %s", name, e)
         return []
 
 
@@ -188,9 +194,11 @@ def _fetch_all(cfg: dict) -> list:
     except re.error:
         alpaca_filt = re.compile(_DEFAULT_NEWS_CONFIG["keywords"], re.IGNORECASE)
 
-    cutoff     = datetime.now(tz=timezone.utc) - timedelta(hours=max_age)
-    seen:  set = set()
-    items: list = []
+    cutoff          = datetime.now(tz=timezone.utc) - timedelta(hours=max_age)
+    seen:  set      = set()
+    items: list     = []
+    source_raw:dict = {}   # name -> raw count from feed
+    source_kept:dict= {}   # name -> kept after age dedup
 
     for feed in feeds:
         if not feed.get("enabled", True):
@@ -199,22 +207,42 @@ def _fetch_all(cfg: dict) -> list:
         url  = (feed.get("url") or "").strip()
         if not url:
             continue
-        for it in _fetch_rss(name, url):
+        raw = _fetch_rss(name, url)
+        source_raw[name] = len(raw)
+        kept = 0
+        for it in raw:
             key = it["headline"].lower().strip()
             if key in seen or it["_dt"] < cutoff:
                 continue
             seen.add(key)
             items.append(it)
+            kept += 1
+        source_kept[name] = kept
+        if len(raw) > 0 and kept == 0:
+            logger.warning("RSS %s: %d fetched but 0 kept after age/dedup filter (max_age=%dh)",
+                           name, len(raw), max_age)
 
     alpaca_key    = (cfg.get("alpaca_api_key")    or "").strip()
     alpaca_secret = (cfg.get("alpaca_secret_key") or "").strip()
     if alpaca_key and alpaca_secret:
-        for it in _fetch_alpaca(alpaca_key, alpaca_secret, alpaca_filt):
+        raw_alpaca = _fetch_alpaca(alpaca_key, alpaca_secret, alpaca_filt)
+        source_raw["Alpaca"]  = len(raw_alpaca)
+        kept = 0
+        for it in raw_alpaca:
             key = it["headline"].lower().strip()
             if key in seen or it["_dt"] < cutoff:
                 continue
             seen.add(key)
             items.append(it)
+            kept += 1
+        source_kept["Alpaca"] = kept
+
+    summary = "  ".join(f"{n}={source_kept.get(n,0)}/{source_raw.get(n,0)}"
+                        for n in source_raw)
+    if not items:
+        logger.warning("News: 0 headlines after all sources. Per-source kept/fetched: %s", summary)
+    else:
+        logger.debug("News: %d total.  Per-source kept/fetched: %s", len(items), summary)
 
     items.sort(key=lambda x: x["_dt"], reverse=True)
     for it in items:

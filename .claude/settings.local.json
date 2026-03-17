@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python:*)"
+      "Bash(cmd /c \"taskkill /PID 59776 /F\" && cmd /c \"taskkill /PID 53392 /F\")",
+      "Bash(cmd /c \"taskkill /PID 59776 /F\"\ncmd /c \"taskkill /PID 53392 /F\")",
+      "Bash(cmd /c \"taskkill /PID 53392 /F 2>nul & echo done\")",
+      "Bash(cd:*)",
+      "Bash(netstat:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)"
     ]
   }
 }

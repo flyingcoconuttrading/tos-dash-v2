@@ -105,26 +105,28 @@ class IdeaState:
     __slots__ = ["idea_id","symbol","strike","option_type","direction","status",
                  "surfaced_at","entry_spy","entry_mark","entry_delta",
                  "entry_call_wall","entry_put_wall","score_history",
-                 "decay_ticks","confirm_ticks_count","last_seen_at","reentry_count"]
+                 "decay_ticks","confirm_ticks_count","confirm_ticks_target",
+                 "last_seen_at","reentry_count"]
 
     def __init__(self, idea_id, candidate, spy_price, call_wall, put_wall):
-        self.idea_id           = idea_id
-        self.symbol            = candidate.symbol
-        self.strike            = float(candidate.strike)
-        self.option_type       = candidate.option_type
-        self.direction         = getattr(candidate, "direction", "")
-        self.status            = STATUS_ACTIVE
-        self.surfaced_at       = datetime.now()
-        self.entry_spy         = spy_price
-        self.entry_mark        = float(candidate.mark)
-        self.entry_delta       = abs(float(candidate.delta))
-        self.entry_call_wall   = call_wall
-        self.entry_put_wall    = put_wall
-        self.score_history     = deque(maxlen=30)
-        self.decay_ticks       = 0
-        self.confirm_ticks_count = 0
-        self.last_seen_at      = datetime.now()
-        self.reentry_count     = 0
+        self.idea_id              = idea_id
+        self.symbol               = candidate.symbol
+        self.strike               = float(candidate.strike)
+        self.option_type          = candidate.option_type
+        self.direction            = getattr(candidate, "direction", "")
+        self.status               = STATUS_ACTIVE
+        self.surfaced_at          = datetime.now()
+        self.entry_spy            = spy_price
+        self.entry_mark           = float(candidate.mark)
+        self.entry_delta          = abs(float(candidate.delta))
+        self.entry_call_wall      = call_wall
+        self.entry_put_wall       = put_wall
+        self.score_history        = deque(maxlen=30)
+        self.decay_ticks          = 0
+        self.confirm_ticks_count  = 0
+        self.confirm_ticks_target = 10   # overwritten immediately after construction
+        self.last_seen_at         = datetime.now()
+        self.reentry_count        = 0
 
 
 class IdeaLogger:
@@ -172,7 +174,7 @@ class IdeaLogger:
                 idea_id, inv_at = prev
                 window_sec = self._cfg.get("reentry_window_min", 5) * 60
                 if (now - inv_at).total_seconds() < window_sec:
-                    self._handle_reentry(idea_id, key, c, spy_price, now)
+                    self._handle_reentry(idea_id, key, c, spy_price, now, spy_vol_ratio)
                     continue
                 else:
                     del self._recently_invalidated[key]
@@ -298,6 +300,14 @@ class IdeaLogger:
                 return iid
         return None
 
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _conf_ticks(self, spy_vol_ratio: float) -> int:
+        """Return the confirmation tick target locked at surface/re-entry time."""
+        vol_surge = spy_vol_ratio >= self._cfg.get("vol_surge_ratio", 1.8)
+        return (self._cfg.get("confirm_ticks_surge", 5)
+                if vol_surge else self._cfg.get("confirm_ticks", 10))
+
     # ── Surfacing ─────────────────────────────────────────────────────────────
 
     def _surface_new_idea(self, key, candidate, spy_price, spy_vol_rate, spy_vol_ratio, ms, surge_syms, now):
@@ -338,16 +348,25 @@ class IdeaLogger:
         idea_id = self._db_insert_idea(row)
         self._csv_append_idea({**{k: "" for k in IDEA_HEADERS}, **row, "id": idea_id})
         state = IdeaState(idea_id, candidate, spy_price, call_wall, put_wall)
+        state.confirm_ticks_target = self._conf_ticks(spy_vol_ratio)
         self._active[key] = state
         self._log_event(idea_id, "SURFACED", score=candidate.score, mark=candidate.mark,
                         spy=spy_price, vol_ratio=spy_vol_ratio,
                         detail=f"score={candidate.score:.1f} mark={candidate.mark:.2f} "
-                               f"delta={candidate.delta:.2f} trend={getattr(candidate,'underlying_trend','')}")
-        self._log.info("IDEA #%d SURFACED  %s  score=%.1f  mark=%.2f  spy=%.2f  delta=%.2f",
-                       idea_id, candidate.symbol, candidate.score,
-                       candidate.mark, spy_price, candidate.delta)
+                               f"delta={candidate.delta:.2f} trend={getattr(candidate,'underlying_trend','')} "
+                               f"conf_ticks_target={state.confirm_ticks_target}")
+        _surge_at_surface = spy_vol_ratio >= self._cfg.get("vol_surge_ratio", 1.8)
+        self._log.info(
+            "IDEA #%d SURFACED  %s  score=%.1f  mark=%.2f  spy=%.2f  delta=%.2f"
+            "  conf_ticks=%d(%s)  vol_ratio=%.1f",
+            idea_id, candidate.symbol, candidate.score,
+            candidate.mark, spy_price, candidate.delta,
+            state.confirm_ticks_target,
+            "surge" if _surge_at_surface else "normal",
+            spy_vol_ratio,
+        )
 
-    def _handle_reentry(self, idea_id, key, candidate, spy_price, now):
+    def _handle_reentry(self, idea_id, key, candidate, spy_price, now, spy_vol_ratio=0.0):
         with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute("SELECT * FROM ideas WHERE id=?", (idea_id,)).fetchone()
@@ -359,15 +378,26 @@ class IdeaLogger:
                 (reentry_count, now.isoformat(timespec="seconds"), STATUS_ACTIVE, idea_id)
             )
         state = IdeaState(idea_id, candidate, spy_price, row["entry_call_wall"], row["entry_put_wall"])
-        state.reentry_count = reentry_count
-        state.entry_mark    = row["entry_mark"]
-        state.entry_spy     = row["entry_spy"]
-        self._active[key]   = state
+        state.reentry_count        = reentry_count
+        state.entry_mark           = row["entry_mark"]
+        state.entry_spy            = row["entry_spy"]
+        state.confirm_ticks_target = self._conf_ticks(spy_vol_ratio)
+        self._active[key]          = state
         del self._recently_invalidated[key]
+        _surge_at_reentry = spy_vol_ratio >= self._cfg.get("vol_surge_ratio", 1.8)
         self._log_event(idea_id, "REENTRY", score=candidate.score, mark=candidate.mark,
-                        spy=spy_price, detail=f"reentry #{reentry_count}  score={candidate.score:.1f}")
-        self._log.info("IDEA #%d REENTRY #%d  %s  score=%.1f  spy=%.2f",
-                       idea_id, reentry_count, candidate.symbol, candidate.score, spy_price)
+                        spy=spy_price,
+                        detail=f"reentry #{reentry_count}  score={candidate.score:.1f}"
+                               f"  conf_ticks={state.confirm_ticks_target}"
+                               f"({'surge' if _surge_at_reentry else 'normal'})")
+        self._log.info(
+            "IDEA #%d REENTRY #%d  %s  score=%.1f  spy=%.2f"
+            "  conf_ticks=%d(%s)  vol_ratio=%.1f",
+            idea_id, reentry_count, candidate.symbol, candidate.score, spy_price,
+            state.confirm_ticks_target,
+            "surge" if _surge_at_reentry else "normal",
+            spy_vol_ratio,
+        )
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -435,19 +465,35 @@ class IdeaLogger:
                                  detail=f"score={score:.1f} < {decay_thr} for {state.decay_ticks} ticks")
                 return
 
-        # Confirmation
+        # Confirmation — conf_ticks_target is locked at surface/re-entry time,
+        # never recalculated per tick, so the bar doesn't shift under an idea mid-life.
         if score is not None and state.status in (STATUS_ACTIVE, STATUS_WEAKENING):
-            conf_score = cfg.get("confirm_score", 58)
-            conf_ticks = cfg.get("confirm_ticks_surge", 5) if vol_surge else cfg.get("confirm_ticks", 10)
-            state.confirm_ticks_count = state.confirm_ticks_count + 1 if score >= conf_score else 0
+            conf_score = cfg.get("confirm_score", 52)
+            conf_ticks = state.confirm_ticks_target   # fixed at surface/re-entry
+            if score >= conf_score:
+                state.confirm_ticks_count += 1
+                self._log.debug(
+                    "IDEA #%d CONFIRM_PROGRESS  %s  score=%.1f >= %.0f  ticks=%d/%d",
+                    state.idea_id, state.symbol, score, conf_score,
+                    state.confirm_ticks_count, conf_ticks,
+                )
+            else:
+                if state.confirm_ticks_count > 0:
+                    self._log.debug(
+                        "IDEA #%d CONFIRM_RESET  %s  score=%.1f < %.0f  was=%d ticks",
+                        state.idea_id, state.symbol, score, conf_score,
+                        state.confirm_ticks_count,
+                    )
+                state.confirm_ticks_count = 0
             if state.confirm_ticks_count >= conf_ticks and state.status != STATUS_CONFIRMED:
                 state.status = STATUS_CONFIRMED
                 self._db_confirm(state.idea_id, score, spy_price, now)
                 self._log_event(state.idea_id, "CONFIRMED", score=score, mark=mark,
                                 spy=spy_price,
                                 detail=f"score={score:.1f} >= {conf_score} for {conf_ticks} ticks")
-                self._log.info("IDEA #%d CONFIRMED  %s  score=%.1f  spy=%.2f",
-                               state.idea_id, state.symbol, score, spy_price)
+                self._log.info("IDEA #%d CONFIRMED (score)  %s  score=%.1f >= %.0f  ticks=%d  spy=%.2f",
+                               state.idea_id, state.symbol, score, conf_score,
+                               conf_ticks, spy_price)
 
     def _invalidate(self, key, state, reason, spy_price, mark, vol_ratio, now, detail=""):
         spy_move = spy_price - state.entry_spy

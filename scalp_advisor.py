@@ -162,7 +162,10 @@ class ScalpAdvisor:
         vol_surge_mult  = self._cfg.get("vol_surge_mult",      DEFAULT_VOL_SURGE_MULT)
         open_gate_min   = self._cfg.get("open_gate_minutes",   DEFAULT_OPEN_GATE_MINUTES)
 
-        now = datetime.now()
+        now       = datetime.now()
+        today     = now.date()
+        import re as _re
+        _EXPIRY_RE = _re.compile(r'(\d{6})[CP]')
 
         # ------------------------------------------------------------------
         # Change #6 — first-N-minutes gate (9:30 ET = 13:30 UTC)
@@ -230,6 +233,19 @@ class ScalpAdvisor:
                     sym = next(s for s in option_symbols if s.endswith(f'{marker}{strike}'))
                 except StopIteration:
                     continue
+
+                # ── Expired-expiry guard ──────────────────────────────────
+                # Parse YYMMDD from symbol (e.g. .SPY260320C678 → 2026-03-20).
+                # Skip entirely if expiry is before today — stale chain data
+                # can linger after roll and produce garbage deltas/marks.
+                _em = _EXPIRY_RE.search(sym)
+                if _em:
+                    try:
+                        _exp = datetime.strptime('20' + _em.group(1), '%Y%m%d').date()
+                        if _exp < today:
+                            continue
+                    except ValueError:
+                        pass
 
                 bid   = self._sf(data, f"{sym}:BID")
                 ask   = self._sf(data, f"{sym}:ASK")

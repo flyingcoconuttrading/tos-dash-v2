@@ -1906,8 +1906,8 @@ function update(snap) {
   // Checklist
   renderChecklist(ms);
 
-  // Candidates
-  renderCandidates(snap.candidates, snap.chain || {});
+  // Candidates (live) + tracked active ideas from idea_logger
+  renderCandidates(snap.candidates, snap.chain || {}, snap.active_ideas || []);
   // Update trade prices from chain (primary) or positions.json mark (fallback)
   const chain = snap.chain || {};
   const posData = snap.positions || {};
@@ -1993,9 +1993,10 @@ function togglePin(symbol) {
   _doRender();
 }
 
-let lastCandidates = [];
-let lastChainData  = {};
-let lastRender     = 0;
+let lastCandidates  = [];
+let lastChainData   = {};
+let lastActiveIdeas = [];
+let lastRender      = 0;
 
 function scoreColor(s) {
   if (s == null) return 'var(--dim)';
@@ -2008,9 +2009,10 @@ function getLast(symbol, chainData) {
   return chainData[symbol] ? chainData[symbol]['LAST'] : null;
 }
 
-function renderCandidates(candidates, chainData) {
-  lastCandidates = candidates || [];
-  lastChainData  = chainData  || {};
+function renderCandidates(candidates, chainData, activeIdeas) {
+  lastCandidates  = candidates   || [];
+  lastChainData   = chainData    || {};
+  lastActiveIdeas = activeIdeas  || [];
   // Update pinned data store with freshest row data
   for (const c of lastCandidates) {
     pinnedData.set(c.symbol, c);
@@ -2031,26 +2033,49 @@ function _doRender() {
   }
 
   const advisorMap = new Map(lastCandidates.map(c => [c.symbol, c]));
+  // Build a map of tracked active ideas (from idea_logger) keyed by symbol
+  const trackedMap = new Map();
+  for (const idea of lastActiveIdeas) {
+    if (!trackedMap.has(idea.symbol)) trackedMap.set(idea.symbol, idea);
+  }
 
-  // Build ordered symbol list: preserve existing order, append new ones
+  // Build ordered symbol list: pinned → live candidates → tracked ideas
   const seen = new Set();
   const ordered = [];
-  // First pass: existing pinned order
   for (const sym of pinnedSymbols) {
     if (!seen.has(sym)) { ordered.push(sym); seen.add(sym); }
   }
-  // Second pass: advisor candidates not yet in list
   for (const c of lastCandidates) {
     if (!seen.has(c.symbol)) { ordered.push(c.symbol); seen.add(c.symbol); }
   }
+  // Append tracked ideas not currently in live candidates (on cooldown)
+  for (const idea of lastActiveIdeas) {
+    if (!seen.has(idea.symbol)) { ordered.push(idea.symbol); seen.add(idea.symbol); }
+  }
 
-  // Build rows
+  // Build rows — live candidates take priority; fall back to tracked idea data
   const allRows = ordered.map(sym => {
-    const live = advisorMap.get(sym);
-    const cached = pinnedData.get(sym);
-    const row = live || cached;
-    if (!row) return null;
-    return { ...row, _live: !!live, _pinned: pinnedSymbols.has(sym) };
+    const live    = advisorMap.get(sym);
+    const cached  = pinnedData.get(sym);
+    const tracked = trackedMap.get(sym);
+    const row     = live || cached;
+    if (!row && !tracked) return null;
+    if (row) return { ...row, _live: !!live, _pinned: pinnedSymbols.has(sym), _tracked: tracked };
+    // Tracked only — build a stub row from idea_logger data
+    return {
+      symbol:   tracked.symbol,
+      side:     tracked.option_type,
+      strike:   tracked.strike,
+      score:    null,
+      bid:      null,
+      ask:      null,
+      delta:    null,
+      impl_vol: null,
+      mark:     tracked.entry_mark,
+      _live:    false,
+      _pinned:  pinnedSymbols.has(sym),
+      _tracked: tracked,
+    };
   }).filter(Boolean);
 
   if (allRows.length === 0) {
@@ -2065,23 +2090,31 @@ function _doRender() {
         <th>LAST</th><th>SCORE</th><th>BID/ASK</th><th>Δ</th><th>IV%</th>
       </tr></thead>
       <tbody>${allRows.map(c => {
-        const faded   = !c._live ? 'opacity:0.45;' : '';
-        const last    = getLast(c.symbol, lastChainData);
-        const lastCol = c.side === 'Call' ? 'color:var(--bull)' : 'color:var(--bear)';
-        const pinIcon = c._pinned ? '📌' : '·';
+        const isTrackedOnly = !c._live && c._tracked && c.score === null;
+        const faded    = (!c._live && !isTrackedOnly) ? 'opacity:0.45;' : '';
+        const rowStyle = isTrackedOnly ? 'opacity:0.7;border-left:2px solid var(--accent);' : faded;
+        const last     = getLast(c.symbol, lastChainData);
+        const lastCol  = c.side === 'Call' ? 'color:var(--bull)' : 'color:var(--bear)';
+        const pinIcon  = c._pinned ? '📌' : '·';
         const pinColor = c._pinned ? 'var(--accent)' : 'var(--muted)';
-        return `<tr style="${faded}">
+        const scoreCell = isTrackedOnly
+          ? `<span style="font-size:9px;color:var(--accent)">${c._tracked.status}${c._tracked.age_min != null ? ' '+c._tracked.age_min+'m' : ''}</span>`
+          : `<span style="color:${scoreColor(c.score)};font-weight:700">${f2(c.score)}</span>`;
+        const bidAsk = isTrackedOnly
+          ? `<span style="font-size:9px;color:var(--muted)">entry ${f2(c.mark)}</span>`
+          : `${f2(c.bid)}/${f2(c.ask)}`;
+        return `<tr style="${rowStyle}">
           <td><span onclick="togglePin('${c.symbol}')"
             style="cursor:pointer;font-size:12px;user-select:none;color:${pinColor}"
             title="${c._pinned?'Unpin':'Pin'}">${pinIcon}</span></td>
-          <td style="font-size:9px;cursor:pointer;color:var(--accent)" 
+          <td style="font-size:9px;cursor:pointer;color:var(--accent)"
             onclick="prefillTrade('${c.symbol}','${c.side}',${c.strike||0},${getLast(c.symbol,lastChainData)||0})"
-            title="Click to add trade">${c.symbol||'--'}</td>
-          <td><span class="side-c ${c.side}">${c.side}</span></td>
+            title="${isTrackedOnly ? 'Tracked (on cooldown)' : 'Click to add trade'}">${c.symbol||'--'}</td>
+          <td><span class="side-c ${c.side}">${c.side||'--'}</span></td>
           <td>${f0(c.strike)}</td>
           <td style="${lastCol}">${f2(last)}</td>
-          <td style="color:${scoreColor(c.score)};font-weight:700">${f2(c.score)}</td>
-          <td>${f2(c.bid)}/${f2(c.ask)}</td>
+          <td>${scoreCell}</td>
+          <td>${bidAsk}</td>
           <td>${f2(c.delta)}</td>
           <td>${f2(c.impl_vol)}</td>
         </tr>`;
