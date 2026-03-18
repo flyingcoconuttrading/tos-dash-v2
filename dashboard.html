@@ -272,12 +272,12 @@ header {
 
 /* Candidates */
 .cand-table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:10px; }
-.cand-table th { color:var(--muted); text-align:left; padding:3px 6px; border-bottom:1px solid var(--border); font-weight:400; letter-spacing:0.08em; font-size:9px; }
-.cand-table td { padding:5px 6px; border-bottom:1px solid rgba(26,32,48,0.5); }
-.cand-table tr:hover td { background:rgba(255,255,255,0.02); }
+.cand-table th { color:var(--dim); text-align:left; padding:3px 6px; border-bottom:1px solid var(--border); font-weight:400; letter-spacing:0.08em; font-size:9px; }
+.cand-table td { padding:5px 6px; border-bottom:1px solid rgba(26,32,48,0.5); color:var(--text); }
+.cand-table tr:hover td { background:rgba(255,255,255,0.06); }
 .side-c { padding:2px 5px; font-size:8px; font-weight:700; border-radius:1px; }
-.side-c.Call { background:rgba(0,230,118,0.12); color:var(--bull); }
-.side-c.Put  { background:rgba(255,61,87,0.12);  color:var(--bear); }
+.side-c.Call { background:rgba(0,230,118,0.22); color:var(--bull); border:1px solid rgba(0,230,118,0.50); }
+.side-c.Put  { background:rgba(255,61,87,0.22);  color:var(--bear); border:1px solid rgba(255,61,87,0.50); }
 
 .no-data-msg { font-family:var(--mono); font-size:10px; color:var(--muted); padding:16px 0; }
 
@@ -2104,12 +2104,12 @@ function _doRender() {
         const faded    = (!c._live && !isTrackedOnly) ? 'opacity:0.45;' : '';
         const rowStyle = isTrackedOnly ? 'opacity:0.7;border-left:2px solid var(--accent);' : faded;
         const last     = getLast(c.symbol, lastChainData);
-        const lastCol  = c.side === 'Call' ? 'color:var(--bull)' : 'color:var(--bear)';
+        const lastCol  = c.side === 'Call' ? 'color:var(--bull);font-weight:600' : 'color:var(--bear);font-weight:600';
         const pinIcon  = c._pinned ? '📌' : '·';
-        const pinColor = c._pinned ? 'var(--accent)' : 'var(--muted)';
+        const pinColor = c._pinned ? 'var(--accent)' : 'var(--dim)';
         const scoreCell = isTrackedOnly
           ? `<span style="font-size:9px;color:var(--accent)">${c._tracked.status}${c._tracked.age_min != null ? ' '+c._tracked.age_min+'m' : ''}</span>`
-          : `<span style="color:${scoreColor(c.score)};font-weight:700">${f2(c.score)}</span>`;
+          : `<span style="color:${scoreColor(c.score)};font-weight:700;font-size:11px;">${f2(c.score)}</span>`;
         const bidAsk = isTrackedOnly
           ? `<span style="font-size:9px;color:var(--muted)">entry ${f2(c.mark)}</span>`
           : `${f2(c.bid)}/${f2(c.ask)}`;
@@ -2117,16 +2117,16 @@ function _doRender() {
           <td><span onclick="togglePin('${c.symbol}')"
             style="cursor:pointer;font-size:12px;user-select:none;color:${pinColor}"
             title="${c._pinned?'Unpin':'Pin'}">${pinIcon}</span></td>
-          <td style="font-size:9px;cursor:pointer;color:var(--accent)"
+          <td style="font-size:9px;cursor:pointer;color:var(--text);font-weight:600"
             onclick="prefillTrade('${c.symbol}','${c.side}',${c.strike||0},${getLast(c.symbol,lastChainData)||0})"
             title="${isTrackedOnly ? 'Tracked (on cooldown)' : 'Click to add trade'}">${c.symbol||'--'}</td>
           <td><span class="side-c ${c.side}">${c.side||'--'}</span></td>
           <td>${f0(c.strike)}</td>
           <td style="${lastCol}">${f2(last)}</td>
           <td>${scoreCell}</td>
-          <td>${bidAsk}</td>
-          <td>${f2(c.delta)}</td>
-          <td>${f2(c.impl_vol)}</td>
+          <td style="color:var(--text)">${bidAsk}</td>
+          <td style="color:var(--text)">${f2(c.delta)}</td>
+          <td style="color:var(--text)">${f2(c.impl_vol)}</td>
         </tr>`;
       }).join('')}
       </tbody>
