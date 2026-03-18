@@ -3,11 +3,13 @@
 Scalp Advisor — ranks option contracts by scalp suitability using live RTD data.
 
 Scoring factors (each 0–100, weighted):
-  1. GEX regime        — negative GEX = trending = better for directional scalps  (25%)
-  2. Direction         — underlying price trend + DEX dealer flow alignment        (25%)
-  3. Level proximity   — near a meaningful level (max pain, call/put wall)         (20%)
+  1. GEX regime        — PINNED (pos GEX) vs TRENDING (neg GEX) regime            (15%)
+  2. Direction         — underlying price trend + DEX dealer flow alignment        (20%)
+  3. Level proximity   — near a meaningful level (max pain, call/put wall)         (15%)
   4. Volume surge      — unusual activity on this specific contract                (15%)
-  5. Greeks quality    — delta 0.35–0.65, theta not too destructive                (15%)
+  5. Greeks quality    — delta 0.35–0.65, theta not too destructive                (10%)
+  6. IV                — implied volatility as movement predictor                  (15%)
+  7. SPY intraday level— position in day's range (near LOD = better for calls)    (10%)
 
 Stability mechanisms:
   - Score smoothing    — each contract's score is a rolling average over SMOOTH_TICKS ticks
@@ -32,7 +34,8 @@ from dataclasses import dataclass, field
 # ---------------------------------------------------------------------------
 SMOOTH_TICKS          = 5    # ticks to average score over
 MIN_TICKS_TO_SURFACE  = 3    # must score well for this many ticks before showing
-DROP_THRESHOLD        = 50   # if smoothed score falls below this, remove from display
+DROP_THRESHOLD        = 58   # if smoothed score falls below this, remove from display
+MAX_DISPLAYED         = 6    # hard cap on simultaneously shown candidates
 DIRECTION_TICKS       = 6    # price history lookback for underlying trend (~1 min at 10s)
 DIRECTION_MIN_MOVE    = 0.10 # underlying must move at least $0.10 to be called trending
 
@@ -44,8 +47,9 @@ DEFAULT_VOL_SURGE_MULT    = 1.5   # option vol >= this × its 3-tick rolling avg
 DEFAULT_VOL_TICKS         = 3     # rolling window for per-option vol baseline
 CANDLE_MINUTES            = 1     # candle size in minutes for underlying close confirmation
 
-# Change #4 — IV cap (0 = disabled)
-DEFAULT_IV_CAP            = 35.0  # %
+# Change #4 — IV floor/ceiling filters (0 = disabled)
+DEFAULT_IV_FLOOR          = 0.0   # % — exclude contracts with IV below this
+DEFAULT_IV_CEILING        = 60.0  # % — exclude contracts with IV above this
 
 # Change #5 — confirm score threshold
 DEFAULT_CONFIRM_SCORE     = 55
@@ -89,11 +93,13 @@ class ScalpCandidate:
 
 class ScalpAdvisor:
     # Score weights (must sum to 1.0)
-    W_GEX       = 0.25
-    W_DIRECTION = 0.25
-    W_LEVEL     = 0.20
+    W_GEX       = 0.15
+    W_DIRECTION = 0.20
+    W_LEVEL     = 0.15
     W_SURGE     = 0.15
-    W_GREEKS    = 0.15
+    W_GREEKS    = 0.10
+    W_IV        = 0.15
+    W_SPY_LEVEL = 0.10
 
     MAX_SPREAD_PCT = 15.0
     DELTA_MIN      = 0.30
@@ -119,6 +125,10 @@ class ScalpAdvisor:
         self._candle_minute: int       = -1            # wall-clock minute of current open candle
         self._candle_last: float       = 0.0           # last price seen in current candle
 
+        # SPY intraday range tracking
+        self._day_high: float = 0.0
+        self._day_low:  float = float('inf')
+
         # runtime config — updated each tick from api.py
         self._cfg: dict = {}
 
@@ -132,6 +142,8 @@ class ScalpAdvisor:
         self._last_candle_close = 0.0
         self._candle_minute     = -1
         self._candle_last       = 0.0
+        self._day_high          = 0.0
+        self._day_low           = float('inf')
         self._cfg.clear()
 
     def get_recommendations(
@@ -144,7 +156,7 @@ class ScalpAdvisor:
         call_wall: float | None,
         put_wall: float | None,
         surge_symbols: set | None = None,
-        top_n: int = 3,
+        top_n: int = 6,
         risk_cap: float = 2.00,
         cfg: dict | None = None,
     ) -> list[ScalpCandidate]:
@@ -158,7 +170,8 @@ class ScalpAdvisor:
         # Merge runtime config
         self._cfg = cfg or {}
         cooldown_min    = self._cfg.get("idea_cooldown_min",   DEFAULT_IDEA_COOLDOWN_MIN)
-        iv_cap          = self._cfg.get("iv_cap",              DEFAULT_IV_CAP)
+        iv_floor        = self._cfg.get("iv_floor",            DEFAULT_IV_FLOOR)
+        iv_ceiling      = self._cfg.get("iv_ceiling",          DEFAULT_IV_CEILING)
         vol_surge_mult  = self._cfg.get("vol_surge_mult",      DEFAULT_VOL_SURGE_MULT)
         open_gate_min   = self._cfg.get("open_gate_minutes",   DEFAULT_OPEN_GATE_MINUTES)
 
@@ -185,6 +198,12 @@ class ScalpAdvisor:
 
         # Track price history for direction
         self._price_history.append(current_price)
+
+        # Track intraday range for SPY level scoring
+        if current_price > self._day_high:
+            self._day_high = current_price
+        if 0 < current_price < self._day_low:
+            self._day_low = current_price
 
         # ------------------------------------------------------------------
         # Change #2 — track 1-minute candle closes for underlying confirmation
@@ -264,8 +283,10 @@ class ScalpAdvisor:
                 if spread_pct > 50:
                     continue
 
-                # Change #4 — IV cap (0 = disabled)
-                if iv_cap > 0 and iv > iv_cap:
+                # Change #4 — IV floor/ceiling filters
+                if iv_floor > 0 and iv < iv_floor:
+                    continue
+                if iv_ceiling > 0 and iv > iv_ceiling:
                     continue
 
                 # Change #3 — trend-side filter: suppress low-confidence counter-trend ideas
@@ -303,25 +324,33 @@ class ScalpAdvisor:
                 is_surging = vol_surging or (sym in surge_symbols)
 
                 # ── Factor scores ─────────────────────────────────────────
-                gex_score       = 80 if gex_negative else 30
+                gex_score       = 65 if gex_negative else 75
                 direction_score = self._direction_score(opt_type, trend, dex_bias)
                 level_score     = self._level_score(strike, levels, current_price)
-                surge_score     = 85 if is_surging else 20
+                surge_score     = self._surge_score(is_surging, rel_vol_ratio)
                 greeks_score    = self._greeks_score(abs_delta, theta, mark)
+                iv_score        = self._iv_score(iv)
+                spy_level_score, position_in_range = self._spy_level_score(current_price, opt_type)
 
                 # Change #2 — candle-close confirmation: price must be above (calls)
                 # or below (puts) the last completed 1-min candle close
                 underlying_confirms = self._candle_confirms(current_price, opt_type)
                 if vol_surging and underlying_confirms:
-                    surge_score = min(surge_score + 10, 100)   # +10 bonus for confirmed surge
+                    surge_score = min(surge_score + 8, 100)   # +8 bonus for confirmed surge
 
                 raw_score = (
                     self.W_GEX       * gex_score       +
                     self.W_DIRECTION * direction_score  +
                     self.W_LEVEL     * level_score      +
                     self.W_SURGE     * surge_score      +
-                    self.W_GREEKS    * greeks_score
+                    self.W_GREEKS    * greeks_score     +
+                    self.W_IV        * iv_score         +
+                    self.W_SPY_LEVEL * spy_level_score
                 )
+
+                # Soft ceiling — scores above 68 are compressed
+                if raw_score > 68:
+                    raw_score = 68 + (raw_score - 68) * 0.3
 
                 # Spread penalty
                 if spread_pct > self.MAX_SPREAD_PCT:
@@ -342,6 +371,7 @@ class ScalpAdvisor:
                     "_is_surging": is_surging,
                     "_rel_vol_ratio": rel_vol_ratio,
                     "_underlying_confirms": underlying_confirms,
+                    "_position_in_range": position_in_range,
                 })
 
         # ------------------------------------------------------------------
@@ -394,6 +424,7 @@ class ScalpAdvisor:
                 kwargs["theta"], kwargs["mark"], kwargs["spread_pct"],
                 kwargs["_is_surging"], kwargs["strike"], kwargs["_levels"],
                 kwargs["_current_price"], kwargs["iv"], trend,
+                kwargs["_position_in_range"],
             )
 
             # Build dataclass — strip internal underscore keys
@@ -405,6 +436,14 @@ class ScalpAdvisor:
             )))
 
         smoothed.sort(key=lambda x: x[0], reverse=True)
+
+        # Evict symbols that fell out of top MAX_DISPLAYED and aren't in this tick's list
+        top_syms = {c.symbol for _, c in smoothed[:MAX_DISPLAYED]}
+        all_syms = {c.symbol for _, c in smoothed}
+        for sym in list(self._displayed):
+            if sym not in top_syms and sym not in all_syms:
+                self._displayed.discard(sym)
+
         return [c for _, c in smoothed[:top_n]]
 
     # ------------------------------------------------------------------
@@ -499,7 +538,11 @@ class ScalpAdvisor:
         Choppy = neutral 40 for both sides
         """
         if trend == "Choppy":
-            return 40
+            # Use DEX bias as tiebreaker to distinguish calls from puts
+            if opt_type == "Call":
+                return 60 if dex_bias == "Bullish" else 30
+            else:
+                return 60 if dex_bias == "Bearish" else 30
 
         # Price trend alignment
         if opt_type == "Call":
@@ -593,6 +636,45 @@ class ScalpAdvisor:
 
         return delta_score * 0.7 + theta_score * 0.3
 
+    def _surge_score(self, is_surging: bool, rel_vol_ratio: float) -> float:
+        """Graduated surge score using relative volume ratio."""
+        if rel_vol_ratio <= 1.0:
+            return 15
+        if rel_vol_ratio < 1.5:
+            return 15 + ((rel_vol_ratio - 1.0) / 0.5) * 25   # 15→40
+        capped = min(rel_vol_ratio, 5.0)
+        return 55 + ((capped - 1.5) / 3.5) * 40               # 55→95
+
+    def _iv_score(self, iv: float) -> float:
+        """Score implied volatility — higher IV = better movement potential."""
+        if iv <= 0:
+            return 20
+        if iv < 25:
+            return max(0, (iv / 25) * 30)
+        if iv < 32:
+            return 30 + ((iv - 25) / 7) * 25    # 30→55
+        if iv < 38:
+            return 55 + ((iv - 32) / 6) * 25    # 55→80
+        if iv < 45:
+            return 80 + ((iv - 38) / 7) * 15    # 80→95
+        return 95
+
+    def _spy_level_score(self, current_price: float, opt_type: str) -> tuple[float, float]:
+        """
+        Score based on SPY's position in today's high/low range.
+        Returns (score, position) where position is 0.0 (LOD) to 1.0 (HOD).
+        Calls near LOD = good; Puts near HOD = good.
+        """
+        day_range = self._day_high - self._day_low
+        if day_range < 0.50:
+            return 50.0, 0.5  # not enough range established yet
+        position = (current_price - self._day_low) / day_range
+        position = max(0.0, min(1.0, position))
+        if opt_type == "Call":
+            return 20 + (1.0 - position) * 75, position   # near LOD = best
+        else:
+            return 20 + position * 75, position            # near HOD = best
+
     # ------------------------------------------------------------------
     # Reasons
     # ------------------------------------------------------------------
@@ -601,6 +683,7 @@ class ScalpAdvisor:
         self, opt_type, direction, dex_bias, gex_negative,
         abs_delta, theta, mark, spread_pct, is_surging,
         strike, levels, current_price, iv, trend,
+        position_in_range: float = 0.5,
     ) -> list[str]:
         reasons = []
 
@@ -621,9 +704,9 @@ class ScalpAdvisor:
 
         # GEX
         if gex_negative:
-            reasons.append("Negative GEX — trending regime, moves tend to extend")
+            reasons.append("Negative GEX — TRENDING regime, moves tend to extend")
         else:
-            reasons.append("Positive GEX — mean-reversion regime, tighter targets")
+            reasons.append("Positive GEX — PINNED regime, mean-reversion setup")
 
         # Level
         if levels:
@@ -657,8 +740,20 @@ class ScalpAdvisor:
         if spread_pct > self.MAX_SPREAD_PCT:
             reasons.append(f"⚠️ Wide spread ({spread_pct:.1f}%)")
 
+        # IV — tiered message
         if iv > 0:
-            reasons.append(f"IV {iv:.0f}%")
+            if iv < 32:
+                reasons.append(f"IV {iv:.0f}% — low, option may not move enough")
+            elif iv < 38:
+                reasons.append(f"IV {iv:.0f}% — average")
+            else:
+                reasons.append(f"IV {iv:.0f}% — elevated, good movement potential")
+
+        # SPY level context
+        if opt_type == "Call" and position_in_range > 0.80:
+            reasons.append("SPY near day high — limited upside room")
+        elif opt_type == "Put" and position_in_range < 0.20:
+            reasons.append("SPY near day low — limited downside room")
 
         return reasons
 

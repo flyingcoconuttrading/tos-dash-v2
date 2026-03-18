@@ -3,12 +3,7 @@
     {
       "name": "Yahoo Finance",
       "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=SPY,QQQ,VIX&region=US&lang=en-US",
-      "enabled": true
-    },
-    {
-      "name": "Reuters",
-      "url": "https://feeds.reuters.com/reuters/businessNews",
-      "enabled": true
+      "enabled": false
     },
     {
       "name": "MarketWatch",
@@ -18,15 +13,20 @@
     {
       "name": "CNBC",
       "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
-      "enabled": true
+      "enabled": false
     },
     {
       "name": "Seeking Alpha",
       "url": "https://seekingalpha.com/feed.xml",
       "enabled": true
+    },
+    {
+      "name": "NASD Stock",
+      "url": "https://www.nasdaq.com/feed/rssoutbound?category=Stocks",
+      "enabled": true
     }
   ],
   "keywords": "SPY|SPX|QQQ|VIX|Fed|FOMC|inflation|CPI|jobs|rate|market|stocks|equit|S&P|Nasdaq|rally|sell|crash|tariff|recession|GDP|Powell|Treasury|ETF|options|index|indices|futures|yield|interest",
-  "max_age_hours": 4,
+  "max_age_hours": 1,
   "max_headlines": 25
 }

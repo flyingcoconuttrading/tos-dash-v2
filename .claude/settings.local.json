@@ -7,7 +7,16 @@
       "Bash(cd:*)",
       "Bash(netstat:*)",
       "Bash(find:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(ls /c/Users/randy/tos-api/*.py /c/Users/randy/tos-api/agents/*.py)",
+      "Read(//c/Users/randy/hg-frontend/**)",
+      "Bash(npx react-scripts:*)",
+      "Bash(python -m py_compile main.py checker.py settings.py data/collector.py agents/technical_agent.py agents/macro_agent.py agents/wildcard_agent.py agents/supervisor_agent.py)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(python -c \":*)",
+      "Bash(python:*)"
     ]
   }
 }
