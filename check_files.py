@@ -1,26 +1,13 @@
 """
-check_files.py — tos-dash-v2 version checker
-Run from C:\\Users\\randy\\tos-dash-v2\\
-    python check_files.py
+check_files.py — tos-dash-v2 file version checker
+Run: python check_files.py
 """
+__version__ = "2.0.0"  # rewrite: version-string based (replaces MD5 checksum approach)
 
-import hashlib
-import os
+import re
+import subprocess
 import sys
 from pathlib import Path
-
-# ── Expected checksums (MD5) ──────────────────────────────────────────────────
-# Updated: 2026-03-13
-EXPECTED = {
-    "api.py":              ("9d0ddb1b171607e1dd221e27a7de1fbd",  661),
-    "gamma_chart.py":      ("030d07dac2c0c6728c0de6f14c63e06c",  517),
-    "idea_logger.py":      ("d8cc52159b3b55fb11d30d6e69fab9e7",  691),
-    "market_structure.py": ("feb05f11089a1ccb6b48c1242a0c4674",  497),
-    "scalp_advisor.py":    ("6e289ddd08e44f49c5e744dd89ed8fda",  655),
-    "spy_writer.py":       ("0de3994a604c8e84470b0a4a2789083f",  263),
-    "volume_tracker.py":   ("6e6c19ff3cc5c4922d07fbfaad0a1a8c",  209),
-    "dashboard.html":      ("156a4ae5e57c4b4368b0438914456901", 2269),
-}
 
 HERE = Path(__file__).parent
 
@@ -30,76 +17,97 @@ YELLOW = "\033[93m"
 CYAN   = "\033[96m"
 RESET  = "\033[0m"
 BOLD   = "\033[1m"
+DIM    = "\033[2m"
 
-def md5(path: Path) -> str:
-    h = hashlib.md5()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
+
+def get_version(path: Path) -> str:
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        m = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']', text, re.MULTILINE)
+        return m.group(1) if m else "—"
+    except Exception:
+        return "?"
+
 
 def line_count(path: Path) -> int:
-    with open(path, encoding="utf-8", errors="ignore") as f:
-        return sum(1 for _ in f)
+    try:
+        with open(path, encoding="utf-8", errors="ignore") as f:
+            return sum(1 for _ in f)
+    except Exception:
+        return 0
+
+
+def git_log(path: Path) -> tuple:
+    """Returns (short_hash, relative_age, subject_truncated)."""
+    try:
+        rel = str(path.relative_to(HERE)).replace("\\", "/")
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%h|%ar|%s", "--", rel],
+            capture_output=True, text=True, cwd=HERE,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            parts = result.stdout.strip().split("|", 2)
+            hash_ = parts[0] if len(parts) > 0 else "?"
+            age   = parts[1] if len(parts) > 1 else "?"
+            subj  = parts[2][:48] if len(parts) > 2 else ""
+            return hash_, age, subj
+    except Exception:
+        pass
+    return "?", "?", ""
+
+
+def collect_files() -> list:
+    files = []
+    for p in sorted(HERE.glob("*.py")):
+        if p.name != "__init__.py":
+            files.append(p)
+    rtd = HERE / "rtd"
+    if rtd.exists():
+        for p in sorted(rtd.glob("*.py")):
+            if p.name != "__init__.py":
+                files.append(p)
+    html = HERE / "dashboard.html"
+    if html.exists():
+        files.append(html)
+    return files
+
 
 def main():
+    files = collect_files()
+
     print(f"\n{BOLD}tos-dash-v2 version checker{RESET}  ({HERE})\n")
-    print(f"{'FILE':<22} {'STATUS':<10} {'LINES':>6}  {'EXPECTED':>6}  HASH")
-    print("─" * 72)
+    print(f"{'FILE':<30} {'VER':<12} {'LINES':>6}  {'HASH':<9}  {'WHEN':<20}  LAST COMMIT")
+    print("-" * 108)
 
-    all_ok   = True
-    missing  = []
-    modified = []
-    ok_files = []
+    versioned   = []
+    unversioned = []
 
-    for filename, (expected_hash, expected_lines) in EXPECTED.items():
-        path = HERE / filename
+    for path in files:
+        rel   = str(path.relative_to(HERE)).replace("\\", "/")
+        ver   = get_version(path) if path.suffix == ".py" else "—"
+        lines = line_count(path)
+        hash_, age, subj = git_log(path)
 
-        if not path.exists():
-            print(f"{RED}{filename:<22} MISSING{RESET}")
-            missing.append(filename)
-            all_ok = False
-            continue
-
-        actual_hash  = md5(path)
-        actual_lines = line_count(path)
-
-        if actual_hash == expected_hash:
-            status = f"{GREEN}OK{RESET}"
-            line_info = f"{actual_lines:>6}  {expected_lines:>6}"
-            print(f"{filename:<22} {status:<19} {line_info}  {actual_hash[:12]}…")
-            ok_files.append(filename)
+        if ver not in ("—", "?"):
+            versioned.append(rel)
+            ver_col = f"{GREEN}{ver:<12}{RESET}"
         else:
-            delta = actual_lines - expected_lines
-            delta_str = f"{'+' if delta >= 0 else ''}{delta}"
-            status = f"{YELLOW}MODIFIED{RESET}"
-            line_info = f"{actual_lines:>6}  {expected_lines:>6}  ({delta_str} lines)"
-            print(f"{filename:<22} {status:<19} {line_info}")
-            print(f"  {CYAN}expected:{RESET} {expected_hash}")
-            print(f"  {CYAN}actual:  {RESET} {actual_hash}")
-            modified.append(filename)
-            all_ok = False
+            unversioned.append(rel)
+            ver_col = f"{DIM}{'-':<12}{RESET}"
 
-    print("─" * 72)
+        print(f"{rel:<30} {ver_col} {lines:>6}  {hash_:<9}  {age:<20}  {DIM}{subj}{RESET}")
 
-    total_lines = sum(line_count(HERE / f) for f in EXPECTED if (HERE / f).exists())
-    print(f"\n{'Total lines:':<22} {total_lines:>6}")
-    print(f"{'Files checked:':<22} {len(EXPECTED):>6}")
-    print(f"{'OK:':<22} {len(ok_files):>6}  {GREEN}{', '.join(ok_files) if ok_files else '—'}{RESET}")
+    print("-" * 108)
+    print(f"\n{BOLD}Summary{RESET}")
+    print(f"  Files found:      {len(files)}")
+    if versioned:
+        print(f"  {GREEN}Versioned:{RESET}        {len(versioned)}  ->  {', '.join(versioned)}")
+    if unversioned:
+        print(f"  {YELLOW}No version yet:{RESET}   {len(unversioned)}  ->  add __version__ when you next touch these")
+    print()
+    print(f"  {DIM}Convention: __version__ = \"MAJOR.MINOR.PATCH\"")
+    print(f"  MAJOR = breaking change   MINOR = new feature/significant fix   PATCH = small fix{RESET}\n")
 
-    if modified:
-        print(f"{'Modified:':<22} {len(modified):>6}  {YELLOW}{', '.join(modified)}{RESET}")
-    if missing:
-        print(f"{'Missing:':<22} {len(missing):>6}  {RED}{', '.join(missing)}{RESET}")
-
-    if all_ok:
-        print(f"\n{GREEN}{BOLD}✓ All files match expected checksums.{RESET}\n")
-    else:
-        print(f"\n{YELLOW}{BOLD}⚠  Some files differ from expected.{RESET}")
-        print(f"  Modified files have been changed since last baseline update.")
-        print(f"  Run this after deploying new files to confirm deployment.\n")
-
-    return 0 if all_ok else 1
 
 if __name__ == "__main__":
     sys.exit(main())

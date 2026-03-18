@@ -1,4 +1,5 @@
 # src/ui/market_structure.py
+__version__ = "1.2.0"  # Bug 4: max pain checklist weight scaled by time-of-day
 """
 Market Structure Analyzer — interprets GEX/DEX data into a human-readable
 regime summary with bias, snap level detection, flip zone alerts,
@@ -149,10 +150,10 @@ def _build_checklist(
 
     factors = []
 
-    def add(key, value, detail):
+    def add(key, value, detail, weight=None):
         factors.append(ChecklistFactor(
             key=key, label=FACTOR_LABELS[key],
-            value=value, weight=FACTOR_WEIGHTS[key], detail=detail,
+            value=value, weight=weight if weight is not None else FACTOR_WEIGHTS[key], detail=detail,
         ))
 
     # ── 1. Regime (25%) ───────────────────────────────────────────────────────
@@ -161,11 +162,11 @@ def _build_checklist(
         add(CL_REGIME, val,
             f"SNAP IMMINENT — explosive move toward {'upside' if val=='Bull' else 'downside'}")
     elif regime == REGIME_TRENDING:
-        # snap_direction=="Above" means net_dex > 0 (dealers long delta = bearish pressure),
-        # matching the bias logic: bias="Bearish" when net_dex > 0.
-        val = "Bear" if snap_direction == "Above" else "Bull"
+        # snap_direction=="Above" means net_dex > 0 (customers long delta = dealers short
+        # = bullish dealer hedging pressure, amplified by negative GEX in TRENDING).
+        val = "Bull" if snap_direction == "Above" else "Bear"
         add(CL_REGIME, val,
-            f"TRENDING — negative GEX, directional move likely {'down' if val=='Bear' else 'up'}")
+            f"TRENDING — negative GEX, directional move likely {'up' if val=='Bull' else 'down'}")
     elif regime == REGIME_PINNED:
         add(CL_REGIME, "Neutral",
             "PINNED — positive GEX anchoring price, mean reversion dominant")
@@ -220,16 +221,46 @@ def _build_checklist(
                 f"Downward ${move:+.2f} over {len(_price_history)} ticks"
                 + (" (spike — not confirmed)" if val == "Neutral" else ""))
 
-    # ── 5. Price vs Max Pain (10%) ────────────────────────────────────────────
+    # ── 5. Price vs Max Pain (10% base, time-weighted) ────────────────────────
+    # Max pain pin only becomes meaningfully active in the final ~90 min of session.
+    # Weight ramps linearly from 0 (before noon) to full (after 2:30pm ET).
+    try:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        _now_et = datetime.now(ZoneInfo("America/New_York"))
+        _mins_to_close = (16 * 60) - (_now_et.hour * 60 + _now_et.minute)
+        if _mins_to_close <= 90:
+            mp_weight_mult = 1.0
+        elif _now_et.hour < 12:
+            mp_weight_mult = 0.0
+        else:
+            _total_window = (4 * 60) - 90   # noon to 2:30pm = 150 mins
+            _elapsed = (_now_et.hour * 60 + _now_et.minute) - (12 * 60)
+            mp_weight_mult = min(_elapsed / _total_window, 1.0)
+    except Exception:
+        mp_weight_mult = 0.5   # safe fallback if zoneinfo unavailable
+
+    mp_eff_weight = FACTOR_WEIGHTS[CL_MAX_PAIN] * mp_weight_mult
+    mp_eff_pct    = round(mp_eff_weight * 100)
+    mp_weight_note = (
+        f"weight: {mp_eff_pct}%"
+        if mp_weight_mult >= 1.0
+        else f"weight: {mp_eff_pct}% — pre-activation, <2:30pm ET"
+    )
+
     mp_diff = current_price - max_pain
     if abs(mp_diff) < 0.75:
-        add(CL_MAX_PAIN, "Neutral", f"At max pain ${max_pain:.0f} — no gravity")
+        add(CL_MAX_PAIN, "Neutral",
+            f"At max pain ${max_pain:.0f} — no gravity ({mp_weight_note})",
+            weight=mp_eff_weight)
     elif mp_diff < 0:
         add(CL_MAX_PAIN, "Bull",
-            f"${abs(mp_diff):.2f} below max pain ${max_pain:.0f} — upward gravity")
+            f"${abs(mp_diff):.2f} below max pain ${max_pain:.0f} — upward gravity ({mp_weight_note})",
+            weight=mp_eff_weight)
     else:
         add(CL_MAX_PAIN, "Bear",
-            f"${mp_diff:.2f} above max pain ${max_pain:.0f} — downward gravity")
+            f"${mp_diff:.2f} above max pain ${max_pain:.0f} — downward gravity ({mp_weight_note})",
+            weight=mp_eff_weight)
 
     # ── 6. Price vs Walls (10%) ───────────────────────────────────────────────
     near_call = abs(current_price - call_wall) <= 1.50
@@ -407,6 +438,20 @@ def analyze(
     near_call_wall = abs(current_price - call_wall) <= 2.0
     near_put_wall  = abs(current_price - put_wall) <= 2.0
 
+    # ── Price trend + DEX bias (used in TRENDING composite) ──────────────────
+    if len(_price_history) < 4:
+        trend = "Choppy"
+    else:
+        _move = _price_history[-1] - _price_history[0]
+        if _move < -MOMENTUM_MIN_MOVE:
+            trend = "Downtrend"
+        elif _move > MOMENTUM_MIN_MOVE:
+            trend = "Uptrend"
+        else:
+            trend = "Choppy"
+
+    dex_bias = "Bullish" if net_dex > 0 else "Bearish"
+
     if regime == REGIME_SNAP_IMMINENT:
         bias        = "Bullish" if snap_direction == "Above" else "Bearish"
         bias_reason = (
@@ -414,11 +459,21 @@ def analyze(
             f"{'upside' if snap_direction == 'Above' else 'downside'}"
         )
     elif regime == REGIME_TRENDING:
-        bias        = "Bearish" if net_dex > 0 else "Bullish"
-        bias_reason = (
-            f"Negative GEX trending regime — "
-            f"{'bearish' if net_dex > 0 else 'bullish'} dealer pressure dominant"
-        )
+        if trend == "Downtrend" and dex_bias == "Bearish":
+            bias = "Bearish"
+            bias_reason = "Trending regime — price falling, bearish positioning aligned. Dealers amplify move."
+        elif trend == "Downtrend" and dex_bias == "Bullish":
+            bias = "Bearish"
+            bias_reason = "Trending regime — price falling. DEX diverging (watch for reversal)."
+        elif trend == "Uptrend" and dex_bias == "Bullish":
+            bias = "Bullish"
+            bias_reason = "Trending regime — price rising, bullish positioning aligned. Dealers amplify move."
+        elif trend == "Uptrend" and dex_bias == "Bearish":
+            bias = "Bullish"
+            bias_reason = "Trending regime — price rising. DEX diverging (watch for reversal)."
+        else:  # Choppy — no momentum confirmation
+            bias = "Neutral"
+            bias_reason = "Trending regime — no clear momentum. Wait for price direction to establish."
     elif regime == REGIME_TRANSITION:
         bias        = "Neutral"
         bias_reason = "GEX near zero — regime unstable, no clear anchor"
@@ -427,10 +482,10 @@ def analyze(
             bias, bias_reason = "Neutral", f"Pinned at max pain ${max_pain:.0f}"
         elif above_mp and net_dex > 0:
             bias        = "Bearish"
-            bias_reason = f"Above max pain +${mp_distance:.2f}, bearish DEX — selling toward ${max_pain:.0f}"
+            bias_reason = f"Above max pain +${mp_distance:.2f} — gravitating toward ${max_pain:.0f}, DEX {'confirms' if dex_bias == 'Bearish' else 'diverges, watch for hold'}"
         elif not above_mp and net_dex < 0:
             bias        = "Bullish"
-            bias_reason = f"Below max pain -${abs(mp_distance):.2f}, bullish DEX — buying toward ${max_pain:.0f}"
+            bias_reason = f"Below max pain -${abs(mp_distance):.2f} — gravitating toward ${max_pain:.0f}, DEX {'confirms' if dex_bias == 'Bullish' else 'diverges, watch for hold'}"
         elif near_call_wall and above_mp:
             bias, bias_reason = "Bearish", f"Resistance at call wall ${call_wall:.0f}"
         elif near_put_wall and not above_mp:

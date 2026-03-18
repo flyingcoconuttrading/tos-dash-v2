@@ -1,3 +1,5 @@
+__version__ = "1.1.0"  # DEX chart: remove max pain + walls (GEX-only concepts); fix docstring
+
 try:
     import plotly.graph_objects as go
     _PLOTLY_OK = True
@@ -354,8 +356,10 @@ class DeltaChartBuilder:
 
     DEX per strike = (call_oi * call_delta + put_oi * put_delta) * 100 * underlying_price
 
-    Positive DEX  → calls dominate  → dealers are long delta (bearish hedge pressure)
-    Negative DEX  → puts dominate   → dealers are short delta (bullish hedge pressure)
+    Positive DEX  → calls dominate  → customers net long delta
+                 → dealers SHORT delta → must BUY to hedge → bullish pressure
+    Negative DEX  → puts dominate   → customers net short delta
+                 → dealers LONG delta → must SELL to hedge → bearish pressure
 
     Also renders a secondary bar layer showing combined call + put volume.
     """
@@ -399,20 +403,6 @@ class DeltaChartBuilder:
                      if peak_neg_strike else "Negative DEX")
         vol_label = f"Options Volume  |  Total: {total_vol:,.0f}"
 
-        # Apply wall_range filter so wall lines match build_snapshot() calculation
-        price_ref = current_price_override or current_price
-        if wall_range and price_ref:
-            wall_strike_set = {s for s in strikes if abs(s - price_ref) <= wall_range}
-            wall_syms = [sym for sym in option_symbols if _strike_from_sym(sym) in wall_strike_set]
-            wall_strikes_list = sorted(wall_strike_set)
-        else:
-            wall_strikes_list = strikes
-            wall_syms = option_symbols
-
-        # Max pain + walls (filtered to wall_range window around current price)
-        max_pain = calculate_max_pain(data, wall_strikes_list, wall_syms)
-        call_wall, put_wall = calculate_walls(data, wall_strikes_list, wall_syms, debug=True)
-
         # DEX bars
         fig.add_trace(go.Bar(
             x=pos_dex, y=strikes, orientation='h',
@@ -442,48 +432,13 @@ class DeltaChartBuilder:
         # Current price line — blue, no inline label
         fig.add_hline(y=current_price, line_color="blue", line_width=2)
 
-        # Max pain line — orange dashed, no inline label
-        if max_pain is not None:
-            fig.add_hline(y=max_pain, line_color="orange", line_width=1, line_dash="dash")
-
-        # Call wall — green dotted, no inline label
-        if call_wall is not None:
-            fig.add_hline(y=call_wall, line_color="#66bb6a", line_width=1, line_dash="dot")
-
-        # Put wall — red dotted, no inline label
-        if put_wall is not None:
-            fig.add_hline(y=put_wall, line_color="#ef5350", line_width=1, line_dash="dot")
-
-        # All labels in legend only
+        # Price label in legend only
         fig.add_trace(go.Scatter(
             x=[None], y=[None], mode="lines",
             line=dict(color="blue", width=2),
             name=f"Price  ${current_price:.2f}",
             showlegend=True,
         ))
-        if max_pain is not None and current_price:
-            diff = current_price - max_pain
-            direction = "↑" if diff > 0 else "↓"
-            fig.add_trace(go.Scatter(
-                x=[None], y=[None], mode="lines",
-                line=dict(color="orange", width=1, dash="dash"),
-                name=f"Max Pain: ${max_pain}  ({abs(diff):.2f} {direction})",
-                showlegend=True,
-            ))
-        if call_wall is not None:
-            fig.add_trace(go.Scatter(
-                x=[None], y=[None], mode="lines",
-                line=dict(color="#66bb6a", width=1, dash="dot"),
-                name=f"Call Wall: ${call_wall}",
-                showlegend=True,
-            ))
-        if put_wall is not None:
-            fig.add_trace(go.Scatter(
-                x=[None], y=[None], mode="lines",
-                line=dict(color="#ef5350", width=1, dash="dot"),
-                name=f"Put Wall: ${put_wall}",
-                showlegend=True,
-            ))
 
         self._set_layout(fig, chart_range)
         return fig

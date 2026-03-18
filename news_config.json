@@ -3,7 +3,7 @@
     {
       "name": "Yahoo Finance",
       "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=SPY,QQQ,VIX&region=US&lang=en-US",
-      "enabled": false
+      "enabled": true
     },
     {
       "name": "MarketWatch",
@@ -13,7 +13,7 @@
     {
       "name": "CNBC",
       "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
-      "enabled": false
+      "enabled": true
     },
     {
       "name": "Seeking Alpha",
