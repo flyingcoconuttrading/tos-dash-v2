@@ -7,3 +7,5 @@ spy_price.json
 option_chain.json
 positions.json
 config.json
+testing/test_violations.log
+testing/test_rtd_compare.log
