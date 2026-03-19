@@ -16,7 +16,9 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(python -c \":*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(ls /c/Users/randy/tos-dash-v2/*.bat)",
+      "Bash(ls /c/Users/randy/tos-dash-v2/*.sh)"
     ]
   }
 }

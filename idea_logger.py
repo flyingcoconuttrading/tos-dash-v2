@@ -63,6 +63,10 @@ IDEA_HEADERS = [
     "out_10m_mark", "out_10m_pnl_pct", "out_10m_correct",
     "out_15m_mark", "out_15m_pnl_pct", "out_15m_correct",
     "out_30m_mark", "out_30m_pnl_pct", "out_30m_correct",
+    "out_1m_mark",  "out_1m_pnl_pct",  "out_1m_correct",
+    "out_2m_mark",  "out_2m_pnl_pct",  "out_2m_correct",
+    "out_3m_mark",  "out_3m_pnl_pct",  "out_3m_correct",
+    "out_4m_mark",  "out_4m_pnl_pct",  "out_4m_correct",
     "traded", "trade_fill_price", "trade_qty", "trade_pnl_pct",
 ]
 EVENT_HEADERS = ["id","idea_id","event_time","event_type","score","mark","spy","spy_move","vol_ratio","detail"]
@@ -522,7 +526,9 @@ class IdeaLogger:
                 SELECT id, symbol, surfaced_at, entry_mark, option_type
                 FROM ideas
                 WHERE surfaced_at >= datetime('now', '-35 minutes')
-                  AND (out_5m_mark IS NULL OR out_10m_mark IS NULL
+                  AND (out_1m_mark IS NULL OR out_2m_mark IS NULL
+                    OR out_3m_mark IS NULL OR out_4m_mark IS NULL
+                    OR out_5m_mark IS NULL OR out_10m_mark IS NULL
                     OR out_15m_mark IS NULL OR out_30m_mark IS NULL)
             """).fetchall()
 
@@ -543,7 +549,7 @@ class IdeaLogger:
                 # Both calls and puts gain value (pnl_pct > 0) when the underlying
                 # moves in the predicted direction, so correct = option appreciated.
                 correct = 1 if pnl_pct > 0 else 0
-            for w in [5, 10, 15, 30]:
+            for w in [1, 2, 3, 4, 5, 10, 15, 30]:
                 if elapsed_min >= w:
                     col = f"out_{w}m_mark"
                     with self._connect() as conn:
@@ -676,6 +682,19 @@ class IdeaLogger:
                     FOREIGN KEY(idea_id) REFERENCES ideas(id)
                 )
             """)
+        # Migration guard — add new columns to existing DB without recreating table
+        for col_def in [
+            "out_1m_mark REAL", "out_1m_pnl_pct REAL", "out_1m_correct INTEGER",
+            "out_2m_mark REAL", "out_2m_pnl_pct REAL", "out_2m_correct INTEGER",
+            "out_3m_mark REAL", "out_3m_pnl_pct REAL", "out_3m_correct INTEGER",
+            "out_4m_mark REAL", "out_4m_pnl_pct REAL", "out_4m_correct INTEGER",
+        ]:
+            try:
+                with self._connect() as conn:
+                    conn.execute(f"ALTER TABLE ideas ADD COLUMN {col_def}")
+            except Exception:
+                pass  # already exists
+
         for path, headers in [(IDEAS_CSV, IDEA_HEADERS), (EVENTS_CSV, EVENT_HEADERS), (ALERTS_CSV, ALERT_HEADERS)]:
             if not path.exists():
                 with open(path, "w", newline="", encoding="utf-8") as f:
