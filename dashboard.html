@@ -1350,7 +1350,14 @@ header {
   <div class="trades-page">
 
     <!-- Stats row -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
+      <div class="trade-entry-card" id="idea_stat_1m">
+        <div class="panel-title">1-MIN</div>
+        <div id="idea_hr_1m" style="font-size:28px;font-family:var(--mono);color:var(--dim)">--</div>
+        <div style="font-size:9px;color:var(--dim);font-family:var(--mono)">HIT RATE</div>
+        <div id="idea_pnl_1m" style="font-size:11px;font-family:var(--mono);color:var(--dim);margin-top:4px">avg p&l --</div>
+        <div id="idea_cnt_1m" style="font-size:9px;color:var(--muted);font-family:var(--mono)">0 filled</div>
+      </div>
       <div class="trade-entry-card" id="idea_stat_5m">
         <div class="panel-title">5-MIN</div>
         <div id="idea_hr_5m" style="font-size:28px;font-family:var(--mono);color:var(--dim)">--</div>
@@ -2799,7 +2806,7 @@ async function loadIdeas() {
     const rows  = data.rows  || [];
 
     // Update stat cards
-    for (const w of [5, 10, 15, 30]) {
+    for (const w of [1, 5, 10, 15, 30]) {
       const s  = stats[`${w}m`] || {};
       const hr = s.hit_rate != null ? s.hit_rate.toFixed(1) + '%' : '--';
       const pnl = s.avg_pnl != null ? (s.avg_pnl >= 0 ? '+' : '') + s.avg_pnl.toFixed(1) + '%' : '--';
@@ -2823,6 +2830,7 @@ async function loadIdeas() {
         <thead><tr>
           <th>TIME</th><th>VER</th><th>SYMBOL</th><th>TYPE</th><th>SCORE</th>
           <th>MARK</th><th>DELTA</th><th>TREND</th><th>SPY</th>
+          <th>1m ✓</th><th>2m ✓</th><th>3m ✓</th><th>4m ✓</th>
           <th>5m P&L</th><th>10m P&L</th><th>15m P&L</th><th>30m P&L</th>
           <th>5m ✓</th><th>15m ✓</th>
         </tr></thead>
@@ -2842,6 +2850,10 @@ async function loadIdeas() {
             <td style="font-size:9px">${r.entry_delta!=null?r.entry_delta.toFixed(2):'--'}</td>
             <td style="font-size:9px;color:var(--dim)">${r.entry_trend||'--'}</td>
             <td>${r.entry_spy!=null?r.entry_spy.toFixed(2):'--'}</td>
+            ${okCell(r.out_1m_correct)}
+            ${okCell(r.out_2m_correct)}
+            ${okCell(r.out_3m_correct)}
+            ${okCell(r.out_4m_correct)}
             ${pnlCell(r.out_5m_pnl_pct)}
             ${pnlCell(r.out_10m_pnl_pct)}
             ${pnlCell(r.out_15m_pnl_pct)}

@@ -595,7 +595,7 @@ class IdeaLogger:
     def get_stats(self) -> dict:
         rows  = self.get_all_ideas()
         stats = {}
-        for w in [5, 10, 15, 30]:
+        for w in [1, 5, 10, 15, 30]:
             filled = [r for r in rows if r.get(f"out_{w}m_correct") is not None]
             if not filled:
                 stats[f"{w}m"] = {"hit_rate": None, "avg_pnl": None, "count": 0}
