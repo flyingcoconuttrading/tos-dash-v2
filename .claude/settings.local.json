@@ -26,7 +26,8 @@
       "Bash(cp /c/Users/randy/hg-frontend/README.md /c/Users/randy/tos-api/frontend/README.md)",
       "Bash(npm install:*)",
       "Bash(sqlite3 data/ideas.db \"SELECT name FROM pragma_table_info\\(''ideas''\\) WHERE name LIKE ''out_%'' ORDER BY cid;\")",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(chmod +x /c/Users/randy/tos-dash-v2/testing/run_tests.sh /c/Users/randy/tos-dash-v2/testing/stop_tests.sh)"
     ]
   }
 }

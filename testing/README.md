@@ -1,98 +1,50 @@
-# testing/
+# tos-dash-v2 Testing Suite
 
-Three monitoring scripts for tos-dash-v2. Run during live sessions to validate
-that logic fixes held, outcomes are tracking correctly, and RTD data matches
-the Schwab feed.
+## Quick start
+    cd ~/tos-dash-v2
+    bash testing/run_tests.sh --tos-api-path ../tos-api
 
----
-
-## How to run
-
-Open three separate terminals from the project root (`~/tos-dash-v2`):
-
-```
-Terminal 1:  python testing/test_invariants.py
-Terminal 2:  python testing/test_outcomes.py
-Terminal 3:  python testing/test_rtd_schwab.py --tos-api-path ../tos-api
-```
-
----
+## Stop all scripts
+    bash testing/stop_tests.sh
+    OR press Ctrl+C in the run_tests.sh terminal
 
 ## What each script does
 
-### test_invariants.py
-Polls `data/ideas.db` every 3 seconds for new idea rows and checks each one
-against 11 logical invariants. Any failure is a `VIOLATION` — printed to the
-terminal and written to `testing/test_violations.log`.
+test_invariants.py — watches ideas.db every 3 seconds and checks every
+new idea for logic violations. Catches bugs the moment they surface.
 
-Invariants checked:
-- Score in range [40, 80] and soft ceiling applied (≤76.9)
-- Mark > $0.01, spread ≤ 50%
-- Direction matches option type (Call=Bullish, Put=Bearish)
-- Trend filter applied (no Calls on Downtrend, no Puts on Uptrend)
-- Regime and bias values are valid known strings
-- DEX bias consistency in TRENDING regime (core market_structure.py fix)
-- IV ≤ 100% (data quality guard)
-- Outcome correct flags match mark direction for all time windows
-
-Prints a `.` heartbeat every 10 polls and a 30-minute summary.
-
-### test_outcomes.py
-Queries today's ideas from `data/ideas.db` every 10 minutes and prints a
-performance breakdown. No API calls — SQLite only.
-
-Shows hit rates and average PnL for all time windows (1m/2m/3m/4m/5m/10m/15m/30m),
+test_outcomes.py — prints a live hit rate summary every 10 minutes
 broken down by regime, trend, surge, direction, and score bucket.
+Also shows stop analysis: how often 1m is wrong but 5m is correct.
 
-Also shows a stop analysis: ideas where 1m correct=0 but 5m correct=1 (stopped
-out too early before the trade worked).
+test_rtd_schwab.py — compares RTD snapshot data against Schwab API
+every 5 minutes. Validates data quality and seeds the RTD/Schwab
+comparison for eventual platform merge.
 
-### test_rtd_schwab.py
-Every 5 minutes, reads the live RTD price snapshot (`spy_price.json`) and
-compares it against a fresh Schwab API quote. Logs all comparisons to
-`testing/test_rtd_compare.log`.
+## Log files
+    testing/logs/invariants.out    live invariant checker output
+    testing/logs/outcomes.out      live hit rate output
+    testing/logs/rtd_schwab.out    live RTD vs Schwab output
+    testing/test_violations.log    violation records (persistent)
+    testing/test_rtd_compare.log   comparison records (persistent)
 
-Also logs Schwab VWAP and day high/low as informational fields (RTD does not
-expose these in the snapshot).
+## What to watch for
 
-Call budget: ~72 Schwab quote calls per 6-hour session — well within limits.
+test_invariants:
+    DEX_BIAS_CONSISTENCY violations → market_structure fix not applying
+    TREND_FILTER violations → scalp_advisor filter not working
+    OUTCOME_CORRECT_LOGIC → put inversion bug re-appeared
 
----
+test_outcomes:
+    1m hit rate much lower than 5m → stops too tight
+    Puts outperforming calls in downtrend → bias fix working
+    PINNED hit rate > TRENDING → regime scoring fix working
 
-## Log files produced
-
-```
-testing/test_violations.log    — logic violations from invariant checker
-testing/test_rtd_compare.log   — RTD vs Schwab price comparisons per interval
-```
-
-Both log files are append-only and should not be committed to git.
-
----
-
-## What to look for
-
-**test_invariants.py**
-- Any `VIOLATION` line means a logic rule failed on a real idea
-- `DEX_BIAS_CONSISTENCY` violations mean the market_structure.py fix did not apply
-- `TREND_FILTER` violations mean calls/puts are surfacing against the trend
-
-**test_outcomes.py**
-- 1m hit rate close to 5m hit rate = setup is working, stops may be too tight
-- 1m hit rate significantly lower than 5m = stops are too tight (normal; see stop analysis)
-- Regime breakdown shows which regime is most productive
-
-**test_rtd_schwab.py**
-- `FAIL` on PRICE = RTD and Schwab diverging — investigate data quality
-- Normal drift is < $0.05 due to bid/ask and timing differences
-
----
+test_rtd_schwab:
+    FAIL on price consistently → RTD data quality issue
+    Price diff > $0.50 → investigate RTD feed immediately
 
 ## When to be concerned
-
-| Signal | Threshold |
-|--------|-----------|
-| DEX_BIAS_CONSISTENCY violations | > 2 per session |
-| 1m hit rate vs 5m hit rate gap | 1m < 20% while 5m > 35% |
-| RTD price divergence | > $0.50 consistently across multiple intervals |
-| IV_REASONABLE violations | Any (data error in feed) |
+    More than 2 DEX_BIAS_CONSISTENCY violations per session
+    1m hit rate < 20% while 5m hit rate > 35%
+    RTD price diverges > $0.50 from Schwab consistently
