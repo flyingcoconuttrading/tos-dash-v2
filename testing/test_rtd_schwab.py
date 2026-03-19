@@ -14,10 +14,12 @@ Call budget note:
 """
 
 import argparse
+import io
 import json
 import os
 import sys
 import time
+import webbrowser
 from datetime import datetime
 from pathlib import Path
 
@@ -72,15 +74,11 @@ def load_schwab(tos_api_path: str):
     """
     api_path = Path(tos_api_path).resolve()
     if not api_path.exists():
-        print(f"ERROR: tos-api path not found: {api_path}")
-        print(f"  Expected: {api_path}")
-        print("  Run with: --tos-api-path ../tos-api")
-        sys.exit(1)
+        return None, None
 
     sys.path.insert(0, str(api_path))
     try:
         from data.collector import _get_quote, _get_intraday
-        return _get_quote, _get_intraday
     except ImportError as e:
         _log(f"Schwab import failed: {e}")
         _log(f"  Looked in: {api_path}/data/collector.py")
@@ -88,6 +86,28 @@ def load_schwab(tos_api_path: str):
     except Exception as e:
         _log(f"Schwab import error: {e}")
         return None, None
+
+    # Probe: call _get_quote with browser and stdin suppressed.
+    # If Schwabdev needs auth it calls webbrowser.open() — we detect that
+    # and return (None, None) so the script falls back to RTD-only mode.
+    _auth_triggered = []
+    _orig_wb = webbrowser.open
+    webbrowser.open = lambda *a, **kw: _auth_triggered.append(True)
+    _orig_stdin = sys.stdin
+    sys.stdin = io.StringIO("")   # makes any input() call return EOF instantly
+    try:
+        _get_quote("SPY")
+    except Exception:
+        pass
+    finally:
+        webbrowser.open = _orig_wb
+        sys.stdin = _orig_stdin
+
+    if _auth_triggered:
+        print("[INFO] Schwab tokens expired/missing — running in RTD-only mode")
+        return None, None
+
+    return _get_quote, _get_intraday
 
 
 # ── Comparison ────────────────────────────────────────────────────────────────
@@ -181,9 +201,9 @@ def main():
     args = parser.parse_args()
 
     get_quote, get_intraday = load_schwab(args.tos_api_path)
-    if get_quote is None:
-        print("Could not load Schwab collector. Exiting.")
-        sys.exit(1)
+    SCHWAB_OK = get_quote is not None
+    if not SCHWAB_OK:
+        print("[INFO] Schwab unavailable — running in RTD-only mode")
 
     print(f"test_rtd_schwab started")
     print(f"  RTD source:    {RTD_PRICE_FILE}")
@@ -194,7 +214,8 @@ def main():
 
     while True:
         try:
-            compare(get_quote, get_intraday)
+            compare(get_quote if SCHWAB_OK else None,
+                    get_intraday if SCHWAB_OK else None)
         except Exception as e:
             _log(f"compare() error: {e}")
         time.sleep(COMPARE_SEC)

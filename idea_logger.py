@@ -550,20 +550,22 @@ class IdeaLogger:
                 # moves in the predicted direction, so correct = option appreciated.
                 correct = 1 if pnl_pct > 0 else 0
             for w in [1, 2, 3, 4, 5, 10, 15, 30]:
-                if elapsed_min >= w:
-                    col = f"out_{w}m_mark"
-                    with self._connect() as conn:
-                        conn.row_factory = sqlite3.Row
-                        existing = conn.execute(f"SELECT {col} FROM ideas WHERE id=?",
-                                                (row["id"],)).fetchone()
-                        if existing and existing[col] is None:
-                            conn.execute(f"""
-                                UPDATE ideas SET {col}=?, out_{w}m_pnl_pct=?, out_{w}m_correct=?
-                                WHERE id=?
-                            """, (current, pnl_pct, correct, row["id"]))
-                            self._log_event(row["id"], "OUTCOME_FILLED", mark=current,
-                                            detail=f"{w}m mark={current:.2f} pnl={pnl_pct:.1f}% correct={correct}",
-                                            conn=conn)
+                if elapsed_min < w:
+                    break   # remaining windows not due yet — stop here
+                col = f"out_{w}m_mark"
+                with self._connect() as conn:
+                    conn.row_factory = sqlite3.Row
+                    existing = conn.execute(f"SELECT {col} FROM ideas WHERE id=?",
+                                            (row["id"],)).fetchone()
+                    if existing and existing[col] is None:
+                        conn.execute(f"""
+                            UPDATE ideas SET {col}=?, out_{w}m_pnl_pct=?, out_{w}m_correct=?
+                            WHERE id=?
+                        """, (current, pnl_pct, correct, row["id"]))
+                        self._log_event(row["id"], "OUTCOME_FILLED", mark=current,
+                                        detail=f"{w}m mark={current:.2f} pnl={pnl_pct:.1f}% correct={correct}",
+                                        conn=conn)
+                        break   # one new window per poll — next window waits for next poll
 
     # ── Public read API ───────────────────────────────────────────────────────
 
