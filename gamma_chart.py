@@ -185,7 +185,7 @@ class GammaChartBuilder:
 
         # Max pain + walls (filtered to wall_range window around current price)
         max_pain = calculate_max_pain(data, wall_strikes_list, wall_syms)
-        call_wall, put_wall = calculate_walls(data, wall_strikes_list, wall_syms, debug=True)
+        call_wall, put_wall = calculate_walls(data, wall_strikes_list, wall_syms, debug=False)
 
         self._add_traces(fig, pos_values, neg_values, strikes,
                          max_pos_strike, max_pos, max_neg_strike, min_neg)

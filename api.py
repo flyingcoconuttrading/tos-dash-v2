@@ -273,16 +273,22 @@ def build_snapshot() -> dict:
         except (ValueError, IndexError):
             pass
 
-    # Calculations — walls/max_pain use wall_strikes for accuracy
-    try:
-        max_pain = calculate_max_pain(data, wall_strikes, wall_option_symbols, debug=True)
-    except Exception:
-        max_pain = None
+    # Calculations — walls/max_pain use wall_strikes for accuracy.
+    # Guard: OnDemand (test/replay) does not stream OPEN_INT — all OI reads as
+    # zero, producing meaningless results. Skip if total OI is zero.
+    _total_oi = sum(float(data.get(f"{sym}:OPEN_INT") or 0) for sym in wall_option_symbols)
+    if _total_oi == 0:
+        max_pain = call_wall = put_wall = None
+    else:
+        try:
+            max_pain = calculate_max_pain(data, wall_strikes, wall_option_symbols, debug=False)
+        except Exception:
+            max_pain = None
 
-    try:
-        call_wall, put_wall = calculate_walls(data, wall_strikes, wall_option_symbols, debug=True)
-    except Exception:
-        call_wall = put_wall = None
+        try:
+            call_wall, put_wall = calculate_walls(data, wall_strikes, wall_option_symbols, debug=False)
+        except Exception:
+            call_wall = put_wall = None
 
     try:
         volume_tracker.update(data, option_symbols)

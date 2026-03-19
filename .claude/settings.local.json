@@ -18,7 +18,15 @@
       "Bash(python -c \":*)",
       "Bash(python:*)",
       "Bash(ls /c/Users/randy/tos-dash-v2/*.bat)",
-      "Bash(ls /c/Users/randy/tos-dash-v2/*.sh)"
+      "Bash(ls /c/Users/randy/tos-dash-v2/*.sh)",
+      "Bash(cp -r /c/Users/randy/hg-frontend/src /c/Users/randy/tos-api/frontend/)",
+      "Bash(cp -r /c/Users/randy/hg-frontend/public /c/Users/randy/tos-api/frontend/)",
+      "Bash(cp /c/Users/randy/hg-frontend/package.json /c/Users/randy/tos-api/frontend/)",
+      "Bash(cp /c/Users/randy/hg-frontend/package-lock.json /c/Users/randy/tos-api/frontend/)",
+      "Bash(cp /c/Users/randy/hg-frontend/README.md /c/Users/randy/tos-api/frontend/README.md)",
+      "Bash(npm install:*)",
+      "Bash(sqlite3 data/ideas.db \"SELECT name FROM pragma_table_info\\(''ideas''\\) WHERE name LIKE ''out_%'' ORDER BY cid;\")",
+      "Bash(python3:*)"
     ]
   }
 }
