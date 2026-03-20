@@ -27,6 +27,6 @@
     }
   ],
   "keywords": "SPY|SPX|QQQ|VIX|Fed|FOMC|inflation|CPI|jobs|rate|market|stocks|equit|S&P|Nasdaq|rally|sell|crash|tariff|recession|GDP|Powell|Treasury|ETF|options|index|indices|futures|yield|interest",
-  "max_age_hours": 1,
+  "max_age_hours": 2,
   "max_headlines": 25
 }

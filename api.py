@@ -301,6 +301,7 @@ def build_snapshot() -> dict:
     except Exception:
         surge_syms = set()
 
+    ms = None
     try:
         ms = ms_mod.analyze(
             data              = data,
