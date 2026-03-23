@@ -22,6 +22,7 @@ Files written:
 """
 
 import csv
+import json
 import logging
 import logging.handlers
 import sqlite3
@@ -68,6 +69,9 @@ IDEA_HEADERS = [
     "out_3m_mark",  "out_3m_pnl_pct",  "out_3m_correct",
     "out_4m_mark",  "out_4m_pnl_pct",  "out_4m_correct",
     "traded", "trade_fill_price", "trade_qty", "trade_pnl_pct",
+    "out_marks_json",
+    "paper_entry_ask", "paper_exit_bid", "paper_exit_reason",
+    "paper_exit_minute", "paper_pnl_pct",
 ]
 EVENT_HEADERS = ["id","idea_id","event_time","event_type","score","mark","spy","spy_move","vol_ratio","detail"]
 ALERT_HEADERS = ["id","logged_at","alert_zone","alert_message","spy_price","snap_level","snap_distance","snap_direction","regime","bias","net_gex","net_dex"]
@@ -195,8 +199,9 @@ class IdeaLogger:
             self._update_lifecycle(key, state, c, score, mark, spy_price,
                                    spy_vol_rate, spy_vol_ratio, call_wall, put_wall, now, data)
 
-        # 3. Outcome filling
+        # 3. Outcome filling + minute mark capture
         self._fill_outcomes(data, now)
+        self._fill_marks(data, now)
 
         # 4. Alerts — two-level dedup:
         #    - zone level:      same zone suppressed for alert_cooldown_s (60s); zone change has 10s floor
@@ -348,6 +353,7 @@ class IdeaLogger:
             "status":              STATUS_ACTIVE,
             "reentry_count":       0,
             "traded":              0,
+            "paper_entry_ask":     float(candidate.ask) if float(candidate.ask) > 0 else float(candidate.mark),
         }
         idea_id = self._db_insert_idea(row)
         self._csv_append_idea({**{k: "" for k in IDEA_HEADERS}, **row, "id": idea_id})
@@ -567,6 +573,144 @@ class IdeaLogger:
                                         conn=conn)
                         break   # one new window per poll — next window waits for next poll
 
+    # ── Minute mark capture ───────────────────────────────────────────────────
+
+    # Capture windows: every minute 1-30, then every 5 min 35-60
+    _MARK_WINDOWS = list(range(1, 31)) + [35, 40, 45, 50, 55, 60]
+
+    def _fill_marks(self, data: dict, now: datetime):
+        """Capture per-minute BID prices into out_marks_json, then run paper sim."""
+        with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            pending = conn.execute("""
+                SELECT id, symbol, surfaced_at, entry_mark,
+                       paper_entry_ask, paper_exit_reason,
+                       invalidated_at, invalidation_mark,
+                       out_marks_json
+                FROM ideas
+                WHERE surfaced_at >= datetime('now', '-65 minutes')
+                  AND paper_exit_reason IS NULL
+            """).fetchall()
+
+        for row in pending:
+            logged_at   = datetime.fromisoformat(row["surfaced_at"])
+            elapsed_min = (now - logged_at).total_seconds() / 60
+
+            # Read existing marks dict
+            existing = json.loads(row["out_marks_json"] or "{}")
+
+            # Find the first uncaptured window that is due
+            new_window = None
+            for w in self._MARK_WINDOWS:
+                if elapsed_min < w:
+                    break
+                if str(w) not in existing:
+                    new_window = w
+                    break
+
+            if new_window is None:
+                # All due windows captured — run sim check anyway for exit conditions
+                if row["paper_entry_ask"] and existing:
+                    self._run_paper_sim(row, existing, elapsed_min)
+                continue
+
+            # Get BID price for this option symbol
+            bid_raw = data.get(f"{row['symbol']}:BID")
+            try:
+                bid = float(bid_raw) if bid_raw else None
+            except (ValueError, TypeError):
+                bid = None
+
+            if not bid or bid <= 0:
+                continue  # unavailable — retry next poll
+
+            existing[str(new_window)] = bid
+            marks_json = json.dumps(existing)
+            with self._connect() as conn:
+                conn.execute(
+                    "UPDATE ideas SET out_marks_json=? WHERE id=?",
+                    (marks_json, row["id"])
+                )
+
+            # Run paper sim after capturing a new mark
+            if row["paper_entry_ask"]:
+                self._run_paper_sim(row, existing, elapsed_min)
+
+    def _run_paper_sim(self, row, marks: dict, elapsed_min: float):
+        """Evaluate paper trade exit against captured marks. Writes once when exit triggers."""
+        entry_ask = row["paper_entry_ask"]
+        if not entry_ask or entry_ask <= 0:
+            return
+
+        cfg = self._cfg
+        stop_pct = cfg.get("paper_stop_pct",     0.30)
+        t1_pct   = cfg.get("paper_target_1_pct", 0.30)
+        t2_pct   = cfg.get("paper_target_2_pct", 0.50)
+        t3_pct   = cfg.get("paper_target_3_pct", 0.75)
+
+        stop_price = entry_ask * (1 - stop_pct)
+        target_1   = entry_ask * (1 + t1_pct)
+        target_2   = entry_ask * (1 + t2_pct)
+        target_3   = entry_ask * (1 + t3_pct)
+
+        exit_bid    = None
+        exit_reason = None
+        exit_minute = None
+
+        # Iterate windows in ascending minute order
+        for w_str, bid in sorted(marks.items(), key=lambda x: int(x[0])):
+            w = int(w_str)
+            # Stop checked first
+            if bid <= stop_price:
+                exit_bid    = bid
+                exit_reason = "STOP"
+                exit_minute = w
+                break
+            elif bid >= target_3:
+                exit_bid    = bid
+                exit_reason = "TARGET_3"
+                exit_minute = w
+                break
+            elif bid >= target_2:
+                exit_bid    = bid
+                exit_reason = "TARGET_2"
+                exit_minute = w
+                break
+            elif bid >= target_1:
+                exit_bid    = bid
+                exit_reason = "TARGET_1"
+                exit_minute = w
+                break
+
+        # INVALIDATED exit — no stop/target triggered but idea was invalidated
+        if exit_reason is None and row["invalidated_at"]:
+            inv_mark = row["invalidation_mark"]
+            if inv_mark and inv_mark > 0:
+                inv_at = datetime.fromisoformat(row["invalidated_at"])
+                surf_at = datetime.fromisoformat(row["surfaced_at"])
+                exit_bid    = inv_mark
+                exit_reason = "INVALIDATED"
+                exit_minute = max(1, round((inv_at - surf_at).total_seconds() / 60))
+
+        # TIME_EXPIRED — 60 minutes elapsed, no exit yet
+        if exit_reason is None and elapsed_min >= 60 and marks:
+            last_bid = marks[max(marks.keys(), key=int)]
+            exit_bid    = last_bid
+            exit_reason = "TIME_EXPIRED"
+            exit_minute = 60
+
+        if exit_reason is None:
+            return  # not yet triggered
+
+        pnl_pct = (exit_bid - entry_ask) / entry_ask * 100
+        with self._connect() as conn:
+            conn.execute("""
+                UPDATE ideas
+                SET paper_exit_bid=?, paper_exit_reason=?,
+                    paper_exit_minute=?, paper_pnl_pct=?
+                WHERE id=?
+            """, (exit_bid, exit_reason, exit_minute, pnl_pct, row["id"]))
+
     # ── Public read API ───────────────────────────────────────────────────────
 
     def get_active_ideas(self) -> list:
@@ -690,6 +834,12 @@ class IdeaLogger:
             "out_2m_mark REAL", "out_2m_pnl_pct REAL", "out_2m_correct INTEGER",
             "out_3m_mark REAL", "out_3m_pnl_pct REAL", "out_3m_correct INTEGER",
             "out_4m_mark REAL", "out_4m_pnl_pct REAL", "out_4m_correct INTEGER",
+            "out_marks_json TEXT",
+            "paper_entry_ask REAL",
+            "paper_exit_bid REAL",
+            "paper_exit_reason TEXT",
+            "paper_exit_minute INTEGER",
+            "paper_pnl_pct REAL",
         ]:
             try:
                 with self._connect() as conn:

@@ -133,6 +133,10 @@ DEFAULT_CONFIG = {
     "rtd_heartbeat_ms":      200,   # Step 2: replaces config.yaml timing.initial_heartbeat
     "alpaca_api_key":        "",
     "alpaca_secret_key":     "",
+    "paper_stop_pct":        0.30,
+    "paper_target_1_pct":    0.30,
+    "paper_target_2_pct":    0.50,
+    "paper_target_3_pct":    0.75,
 }
 
 def load_config() -> dict:
@@ -471,6 +475,10 @@ class ConfigUpdate(BaseModel):
     vol_surge_mult:          Optional[float] = None
     alpaca_api_key:          Optional[str]   = None
     alpaca_secret_key:       Optional[str]   = None
+    paper_stop_pct:          Optional[float] = None
+    paper_target_1_pct:      Optional[float] = None
+    paper_target_2_pct:      Optional[float] = None
+    paper_target_3_pct:      Optional[float] = None
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(title="tos-dash-v2")

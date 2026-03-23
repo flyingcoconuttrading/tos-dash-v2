@@ -1,6 +1,31 @@
 # tos-dash-v2 — Backlog / TODO
 
-## Standard Claude Code Prompt Header (prepend to every prompt)
+## Prompt Inventory
+
+Naming convention: PROMPT-[REPO]-[###] | [title] | Lines: N
+Status: DONE = executed and verified, PENDING = not yet run
+
+| ID | Title | Lines | Status |
+|---|---|---|---|
+| PROMPT-DASH-001 | scalp_advisor.py scoring overhaul | 116 | DONE |
+| PROMPT-DASH-002 | market_structure.py DEX bias fix + gamma_chart cleanup | 130 | DONE |
+| PROMPT-DASH-003 | add 1/2/3/4 minute outcome tracking | 103 | DONE |
+| PROMPT-DASH-004 | debug=True fix + OI investigation | 57 | DONE |
+| PROMPT-DASH-005 | verify DASH-003 completed correctly | 63 | DONE |
+| PROMPT-DASH-006 | scalp candidates brightness fix | 26 | DONE |
+| PROMPT-DASH-007 | complete testing/ folder missing shell scripts | 124 | DONE |
+| PROMPT-DASH-008 | testing/ full suite — all 6 files | 255 | DONE |
+| PROMPT-DASH-009 | fix test_rtd_schwab.py Schwab auth blocking | 38 | DONE |
+| PROMPT-DASH-010 | DB diagnostic queries read only | 47 | DONE |
+| PROMPT-DASH-011 | fix UnboundLocalError ms in api.py | 35 | DONE |
+| PROMPT-DASH-012 | paper trade + theta fix + font fix | 196 | PENDING |
+| PROMPT-DASH-013 | AI triggers + expiry fix + call counter + snap watch | 242 | PENDING |
+
+Weekend run order: DASH-012 first, DASH-013 second.
+
+---
+
+
 ```
 ## Environment
 Working directory: ~/tos-dash-v2
@@ -25,6 +50,180 @@ Do not edit, create, or delete anything until you have a complete picture of the
 - After N weeks of data, run correlation vs `out_5m_correct` to validate before weighting
 
 **Priority:** Medium — validate with data before building
+
+---
+
+## Move Tuning Constants to Settings UI
+**Context:** Several hardcoded constants in scalp_advisor.py directly affect
+live behavior but are invisible to the user. Changing them requires editing
+Python files and restarting the server. They should be in config.json and
+exposed in the Settings tab.
+
+**Constants to expose:**
+
+From scalp_advisor.py:
+    SMOOTH_TICKS          = 5    → cfg: smooth_ticks
+    MIN_TICKS_TO_SURFACE  = 3    → cfg: min_ticks_to_surface
+    DROP_THRESHOLD        = 52   → cfg: drop_threshold
+    DIRECTION_TICKS       = 6    → cfg: direction_ticks
+    DIRECTION_MIN_MOVE    = 0.10 → cfg: direction_min_move
+    MAX_DISPLAYED         = 6    → cfg: max_displayed (candidate cap)
+
+**Settings UI section:** Add under Scoring section as "Candidate Surfacing"
+group with descriptions for each field so it's self-documenting.
+
+**Priority:** Medium — important for live tuning without restarts.
+Do alongside the Settings cleanup task.
+
+---
+
+## Fix 0DTE Theta Penalty in _greeks_score()
+**Context:** The monospace font currently used in the dashboard renders
+0 with a dot or slash through the middle (see poll_ms field showing
+"500"). This is a legibility issue — hard to read quickly during a
+live session.
+
+**Fix:** In dashboard.html CSS, find the font-family declaration for
+monospace/numeric fields. Replace with a font that renders a clean
+open zero. Options:
+
+    font-family: 'Consolas', 'Menlo', 'Monaco', monospace;
+
+Consolas and Menlo both render clean zeros without slashes or dots.
+They are system fonts available on Windows and Mac respectively —
+no external font load needed.
+
+If the font is applied globally, check that the change doesn't break
+the terminal-style aesthetic of the dashboard. If monospace is only
+used for specific elements (scores, prices, tick counter), scope the
+change to those elements only.
+
+**Priority:** Low — cosmetic but quick fix. Do in next dashboard.html pass.
+
+---
+
+## Settings Tab Cleanup
+**Context:** Settings tab has grown organically and is now cluttered.
+Needs a proper reorganization before more settings are added (paper trade
+config, iv_floor/iv_ceiling, etc. are all coming).
+
+**Proposed section structure:**
+    Data & Feed          — symbol, expiry, poll_ms, strike_range, wall_range
+    Scoring              — confirm_score, score_decay_threshold, iv_floor,
+                           iv_ceiling, vol_surge_mult, open_gate_minutes
+    Risk & Invalidation  — stop_pct, risk_cap, idea_cooldown_min
+    Paper Trade          — paper_stop_pct, paper_target_1/2/3_pct
+    Alerts               — warn_distance, critical_distance
+    System               — test_mode, test_date, model_version
+
+Each section as a collapsible card or clearly labeled group.
+Descriptions for each setting so it's self-documenting.
+Highlight settings that affect live behavior vs analysis-only.
+
+**Priority:** Medium — do after paper trade config is added so settings
+are reorganized once, not twice.
+
+---
+
+## AI Status Indicator + Pause Integration
+**Context:** Need to know at a glance if AI commentary is active, and
+when dashboard is paused the AI should stop generating too.
+
+**Changes needed:**
+
+### 1. AI status light in header
+Add a small indicator next to the LIVE dot:
+    AI dot — green when actively generating commentary
+             amber when idle/waiting
+             gray when paused or disabled
+             red if API call failed
+
+Position: between LIVE dot and v2.1 version badge, or directly
+after the AI CHAT nav button — whichever is less cluttered.
+
+### 2. Pause stops AI
+When the PAUSE button is pressed:
+- Dashboard already stops updating price/candidates
+- AI commentary generation should also halt immediately
+- Any in-flight API call should be abandoned or its result discarded
+- AI dot goes gray
+- On RESUME: AI dot returns to amber, resumes on next snapshot tick
+
+### 3. AI CHAT tab indicator
+If AI is generating while user is on a different tab, show a subtle
+pulse or badge on the AI CHAT nav button so user knows output is ready.
+
+**Implementation note:** The AI status needs to be driven by actual
+API call state — not just a timer. Green only when a streaming response
+is actively being received. This requires the frontend to track the
+fetch/stream lifecycle, not just assume AI is "active."
+
+**Priority:** Medium — do alongside or after status indicators item above.
+
+---
+
+## Status Indicators — Connection & Mode Display
+**Context:** As the platform grows to include RTD, Schwab API, and eventually order
+management, a single green dot is insufficient. Need a proper status system.
+
+**Planned changes:**
+
+### 1. Test mode indicator (quick win — do soon)
+In dashboard.html, when test_mode=true in snapshot:
+- Change "LIVE" label to "TEST"
+- Change green dot to amber/yellow
+- Prevents confusing test sessions for live ones mid-trade
+
+### 2. RTD connection health (quick win — do soon)
+The tick counter in snapshot increments every 500ms. If tick hasn't incremented
+in >2-3 seconds, RTD feed has stopped.
+- Dot goes red and blinks when stale
+- Dot returns to green when ticking resumes
+
+### 3. Full status bar (do when merging platforms)
+Replace single dot with a dedicated status row that can grow over time:
+- RTD: green/red/blinking (tick-based health check)
+- Schwab API: gray (not connected) / green (responding) / red (failing)
+- Broker: gray until order management is built
+- Mode badge: LIVE / TEST / REPLAY
+
+Design: small pill badges in top bar, each with colored dot + label.
+Keeps the UI clean now and expandable later without layout changes.
+
+**Priority:** Items 1 and 2 are quick wins — do in next dashboard.html pass.
+Item 3 deferred until platform consolidation begins.
+
+---
+
+## PostgreSQL Migration — Platform Consolidation Prerequisite
+**When to do this:** Before adding real-time position management or any multi-process
+writes. Must happen before tos-dash-v2 and tos-api are merged into a single platform.
+Do NOT do on a trading day — run migration on a weekend.
+
+**Why PostgreSQL over SQLite for the end goal:**
+- Real-time position management = multiple concurrent writers (dashboard + order manager
+  + risk monitor). SQLite single-writer model will cause locking under this load.
+- SaaS/sale readiness — buyers expect a production database, not a file.
+- tos-api already runs PostgreSQL — one DB server for the combined platform is cleaner
+  than SQLite (ideas) + PostgreSQL (everything else) side by side.
+- Row-level locking, better indexing, JSONB support, replication — all matter at scale.
+
+**Migration plan:**
+1. Export ideas.db to CSV: sqlite3 ideas.db .mode csv .output ideas_export.csv .dump
+2. Create ideas table in PostgreSQL matching current SQLite schema exactly
+3. Import CSV — verify row counts match
+4. Add indexes: surfaced_at, status, out_5m_correct, entry_regime, option_type
+5. Update idea_logger.py connection string to PostgreSQL (use psycopg2 or asyncpg)
+6. Update api.py any direct SQLite reads to PostgreSQL
+7. Keep ideas.db as read-only archive — do not delete until 2 weeks of PostgreSQL
+   operation confirmed clean
+8. Add DB_URL to tos-dash-v2 .env (already defined in tos-api config.py)
+
+**Future benefit:** Once on PostgreSQL, tos-api and tos-dash-v2 share one DB server.
+Ideas, positions, S/R levels, account data all in one place. Combined platform
+becomes a config change, not a data migration.
+
+**Priority:** High — do this BEFORE position management work, not after.
 
 ---
 

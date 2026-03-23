@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 # ---------------------------------------------------------------------------
 SMOOTH_TICKS          = 5    # ticks to average score over
 MIN_TICKS_TO_SURFACE  = 3    # must score well for this many ticks before showing
-DROP_THRESHOLD        = 58   # if smoothed score falls below this, remove from display
+DROP_THRESHOLD        = 52   # if smoothed score falls below this, remove from display
 MAX_DISPLAYED         = 6    # hard cap on simultaneously shown candidates
 DIRECTION_TICKS       = 6    # price history lookback for underlying trend (~1 min at 10s)
 DIRECTION_MIN_MOVE    = 0.10 # underlying must move at least $0.10 to be called trending
@@ -328,7 +328,7 @@ class ScalpAdvisor:
                 direction_score = self._direction_score(opt_type, trend, dex_bias)
                 level_score     = self._level_score(strike, levels, current_price)
                 surge_score     = self._surge_score(is_surging, rel_vol_ratio)
-                greeks_score    = self._greeks_score(abs_delta, theta, mark)
+                greeks_score    = self._greeks_score(abs_delta, theta, mark, self._is_0dte(sym))
                 iv_score        = self._iv_score(iv)
                 spy_level_score, position_in_range = self._spy_level_score(current_price, opt_type)
 
@@ -616,7 +616,22 @@ class ScalpAdvisor:
                 best = max(best, max(0, 1 - dist / price_range) * 40)
         return best
 
-    def _greeks_score(self, abs_delta: float, theta: float, mark: float) -> float:
+    def _is_0dte(self, sym: str) -> bool:
+        """Return True if the option symbol's expiry matches today's date."""
+        from datetime import date
+        import re
+        m = re.search(r'(\d{6})[CP]', sym)
+        if not m:
+            return False
+        try:
+            exp = date(2000 + int(m.group(1)[:2]),
+                       int(m.group(1)[2:4]),
+                       int(m.group(1)[4:6]))
+            return exp == date.today()
+        except Exception:
+            return False
+
+    def _greeks_score(self, abs_delta: float, theta: float, mark: float, is_0dte: bool = False) -> float:
         """Score delta quality and theta cost.
         TOS THETA is already per-day (e.g. -1.12 means lose $1.12/day per contract).
         For a $1.18 mark, theta of -1.12 is extremely high — penalise hard.
@@ -631,8 +646,12 @@ class ScalpAdvisor:
             delta_score = max(0, 100 - ((abs_delta - self.DELTA_MAX) / (1 - self.DELTA_MAX)) * 60)
 
         # theta as fraction of mark — 0.05 (5%) = neutral, 0.20 (20%) = very bad
-        theta_ratio = abs(theta) / mark if mark > 0 else 0
-        theta_score = max(0, 100 - (theta_ratio / 0.20) * 100)
+        # 0DTE: extreme theta is physics, not a warning — skip penalty entirely
+        if is_0dte:
+            theta_score = 100
+        else:
+            theta_ratio = abs(theta) / mark if mark > 0 else 0
+            theta_score = max(0, 100 - (theta_ratio / 0.20) * 100)
 
         return delta_score * 0.7 + theta_score * 0.3
 

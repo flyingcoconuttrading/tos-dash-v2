@@ -18,7 +18,7 @@
   --muted:    #5a6a88;
   --dim:      #8a9ab8;
   --text:     #dde3f0;
-  --mono:     'Space Mono', monospace;
+  --mono:     'Consolas', 'Menlo', 'Monaco', monospace;
   --sans:     'DM Sans', sans-serif;
 }
 
@@ -1621,6 +1621,39 @@ header {
         </div>
       </div>
 
+      <!-- ── PAPER TRADE ── -->
+      <div class="settings-card">
+        <div class="settings-card-title">Paper Trade Settings</div>
+        <div class="field-row">
+          <span class="field-label">STOP %</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_paper_stop_pct" type="number" min="0.05" max="0.90" step="0.05">
+            <span class="field-desc">Exit paper trade if bid falls this % below entry ask</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">TARGET 1 %</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_paper_target_1_pct" type="number" min="0.05" max="2.00" step="0.05">
+            <span class="field-desc">Take-profit level 1 (e.g. 0.30 = +30%)</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">TARGET 2 %</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_paper_target_2_pct" type="number" min="0.05" max="2.00" step="0.05">
+            <span class="field-desc">Take-profit level 2 (e.g. 0.50 = +50%)</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">TARGET 3 %</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_paper_target_3_pct" type="number" min="0.05" max="3.00" step="0.05">
+            <span class="field-desc">Take-profit level 3 (e.g. 0.75 = +75%)</span>
+          </div>
+        </div>
+      </div>
+
       <!-- ── TRADING CONTROLS ── -->
       <div class="settings-card">
         <div class="settings-card-title">Trading Controls</div>
@@ -2170,7 +2203,11 @@ function loadSettings() {
       document.getElementById('cfg_warn_distance').value    = cfg.warn_distance ?? 2.0;
       document.getElementById('cfg_critical_distance').value= cfg.critical_distance ?? 1.0;
       document.getElementById('cfg_risk_cap').value         = cfg.risk_cap ?? 5.0;
-      document.getElementById('cfg_stop_pct').value          = cfg.stop_pct ?? 0.50;
+      document.getElementById('cfg_stop_pct').value             = cfg.stop_pct ?? 0.50;
+      document.getElementById('cfg_paper_stop_pct').value      = cfg.paper_stop_pct     ?? 0.30;
+      document.getElementById('cfg_paper_target_1_pct').value  = cfg.paper_target_1_pct ?? 0.30;
+      document.getElementById('cfg_paper_target_2_pct').value  = cfg.paper_target_2_pct ?? 0.50;
+      document.getElementById('cfg_paper_target_3_pct').value  = cfg.paper_target_3_pct ?? 0.75;
       document.getElementById('cfg_reentry_window_min').value= cfg.reentry_window_min ?? 5;
       document.getElementById('cfg_vol_surge_ratio').value   = cfg.vol_surge_ratio ?? 1.8;
       document.getElementById('cfg_vol_lookback').value      = cfg.vol_lookback ?? 20;
@@ -2226,6 +2263,10 @@ function saveSettings() {
     critical_distance: parseFloat(get('cfg_critical_distance').value),
     risk_cap:               parseFloat(get('cfg_risk_cap').value),
     stop_pct:               parseFloat(get('cfg_stop_pct').value),
+    paper_stop_pct:         parseFloat(get('cfg_paper_stop_pct').value),
+    paper_target_1_pct:     parseFloat(get('cfg_paper_target_1_pct').value),
+    paper_target_2_pct:     parseFloat(get('cfg_paper_target_2_pct').value),
+    paper_target_3_pct:     parseFloat(get('cfg_paper_target_3_pct').value),
     reentry_window_min:     parseInt(get('cfg_reentry_window_min').value),
     vol_surge_ratio:        parseFloat(get('cfg_vol_surge_ratio').value),
     vol_lookback:           parseInt(get('cfg_vol_lookback').value),
@@ -2833,6 +2874,7 @@ async function loadIdeas() {
           <th>1m ✓</th><th>2m ✓</th><th>3m ✓</th><th>4m ✓</th>
           <th>5m P&L</th><th>10m P&L</th><th>15m P&L</th><th>30m P&L</th>
           <th>5m ✓</th><th>15m ✓</th>
+          <th>Paper PnL</th><th>Exit</th>
         </tr></thead>
         <tbody>${rows.map(r => {
           const t    = r.surfaced_at ? r.surfaced_at.substring(11,19) : '--';
@@ -2860,6 +2902,12 @@ async function loadIdeas() {
             ${pnlCell(r.out_30m_pnl_pct)}
             ${okCell(r.out_5m_correct)}
             ${okCell(r.out_15m_correct)}
+            ${r.paper_pnl_pct != null
+              ? `<td class="${r.paper_pnl_pct >= 0 ? 'pnl-pos' : 'pnl-neg'}" style="font-size:9px">${r.paper_pnl_pct >= 0 ? '+' : ''}${r.paper_pnl_pct.toFixed(1)}%</td>`
+              : '<td style="color:var(--muted)">--</td>'}
+            ${(r.paper_exit_reason
+              ? (() => { const rm = {STOP:'red',TARGET_1:'#4caf50',TARGET_2:'#43a047',TARGET_3:'#2e7d32',INVALIDATED:'#666',TIME_EXPIRED:'#555'}; const lb = {STOP:'STOP',TARGET_1:'T1',TARGET_2:'T2',TARGET_3:'T3',INVALIDATED:'INV',TIME_EXPIRED:'EXP'}; return `<td><span class="side-c" style="font-size:8px;background:${rm[r.paper_exit_reason]||'#555'};color:#fff;padding:1px 4px;border-radius:3px">${lb[r.paper_exit_reason]||r.paper_exit_reason}</span></td>`; })()
+              : '<td style="color:var(--muted)">--</td>')}
           </tr>`;
         }).join('')}
         </tbody>
