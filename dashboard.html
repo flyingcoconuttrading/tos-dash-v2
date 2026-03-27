@@ -1555,6 +1555,32 @@ header {
         </div>
       </div>
 
+      <!-- ── CANDIDATE FILTERS ── -->
+      <div class="settings-card">
+        <div class="settings-card-title">Candidate Filters</div>
+        <div class="field-row">
+          <span class="field-label">MIN SURFACE SCORE</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_drop_threshold" type="number" min="50" max="75" step="1">
+            <span class="field-desc">Min smoothed score to surface and keep candidates. Data shows 55+ is optimal. Raise to reduce noise.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">MIN DELTA</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_min_delta" type="number" min="0" max="0.80" step="0.05">
+            <span class="field-desc">Skip options with |delta| below this. 0.25 filters low-probability OTM lottery tickets.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">MIN MARK ($)</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_min_mark" type="number" min="0" max="5.00" step="0.05">
+            <span class="field-desc">Skip options with mark price below this. 0.50 recommended to avoid untradeable wide-spread contracts.</span>
+          </div>
+        </div>
+      </div>
+
       <!-- ── IDEA LIFECYCLE ── -->
       <div class="settings-card">
         <div class="settings-card-title">Idea Lifecycle · Filters</div>
@@ -1576,7 +1602,7 @@ header {
           <span class="field-label">OPEN GATE min</span>
           <div style="display:flex;flex-direction:column;gap:2px;flex:1">
             <input class="field-input" id="cfg_open_gate_minutes" type="number" min="0" max="60" step="5">
-            <span class="field-desc">Block all ideas for N min after 9:30 open. 0 = disabled</span>
+            <span class="field-desc">Minutes after 9:30 ET before candidates surface. 5 = catch morning momentum. 30 = skip open volatility.</span>
           </div>
         </div>
         <div class="field-row">
@@ -2217,7 +2243,10 @@ function loadSettings() {
       document.getElementById('cfg_confirm_ticks').value     = cfg.confirm_ticks ?? 10;
       document.getElementById('cfg_confirm_ticks_surge').value = cfg.confirm_ticks_surge ?? 5;
       document.getElementById('cfg_idea_cooldown_min').value  = cfg.idea_cooldown_min  ?? 15;
-      document.getElementById('cfg_open_gate_minutes').value  = cfg.open_gate_minutes  ?? 30;
+      document.getElementById('cfg_open_gate_minutes').value  = cfg.open_gate_minutes  ?? 5;
+      document.getElementById('cfg_drop_threshold').value     = cfg.drop_threshold     ?? 55;
+      document.getElementById('cfg_min_delta').value          = cfg.min_delta          ?? 0.25;
+      document.getElementById('cfg_min_mark').value           = cfg.min_mark           ?? 0.50;
       document.getElementById('cfg_iv_cap').value             = cfg.iv_cap             ?? 35;
       document.getElementById('cfg_vol_surge_mult').value     = cfg.vol_surge_mult     ?? 1.5;
       document.getElementById('cfg_surge_window').value     = cfg.surge_window ?? 10;
@@ -2277,6 +2306,9 @@ function saveSettings() {
     confirm_ticks_surge:    parseInt(get('cfg_confirm_ticks_surge').value),
     idea_cooldown_min:      parseInt(get('cfg_idea_cooldown_min').value),
     open_gate_minutes:      parseInt(get('cfg_open_gate_minutes').value),
+    drop_threshold:         parseFloat(get('cfg_drop_threshold').value),
+    min_delta:              parseFloat(get('cfg_min_delta').value),
+    min_mark:               parseFloat(get('cfg_min_mark').value),
     iv_cap:                 parseFloat(get('cfg_iv_cap').value),
     vol_surge_mult:         parseFloat(get('cfg_vol_surge_mult').value),
     surge_window:      parseInt(get('cfg_surge_window').value),

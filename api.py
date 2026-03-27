@@ -61,6 +61,8 @@ volume_tracker  = VolumeTracker()
 scalp_advisor   = ScalpAdvisor()
 cfg_snapshot    = {}   # latest config, shared with idea_logger
 _last_snapshot: dict = {}   # cached by tick_loop; served by GET /snapshot
+_last_tick_seen: int   = -1
+_last_tick_time: float = 0.0
 
 # SPY volume tracker — rolling tick volume rate
 _spy_vol_history: deque = deque(maxlen=50)
@@ -129,7 +131,7 @@ DEFAULT_CONFIG = {
     # Change #4
     "iv_cap":                35.0,   # 0 = disabled
     # Change #6
-    "open_gate_minutes":     30,
+    "open_gate_minutes":     5,
     "rtd_heartbeat_ms":      200,   # Step 2: replaces config.yaml timing.initial_heartbeat
     "alpaca_api_key":        "",
     "alpaca_secret_key":     "",
@@ -137,6 +139,11 @@ DEFAULT_CONFIG = {
     "paper_target_1_pct":    0.30,
     "paper_target_2_pct":    0.50,
     "paper_target_3_pct":    0.75,
+    "drop_threshold":        55,
+    "min_delta":             0.25,
+    "min_mark":              0.50,
+    "iv_floor":              0.0,
+    "iv_ceiling":            60.0,
 }
 
 def load_config() -> dict:
@@ -479,6 +486,11 @@ class ConfigUpdate(BaseModel):
     paper_target_1_pct:      Optional[float] = None
     paper_target_2_pct:      Optional[float] = None
     paper_target_3_pct:      Optional[float] = None
+    drop_threshold:          Optional[float] = None
+    min_delta:               Optional[float] = None
+    min_mark:                Optional[float] = None
+    iv_floor:                Optional[float] = None
+    iv_ceiling:              Optional[float] = None
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(title="tos-dash-v2")
@@ -489,10 +501,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+async def _watchdog():
+    global _last_tick_seen, _last_tick_time
+    import time
+    STALE_FILE_SEC  = 60    # spy_price.json older than this → restart
+    STALE_TICK_SEC  = 120   # tick unchanged for this long → restart
+    CHECK_INTERVAL  = 30    # check every 30 seconds
+
+    while True:
+        await asyncio.sleep(CHECK_INTERVAL)
+        try:
+            # Check 1 — file timestamp staleness
+            price_file = PRICE_FILE
+            if price_file.exists():
+                age = time.time() - price_file.stat().st_mtime
+                if age > STALE_FILE_SEC:
+                    logger.warning(
+                        f"Watchdog: spy_price.json stale ({age:.0f}s) — restarting writer"
+                    )
+                    threading.Thread(target=start_writer, daemon=True).start()
+                    continue
+
+            # Check 2 — tick counter staleness
+            snap = _last_snapshot
+            if snap:
+                tick = snap.get("tick", -1)
+                now  = time.time()
+                if tick != _last_tick_seen:
+                    _last_tick_seen = tick
+                    _last_tick_time = now
+                elif _last_tick_time > 0 and (now - _last_tick_time) > STALE_TICK_SEC:
+                    logger.warning(
+                        f"Watchdog: tick frozen at {tick} for "
+                        f"{now - _last_tick_time:.0f}s — restarting writer"
+                    )
+                    threading.Thread(target=start_writer, daemon=True).start()
+                    _last_tick_time = now  # reset to avoid rapid restarts
+
+        except Exception as e:
+            logger.error(f"Watchdog error: {e}")
+
+
 @app.on_event("startup")
 async def startup():
     start_writer()
     asyncio.create_task(tick_loop())
+    asyncio.create_task(_watchdog())
     news_fetcher.start(load_config)
 
 @app.on_event("shutdown")

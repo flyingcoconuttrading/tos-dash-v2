@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 # ---------------------------------------------------------------------------
 SMOOTH_TICKS          = 5    # ticks to average score over
 MIN_TICKS_TO_SURFACE  = 3    # must score well for this many ticks before showing
-DROP_THRESHOLD        = 52   # if smoothed score falls below this, remove from display
+DROP_THRESHOLD        = 52   # legacy default — overridden by cfg at runtime
 MAX_DISPLAYED         = 6    # hard cap on simultaneously shown candidates
 DIRECTION_TICKS       = 6    # price history lookback for underlying trend (~1 min at 10s)
 DIRECTION_MIN_MOVE    = 0.10 # underlying must move at least $0.10 to be called trending
@@ -174,6 +174,7 @@ class ScalpAdvisor:
         iv_ceiling      = self._cfg.get("iv_ceiling",          DEFAULT_IV_CEILING)
         vol_surge_mult  = self._cfg.get("vol_surge_mult",      DEFAULT_VOL_SURGE_MULT)
         open_gate_min   = self._cfg.get("open_gate_minutes",   DEFAULT_OPEN_GATE_MINUTES)
+        drop_threshold  = self._cfg.get("drop_threshold",      55)
 
         now       = datetime.now()
         today     = now.date()
@@ -288,6 +289,9 @@ class ScalpAdvisor:
                     continue
                 if iv_ceiling > 0 and iv > iv_ceiling:
                     continue
+                min_mark = self._cfg.get("min_mark", 0.0)
+                if min_mark > 0 and mark < min_mark:
+                    continue
 
                 # Change #3 — trend-side filter: suppress low-confidence counter-trend ideas
                 if opt_type == "Put"  and trend == "Uptrend":
@@ -307,7 +311,14 @@ class ScalpAdvisor:
                 # Change #6 — gate first N minutes
                 if in_gate:
                     continue
-
+                #Suppress candidates in PINNED + no clear trend
+                if trend in ("Choppy", "CHOPPY", "choppy"):
+                    continue 
+                #regime = ms.regime if ms else "UNKNOWN"
+                #bias   = ms.bias   if ms else "NEUTRAL"
+                #if regime == "PINNED" and trend in ("Choppy", "CHOPPY", "choppy"):
+                 #   continue
+               
                 # Change #1 — cooldown: skip if this sym recently surfaced
                 if sym in self._idea_cooldown:
                     # still update vol history so baseline stays accurate
@@ -315,6 +326,9 @@ class ScalpAdvisor:
                     continue
 
                 abs_delta = abs(delta)
+                min_delta = self._cfg.get("min_delta", 0.0)
+                if min_delta > 0 and abs_delta < min_delta:
+                    continue
 
                 # Change #2 — relative volume surge
                 vol_surging, rel_vol_ratio = self._check_rel_vol_surge(
@@ -405,12 +419,12 @@ class ScalpAdvisor:
             if sym not in self._displayed:
                 if tick_count < MIN_TICKS_TO_SURFACE:
                     continue
-                if smoothed_score < DROP_THRESHOLD:
+                if smoothed_score < drop_threshold:
                     continue
                 self._displayed.add(sym)
             else:
                 # Already displayed — remove only if score drops too low
-                if smoothed_score < DROP_THRESHOLD:
+                if smoothed_score < drop_threshold:
                     self._displayed.discard(sym)
                     continue
 

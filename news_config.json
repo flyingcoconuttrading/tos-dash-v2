@@ -19,11 +19,6 @@
       "name": "Seeking Alpha",
       "url": "https://seekingalpha.com/feed.xml",
       "enabled": true
-    },
-    {
-      "name": "NASD Stock",
-      "url": "https://www.nasdaq.com/feed/rssoutbound?category=Stocks",
-      "enabled": true
     }
   ],
   "keywords": "SPY|SPX|QQQ|VIX|Fed|FOMC|inflation|CPI|jobs|rate|market|stocks|equit|S&P|Nasdaq|rally|sell|crash|tariff|recession|GDP|Powell|Treasury|ETF|options|index|indices|futures|yield|interest",
