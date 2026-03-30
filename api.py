@@ -142,6 +142,10 @@ DEFAULT_CONFIG = {
     "drop_threshold":        55,
     "min_delta":             0.25,
     "min_mark":              0.50,
+    "pinned_allowed_trends":  ["Downtrend"],
+    "pinned_max_score":       62,
+    "max_surface_score":      100,
+    "paper_stop_pct_pinned":  0.20,
     "iv_floor":              0.0,
     "iv_ceiling":            60.0,
 }
@@ -491,6 +495,10 @@ class ConfigUpdate(BaseModel):
     min_mark:                Optional[float] = None
     iv_floor:                Optional[float] = None
     iv_ceiling:              Optional[float] = None
+    pinned_allowed_trends:   Optional[list]  = None
+    pinned_max_score:        Optional[float] = None
+    max_surface_score:       Optional[float] = None
+    paper_stop_pct_pinned:   Optional[float] = None
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(title="tos-dash-v2")

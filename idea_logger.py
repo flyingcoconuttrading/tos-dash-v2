@@ -586,7 +586,7 @@ class IdeaLogger:
                 SELECT id, symbol, surfaced_at, entry_mark,
                        paper_entry_ask, paper_exit_reason,
                        invalidated_at, invalidation_mark,
-                       out_marks_json
+                       out_marks_json, entry_regime
                 FROM ideas
                 WHERE surfaced_at >= datetime('now', '-65 minutes')
                   AND paper_exit_reason IS NULL
@@ -643,7 +643,11 @@ class IdeaLogger:
             return
 
         cfg = self._cfg
-        stop_pct = cfg.get("paper_stop_pct",     0.30)
+        regime = (row["entry_regime"] or "").upper()
+        if regime == "PINNED":
+            stop_pct = cfg.get("paper_stop_pct_pinned", cfg.get("paper_stop_pct", 0.20))
+        else:
+            stop_pct = cfg.get("paper_stop_pct", 0.30)
         t1_pct   = cfg.get("paper_target_1_pct", 0.30)
         t2_pct   = cfg.get("paper_target_2_pct", 0.50)
         t3_pct   = cfg.get("paper_target_3_pct", 0.75)

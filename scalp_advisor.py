@@ -313,7 +313,13 @@ class ScalpAdvisor:
                     continue
                 #Suppress candidates in PINNED + no clear trend
                 if trend in ("Choppy", "CHOPPY", "choppy"):
-                    continue 
+                    continue
+                # PINNED regime trend gate — block disallowed trends in positive-GEX regime
+                if not gex_negative:  # False = PINNED (positive GEX)
+                    allowed_raw = self._cfg.get("pinned_allowed_trends", ["Downtrend"])
+                    allowed = [t.strip().title() for t in allowed_raw]
+                    if trend.title() not in allowed:
+                        continue
                 #regime = ms.regime if ms else "UNKNOWN"
                 #bias   = ms.bias   if ms else "NEUTRAL"
                 #if regime == "PINNED" and trend in ("Choppy", "CHOPPY", "choppy"):
@@ -421,6 +427,15 @@ class ScalpAdvisor:
                     continue
                 if smoothed_score < drop_threshold:
                     continue
+                # Global score ceiling (default 100 = disabled)
+                max_score = self._cfg.get("max_surface_score", 100)
+                if max_score < 100 and smoothed_score > max_score:
+                    continue
+                # PINNED score ceiling
+                if not kwargs.get("gex_negative", True):
+                    pinned_max = self._cfg.get("pinned_max_score", 62)
+                    if pinned_max < 100 and smoothed_score > pinned_max:
+                        continue
                 self._displayed.add(sym)
             else:
                 # Already displayed — remove only if score drops too low

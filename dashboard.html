@@ -1579,6 +1579,27 @@ header {
             <span class="field-desc">Skip options with mark price below this. 0.50 recommended to avoid untradeable wide-spread contracts.</span>
           </div>
         </div>
+        <div class="field-row">
+          <span class="field-label">MAX SCORE</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_max_surface_score" type="number" min="55" max="100" step="1">
+            <span class="field-desc">Hard ceiling on surface score. 100 = disabled. Data: 65-70 band is -1.5% avg PnL vs +13.5% for 55-60.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">PINNED TRENDS</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_pinned_allowed_trends" type="text" placeholder="Downtrend">
+            <span class="field-desc">Comma-separated trends allowed in PINNED (pos GEX) regime. Data: Downtrend=44% hit, Uptrend=16%, Choppy=36%.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">PINNED MAX SCORE</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_pinned_max_score" type="number" min="50" max="100" step="1">
+            <span class="field-desc">Score ceiling for PINNED-regime candidates only. 100 = disabled. High PINNED scores tend to be overextended.</span>
+          </div>
+        </div>
       </div>
 
       <!-- ── IDEA LIFECYCLE ── -->
@@ -1655,6 +1676,13 @@ header {
           <div style="display:flex;flex-direction:column;gap:2px;flex:1">
             <input class="field-input" id="cfg_paper_stop_pct" type="number" min="0.05" max="0.90" step="0.05">
             <span class="field-desc">Exit paper trade if bid falls this % below entry ask</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">PINNED STOP %</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_paper_stop_pct_pinned" type="number" min="0.05" max="0.90" step="0.05">
+            <span class="field-desc">Paper stop for PINNED-regime ideas only. Overrides STOP %. Data: PINNED stops averaged -37% loss at 30%. 0.20 recommended.</span>
           </div>
         </div>
         <div class="field-row">
@@ -2247,6 +2275,10 @@ function loadSettings() {
       document.getElementById('cfg_drop_threshold').value     = cfg.drop_threshold     ?? 55;
       document.getElementById('cfg_min_delta').value          = cfg.min_delta          ?? 0.25;
       document.getElementById('cfg_min_mark').value           = cfg.min_mark           ?? 0.50;
+      document.getElementById('cfg_max_surface_score').value      = cfg.max_surface_score      ?? 100;
+      document.getElementById('cfg_pinned_allowed_trends').value  = (cfg.pinned_allowed_trends || ['Downtrend']).join(', ');
+      document.getElementById('cfg_pinned_max_score').value       = cfg.pinned_max_score       ?? 62;
+      document.getElementById('cfg_paper_stop_pct_pinned').value  = cfg.paper_stop_pct_pinned  ?? 0.20;
       document.getElementById('cfg_iv_cap').value             = cfg.iv_cap             ?? 35;
       document.getElementById('cfg_vol_surge_mult').value     = cfg.vol_surge_mult     ?? 1.5;
       document.getElementById('cfg_surge_window').value     = cfg.surge_window ?? 10;
@@ -2309,6 +2341,10 @@ function saveSettings() {
     drop_threshold:         parseFloat(get('cfg_drop_threshold').value),
     min_delta:              parseFloat(get('cfg_min_delta').value),
     min_mark:               parseFloat(get('cfg_min_mark').value),
+    max_surface_score:      parseFloat(get('cfg_max_surface_score').value),
+    pinned_allowed_trends:  get('cfg_pinned_allowed_trends').value.split(',').map(s => s.trim()).filter(Boolean),
+    pinned_max_score:       parseFloat(get('cfg_pinned_max_score').value),
+    paper_stop_pct_pinned:  parseFloat(get('cfg_paper_stop_pct_pinned').value),
     iv_cap:                 parseFloat(get('cfg_iv_cap').value),
     vol_surge_mult:         parseFloat(get('cfg_vol_surge_mult').value),
     surge_window:      parseInt(get('cfg_surge_window').value),
