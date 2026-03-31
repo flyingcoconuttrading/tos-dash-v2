@@ -132,6 +132,9 @@ class ScalpAdvisor:
         # runtime config — updated each tick from api.py
         self._cfg: dict = {}
 
+        # reference to latest MarketStructure — set each tick for structural gate
+        self._ms_ref = None
+
     def reset(self):
         self._score_history.clear()
         self._tick_count.clear()
@@ -159,6 +162,7 @@ class ScalpAdvisor:
         top_n: int = 6,
         risk_cap: float = 2.00,
         cfg: dict | None = None,
+        ms=None,
     ) -> list[ScalpCandidate]:
 
         from datetime import datetime, timezone
@@ -169,6 +173,7 @@ class ScalpAdvisor:
 
         # Merge runtime config
         self._cfg = cfg or {}
+        self._ms_ref = ms
         cooldown_min    = self._cfg.get("idea_cooldown_min",   DEFAULT_IDEA_COOLDOWN_MIN)
         iv_floor        = self._cfg.get("iv_floor",            DEFAULT_IV_FLOOR)
         iv_ceiling      = self._cfg.get("iv_ceiling",          DEFAULT_IV_CEILING)
@@ -213,16 +218,20 @@ class ScalpAdvisor:
 
         surge_symbols = surge_symbols or set()
 
-        # Underlying direction
-        trend = self._get_trend()
+        # Underlying direction — consume from market_structure (single source of truth)
+        # market_structure.analyze() always runs before get_recommendations() in api.py
+        import market_structure as _ms_mod
+        trend = _ms_mod.get_current_trend()
+        # Still update price history for intraday range tracking (day high/low)
+        # but it no longer drives trend direction
 
         # GEX regime
         net_gex = self._net_gex_at_price(data, strikes, option_symbols, current_price)
         gex_negative = net_gex < 0
 
-        # DEX bias
+        # DEX bias — polarity corrected: net_dex > 0 means customers net long → Bullish
         net_dex = self._net_dex_near_price(data, strikes, option_symbols, current_price)
-        dex_bias = "Bearish" if net_dex > 0 else "Bullish"
+        dex_bias = "Bullish" if net_dex > 0 else "Bearish"
 
         # Key levels
         levels = {}
@@ -324,7 +333,19 @@ class ScalpAdvisor:
                 #bias   = ms.bias   if ms else "NEUTRAL"
                 #if regime == "PINNED" and trend in ("Choppy", "CHOPPY", "choppy"):
                  #   continue
-               
+
+                # Structural gate — suppress calls/puts when structure strongly disagrees
+                if self._cfg.get("structure_gate_scanner", False):
+                    ms_cl = getattr(self._ms_ref, "checklist", None) if self._ms_ref else None
+                    if ms_cl is not None:
+                        s_lean = ms_cl.structural_lean
+                        s_conf = ms_cl.structural_confidence
+                        strong = s_conf in ("Strong", "Moderate")
+                        if strong and s_lean == "Bear" and opt_type == "Call":
+                            continue
+                        if strong and s_lean == "Bull" and opt_type == "Put":
+                            continue
+
                 # Change #1 — cooldown: skip if this sym recently surfaced
                 if sym in self._idea_cooldown:
                     # still update vol history so baseline stays accurate

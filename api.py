@@ -146,6 +146,9 @@ DEFAULT_CONFIG = {
     "pinned_max_score":       62,
     "max_surface_score":      100,
     "paper_stop_pct_pinned":  0.20,
+    "momentum_short_ticks":   120,
+    "momentum_medium_ticks":  360,
+    "structure_gate_scanner": False,
     "iv_floor":              0.0,
     "iv_ceiling":            60.0,
 }
@@ -329,6 +332,7 @@ def build_snapshot() -> dict:
             warn_distance     = cfg.get("warn_distance", 2.0),
             critical_distance = cfg.get("critical_distance", 1.0),
             surge_symbols     = surge_syms,
+            cfg               = cfg,
         )
         cl = ms.checklist
         ms_dict = {
@@ -363,6 +367,12 @@ def build_snapshot() -> dict:
                 }
                 for f in (cl.factors if cl else [])
             ],
+            "checklist_structural_score":      cl.structural_score      if cl else None,
+            "checklist_structural_lean":       cl.structural_lean       if cl else None,
+            "checklist_structural_confidence": cl.structural_confidence if cl else None,
+            "checklist_tactical_score":        cl.tactical_score        if cl else None,
+            "checklist_tactical_lean":         cl.tactical_lean         if cl else None,
+            "checklist_snap_banner":           cl.snap_banner           if cl else "",
         }
     except Exception as e:
         ms_dict = {"error": str(e)}
@@ -379,6 +389,7 @@ def build_snapshot() -> dict:
             surge_symbols  = surge_syms,
             risk_cap       = cfg.get("risk_cap", 5.00),
             cfg            = cfg,
+            ms             = ms,
         )
 
         # Full lifecycle tracking — process_tick handles all idea logic
@@ -499,6 +510,9 @@ class ConfigUpdate(BaseModel):
     pinned_max_score:        Optional[float] = None
     max_surface_score:       Optional[float] = None
     paper_stop_pct_pinned:   Optional[float] = None
+    momentum_short_ticks:    Optional[int]   = None
+    momentum_medium_ticks:   Optional[int]   = None
+    structure_gate_scanner:  Optional[bool]  = None
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(title="tos-dash-v2")

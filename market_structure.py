@@ -43,13 +43,16 @@ CL_MOMENTUM  = "price_momentum"
 CL_MAX_PAIN  = "price_vs_maxpain"
 CL_WALLS     = "price_vs_walls"
 CL_CANDLE    = "candle_structure"
+CL_DEX_BIAS  = "dex_bias"
 
-ALL_FACTORS = [CL_REGIME, CL_SNAP_DIR, CL_ANCHOR, CL_MOMENTUM, CL_MAX_PAIN, CL_WALLS, CL_CANDLE]
+ALL_FACTORS = [CL_REGIME, CL_SNAP_DIR, CL_ANCHOR, CL_DEX_BIAS,
+               CL_MOMENTUM, CL_MAX_PAIN, CL_WALLS, CL_CANDLE]
 
 FACTOR_LABELS = {
     CL_REGIME:   "Regime",
     CL_SNAP_DIR: "Snap Dir",
     CL_ANCHOR:   "GEX Anchor",
+    CL_DEX_BIAS: "DEX Bias",
     CL_MOMENTUM: "Momentum",
     CL_MAX_PAIN: "Max Pain",
     CL_WALLS:    "Walls",
@@ -60,14 +63,16 @@ FACTOR_WEIGHTS = {
     CL_REGIME:   0.25,
     CL_SNAP_DIR: 0.20,
     CL_ANCHOR:   0.15,
-    CL_MOMENTUM: 0.15,
+    CL_DEX_BIAS: 0.10,
     CL_MAX_PAIN: 0.10,
     CL_WALLS:    0.10,
-    CL_CANDLE:   0.05,
+    CL_MOMENTUM: 0.08,
+    CL_CANDLE:   0.02,
 }
 
-MOMENTUM_TICKS    = 12    # ticks of price history (~1 min at 500ms)
-MOMENTUM_MIN_MOVE = 0.08  # min $ move to call a trend
+MOMENTUM_MIN_MOVE   = 0.08   # keep — used in bias/trend calc
+MOMENTUM_SHORT_DEF  = 120    # 1 min at 500ms — short-term momentum
+MOMENTUM_MEDIUM_DEF = 360    # 3 min at 500ms — medium-term confirmation
 
 
 @dataclass
@@ -88,6 +93,12 @@ class DirectionalChecklist:
     score:         float   # 0–100 weighted bull%
     lean:          str     # "Bull" | "Bear" | "Mixed"
     confidence:    str     # "Strong" | "Moderate" | "Weak" | "Insufficient"
+    structural_score:      float = 0.0
+    structural_lean:       str   = "Mixed"
+    structural_confidence: str   = "Insufficient"
+    tactical_score:        float = 50.0
+    tactical_lean:         str   = "Mixed"
+    snap_banner:           str   = ""
 
 
 @dataclass
@@ -109,10 +120,13 @@ class MarketStructure:
     alert_message:  str
     invalidation:   str
     checklist:      Optional[DirectionalChecklist] = None
+    trend:          str                            = "Choppy"
 
 
 # ── Module-level state (persists across ticks) ───────────────────────────────
-_price_history:     deque = deque(maxlen=MOMENTUM_TICKS)
+_momentum_short:    deque = deque(maxlen=MOMENTUM_SHORT_DEF)
+_momentum_medium:   deque = deque(maxlen=MOMENTUM_MEDIUM_DEF)
+_current_trend:     str   = "Choppy"   # exported for scalp_advisor
 _last_candle_close: float = 0.0
 _candle_minute:     int   = -1
 _candle_last:       float = 0.0
@@ -135,6 +149,12 @@ def _update_candle(price: float) -> float:
     return _last_candle_close
 
 
+def get_current_trend() -> str:
+    """Return the most recently computed 1-min/3-min unified trend.
+    Called by scalp_advisor each tick to get the shared trend state."""
+    return _current_trend
+
+
 def _build_checklist(
     current_price: float,
     gex_anchor:    float,
@@ -146,6 +166,9 @@ def _build_checklist(
     snap_level:    Optional[float],
     snap_distance: Optional[float],
     last_candle_close: float,
+    net_dex:           float = 0.0,
+    cfg_momentum_short:  int = 120,
+    cfg_momentum_medium: int = 360,
 ) -> DirectionalChecklist:
 
     factors = []
@@ -198,28 +221,39 @@ def _build_checklist(
             add(CL_ANCHOR, "Bear",
                 f"${diff:.2f} above GEX anchor ${gex_anchor:.0f} — dealer resistance above")
 
-    # ── 4. Price Momentum (15%) ───────────────────────────────────────────────
-    _price_history.append(current_price)
-    if len(_price_history) < 4:
-        add(CL_MOMENTUM, "Neutral", "Warming up — insufficient price history")
+    # ── 4. DEX Bias (10%) ────────────────────────────────────────────────────────
+    if net_dex > 0:
+        add(CL_DEX_BIAS, "Bull",
+            "Net DEX positive — customers net long delta, dealers buying to hedge")
+    elif net_dex < 0:
+        add(CL_DEX_BIAS, "Bear",
+            "Net DEX negative — customers net short delta, dealers selling to hedge")
     else:
-        oldest = _price_history[0]
-        newest = _price_history[-1]
-        mid    = _price_history[len(_price_history) // 2]
-        move   = newest - oldest
-        if abs(move) < MOMENTUM_MIN_MOVE:
-            add(CL_MOMENTUM, "Neutral",
-                f"Flat — ${move:+.2f} over {len(_price_history)} ticks")
-        elif move > 0:
-            val = "Bull" if mid <= newest else "Neutral"
-            add(CL_MOMENTUM, val,
-                f"Upward ${move:+.2f} over {len(_price_history)} ticks"
-                + (" (spike — not confirmed)" if val == "Neutral" else ""))
+        add(CL_DEX_BIAS, "Neutral", "Net DEX near zero — no clear dealer positioning")
+
+    # ── 5. Momentum (8%) — requires 1-min AND 3-min agreement ────────────────
+    def _get_momentum(history: deque, min_move: float) -> str:
+        if len(history) < 4:
+            return "Choppy"
+        move = history[-1] - history[0]
+        if abs(move) < min_move:
+            return "Choppy"
+        mid = history[len(history) // 2]
+        if move > 0:
+            return "Uptrend" if mid <= history[-1] else "Choppy"
         else:
-            val = "Bear" if mid >= newest else "Neutral"
-            add(CL_MOMENTUM, val,
-                f"Downward ${move:+.2f} over {len(_price_history)} ticks"
-                + (" (spike — not confirmed)" if val == "Neutral" else ""))
+            return "Downtrend" if mid >= history[-1] else "Choppy"
+
+    trend_short  = _get_momentum(_momentum_short,  MOMENTUM_MIN_MOVE)
+    trend_medium = _get_momentum(_momentum_medium, MOMENTUM_MIN_MOVE)
+
+    if trend_short == trend_medium and trend_short != "Choppy":
+        mom_val = "Bull" if trend_short == "Uptrend" else "Bear"
+        add(CL_MOMENTUM, mom_val,
+            f"1-min: {trend_short} / 3-min: {trend_medium} — confirmed direction")
+    else:
+        add(CL_MOMENTUM, "Neutral",
+            f"1-min: {trend_short} / 3-min: {trend_medium} — no confirmed trend")
 
     # ── 5. Price vs Max Pain (10% base, time-weighted) ────────────────────────
     # Max pain pin only becomes meaningfully active in the final ~90 min of session.
@@ -324,14 +358,79 @@ def _build_checklist(
         else:
             lean, confidence = "Mixed", "Weak"
 
+    # ── Structural score (slow factors only) ─────────────────────────────────
+    structural_keys = {CL_REGIME, CL_SNAP_DIR, CL_ANCHOR,
+                       CL_DEX_BIAS, CL_MAX_PAIN, CL_WALLS}
+    s_bull = sum(f.weight for f in factors
+                 if f.value == "Bull" and f.key in structural_keys)
+    s_bear = sum(f.weight for f in factors
+                 if f.value == "Bear" and f.key in structural_keys)
+    s_scored = s_bull + s_bear
+    if s_scored < 0.15:
+        structural_score, structural_lean, structural_confidence = \
+            50.0, "Mixed", "Insufficient"
+    else:
+        structural_score = (s_bull / s_scored) * 100
+        if structural_score >= 75:
+            structural_lean, structural_confidence = "Bull", "Strong"
+        elif structural_score >= 62:
+            structural_lean, structural_confidence = "Bull", "Moderate"
+        elif structural_score <= 25:
+            structural_lean, structural_confidence = "Bear", "Strong"
+        elif structural_score <= 38:
+            structural_lean, structural_confidence = "Bear", "Moderate"
+        else:
+            structural_lean, structural_confidence = "Mixed", "Weak"
+
+    # ── Tactical score (momentum + candle only) ───────────────────────────────
+    t_bull = sum(f.weight for f in factors
+                 if f.value == "Bull" and f.key in {CL_MOMENTUM, CL_CANDLE})
+    t_bear = sum(f.weight for f in factors
+                 if f.value == "Bear" and f.key in {CL_MOMENTUM, CL_CANDLE})
+    t_scored = t_bull + t_bear
+    if t_scored < 0.01:
+        tactical_score, tactical_lean = 50.0, "Mixed"
+    else:
+        tactical_score = (t_bull / t_scored) * 100
+        tactical_lean = ("Bull" if tactical_score >= 60
+                         else "Bear" if tactical_score <= 40 else "Mixed")
+
+    # ── Snap banner (plain-English trade impact) ──────────────────────────────
+    snap_banner = ""
+    if snap_level is not None and snap_distance is not None:
+        side = "above" if snap_direction == "Above" else "below"
+        dist_str = f"${snap_distance:.2f}"
+        if snap_distance <= 1.0:
+            snap_banner = (
+                f"⚡ GAMMA FLIP at ${snap_level:.0f} — {dist_str} away · "
+                f"dealers about to {'chase upside' if snap_direction == 'Above' else 'chase downside'}"
+            )
+        elif snap_direction == "Above" and current_price > snap_level:
+            snap_banner = (
+                f"✅ Snap ${snap_level:.0f} behind price — "
+                f"dealers are TAILWIND (buying to hedge)"
+            )
+        elif snap_direction == "Below" and current_price < snap_level:
+            snap_banner = (
+                f"✅ Snap ${snap_level:.0f} behind price — "
+                f"dealers are TAILWIND (selling to hedge)"
+            )
+        else:
+            snap_banner = (
+                f"⚠️ Snap ${snap_level:.0f} {side} — {dist_str} away · "
+                f"dealer HEADWIND until crossed"
+            )
+
     return DirectionalChecklist(
         factors=factors,
-        bull_count=bull_count,
-        bear_count=bear_count,
-        neutral_count=neutral_count,
-        score=round(score, 1),
-        lean=lean,
-        confidence=confidence,
+        bull_count=bull_count, bear_count=bear_count, neutral_count=neutral_count,
+        score=round(score, 1), lean=lean, confidence=confidence,
+        structural_score=round(structural_score, 1),
+        structural_lean=structural_lean,
+        structural_confidence=structural_confidence,
+        tactical_score=round(tactical_score, 1),
+        tactical_lean=tactical_lean,
+        snap_banner=snap_banner,
     )
 
 
@@ -346,6 +445,7 @@ def analyze(
     warn_distance: float = 2.00,
     critical_distance: float = 1.00,
     surge_symbols: set = None,
+    cfg: dict = None,
 ) -> MarketStructure:
 
     def _sf(key: str) -> float:
@@ -438,17 +538,21 @@ def analyze(
     near_call_wall = abs(current_price - call_wall) <= 2.0
     near_put_wall  = abs(current_price - put_wall) <= 2.0
 
-    # ── Price trend + DEX bias (used in TRENDING composite) ──────────────────
-    if len(_price_history) < 4:
-        trend = "Choppy"
+    # ── Feed momentum deques + compute unified trend ──────────────────────────
+    global _current_trend
+    _momentum_short.append(current_price)
+    _momentum_medium.append(current_price)
+    if len(_momentum_short) < 4:
+        _current_trend = "Choppy"
     else:
-        _move = _price_history[-1] - _price_history[0]
+        _move = _momentum_short[-1] - _momentum_short[0]
         if _move < -MOMENTUM_MIN_MOVE:
-            trend = "Downtrend"
+            _current_trend = "Downtrend"
         elif _move > MOMENTUM_MIN_MOVE:
-            trend = "Uptrend"
+            _current_trend = "Uptrend"
         else:
-            trend = "Choppy"
+            _current_trend = "Choppy"
+    trend = _current_trend
 
     dex_bias = "Bullish" if net_dex > 0 else "Bearish"
 
@@ -522,16 +626,19 @@ def analyze(
     # ── Directional checklist ─────────────────────────────────────────────────
     last_candle_close = _update_candle(current_price)
     checklist = _build_checklist(
-        current_price     = current_price,
-        gex_anchor        = gex_anchor,
-        max_pain          = max_pain,
-        call_wall         = call_wall,
-        put_wall          = put_wall,
-        regime            = regime,
-        snap_direction    = snap_direction,
-        snap_level        = snap_level,
-        snap_distance     = snap_distance,
-        last_candle_close = last_candle_close,
+        current_price       = current_price,
+        gex_anchor          = gex_anchor,
+        max_pain            = max_pain,
+        call_wall           = call_wall,
+        put_wall            = put_wall,
+        regime              = regime,
+        snap_direction      = snap_direction,
+        snap_level          = snap_level,
+        snap_distance       = snap_distance,
+        last_candle_close   = last_candle_close,
+        net_dex             = net_dex,
+        cfg_momentum_short  = cfg.get("momentum_short_ticks",  MOMENTUM_SHORT_DEF)  if cfg else MOMENTUM_SHORT_DEF,
+        cfg_momentum_medium = cfg.get("momentum_medium_ticks", MOMENTUM_MEDIUM_DEF) if cfg else MOMENTUM_MEDIUM_DEF,
     )
 
     return MarketStructure(
@@ -544,6 +651,7 @@ def analyze(
         alert_zone=alert_zone, alert_message=alert_message,
         invalidation=invalidation,
         checklist=checklist,
+        trend=trend,
     )
 
 

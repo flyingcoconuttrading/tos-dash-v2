@@ -320,6 +320,32 @@ header {
   font-size:8px; color:var(--muted); margin-left:auto;
   padding-left:4px; flex-shrink:0;
 }
+.cl-item { font-size: 11px; }
+.cl-summary { font-size: 12px; }
+
+/* Snap banner */
+.snap-banner {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 7px 10px;
+  border-radius: 3px;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+.snap-banner.headwind  { background:rgba(255,61,87,0.10);  color:var(--bear);    border:1px solid rgba(255,61,87,0.25); }
+.snap-banner.tailwind  { background:rgba(0,230,118,0.10);  color:var(--bull);    border:1px solid rgba(0,230,118,0.25); }
+.snap-banner.critical  { background:rgba(255,179,0,0.15);  color:var(--neutral); border:1px solid rgba(255,179,0,0.40); }
+.snap-banner.none      { display:none; }
+
+/* Dual bar labels */
+.cl-section-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin: 10px 0 4px;
+  text-transform: uppercase;
+}
 
 /* ══════════════════ TRADES PAGE ══════════════════ */
 .trades-page {
@@ -1154,19 +1180,41 @@ header {
     <!-- Right: Checklist -->
     <div class="panel">
       <div class="panel-title">Directional Checklist</div>
-      <div class="cl-summary" id="clSummary">--</div>
-      <div class="cl-score-bar-wrap" id="clBarWrap" style="display:none">
+
+      <!-- Snap banner -->
+      <div class="snap-banner none" id="snapBanner"></div>
+
+      <!-- Structural bar -->
+      <div class="cl-section-label">Structure</div>
+      <div class="cl-summary" id="clStructuralSummary">--</div>
+      <div class="cl-score-bar-wrap" id="clStructuralBarWrap" style="display:none">
         <div class="cl-score-bar-track">
-          <div class="cl-score-bar-fill" id="clBarFill"></div>
+          <div class="cl-score-bar-fill" id="clStructuralBarFill"></div>
           <div class="cl-score-bar-mid"></div>
         </div>
         <div class="cl-score-labels">
           <span style="color:var(--bear)">Bear</span>
-          <span id="clScoreVal" style="color:var(--dim);font-size:10px">50</span>
+          <span id="clStructuralScoreVal" style="color:var(--dim);font-size:10px">50</span>
           <span style="color:var(--bull)">Bull</span>
         </div>
       </div>
-      <div class="cl-grid" id="clGrid"></div>
+      <div class="cl-grid" id="clStructuralGrid"></div>
+
+      <!-- Tactical bar -->
+      <div class="cl-section-label" style="margin-top:12px">Tactical</div>
+      <div class="cl-summary" id="clTacticalSummary">--</div>
+      <div class="cl-score-bar-wrap" id="clTacticalBarWrap" style="display:none">
+        <div class="cl-score-bar-track">
+          <div class="cl-score-bar-fill" id="clTacticalBarFill"></div>
+          <div class="cl-score-bar-mid"></div>
+        </div>
+        <div class="cl-score-labels">
+          <span style="color:var(--bear)">Bear</span>
+          <span id="clTacticalScoreVal" style="color:var(--dim);font-size:10px">50</span>
+          <span style="color:var(--bull)">Bull</span>
+        </div>
+      </div>
+      <div class="cl-grid" id="clTacticalGrid"></div>
     </div>
 
   </div>
@@ -1602,6 +1650,40 @@ header {
         </div>
       </div>
 
+      <!-- ── DIRECTIONAL ── -->
+      <div class="settings-card">
+        <div class="settings-card-title">Directional · Momentum</div>
+        <div class="field-row">
+          <span class="field-label">MOMENTUM SHORT ticks</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_momentum_short_ticks" type="number" min="20" max="240" step="10">
+            <span class="field-desc">Ticks for 1-min momentum window. 120 = 60s at 500ms poll.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">MOMENTUM MEDIUM ticks</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_momentum_medium_ticks" type="number" min="60" max="720" step="30">
+            <span class="field-desc">Ticks for 3-min momentum window. 360 = 180s at 500ms poll.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">STRUCTURE GATE</span>
+          <div class="field-toggle">
+            <label class="toggle-switch">
+              <input type="checkbox" id="cfg_structure_gate_scanner">
+              <div class="toggle-track"></div>
+              <div class="toggle-knob"></div>
+            </label>
+            <span id="structureGateLabel" style="font-size:10px;color:var(--dim)">OFF</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label" style="visibility:hidden">—</span>
+          <span class="field-desc">Suppress calls when structure is Bear·Strong/Moderate, puts when Bull·Strong/Moderate.</span>
+        </div>
+      </div>
+
       <!-- ── IDEA LIFECYCLE ── -->
       <div class="settings-card">
         <div class="settings-card-title">Idea Lifecycle · Filters</div>
@@ -2030,58 +2112,81 @@ function update(snap) {
   setStatus('live');
 }
 
+function _clItem(f) {
+  const dotCls = f.value === 'Bull' ? 'bull' :
+                 f.value === 'Bear' ? 'bear' : 'neutral';
+  const wPct   = f.weight != null ? Math.round(f.weight * 100) + '%' : '';
+  const detail = (f.detail || '').replace(/"/g, '&quot;');
+  return `<div class="cl-item" title="${detail}">` +
+    `<div class="cl-dot ${dotCls}"></div>` +
+    `${f.label || f.key || '?'}` +
+    `<span class="cl-weight">${wPct}</span>` +
+    `</div>`;
+}
+
 function renderChecklist(ms) {
-  const summary  = document.getElementById('clSummary');
-  const grid     = document.getElementById('clGrid');
-  const barWrap  = document.getElementById('clBarWrap');
-  const barFill  = document.getElementById('clBarFill');
-  const scoreVal = document.getElementById('clScoreVal');
-  const factors  = ms.checklist_factors || [];
-
-  if (!ms.checklist_lean) {
-    summary.textContent = 'Insufficient data';
-    grid.innerHTML = '';
-    barWrap.style.display = 'none';
-    return;
-  }
-
-  const lean  = ms.checklist_lean;
-  const conf  = ms.checklist_confidence;
-  const score = ms.checklist_score ?? 50;
-  const bull  = ms.checklist_bull_count || 0;
-  const bear  = ms.checklist_bear_count || 0;
-  const cls   = lean === 'Bull' ? 'bull' : lean === 'Bear' ? 'bear' : 'neutral';
-  const leanColor = lean === 'Bull' ? 'var(--bull)' : lean === 'Bear' ? 'var(--bear)' : 'var(--neutral)';
-
-  // Summary line
-  summary.innerHTML =
-    `<span style="color:${leanColor};font-weight:700">${lean}</span>` +
-    `<span style="color:var(--muted)"> · ${conf}</span>` +
-    `<span style="color:var(--muted);font-size:9px;margin-left:6px">${bull}↑ ${bear}↓</span>`;
-
-  // Score bar — 0=full bear left, 50=center, 100=full bull right
-  barWrap.style.display = '';
-  const pct = Math.max(0, Math.min(100, score));
-  barFill.style.width      = Math.abs(pct - 50) * 2 + '%';
-  barFill.style.left       = pct >= 50 ? '50%' : (pct) + '%';
-  barFill.style.background = pct >= 50 ? 'var(--bull)' : 'var(--bear)';
-  scoreVal.textContent     = Math.round(score);
-
-  // Factor grid — each row shows dot + label + weight badge
-  if (factors.length > 0) {
-    grid.innerHTML = factors.map(f => {
-      const dotCls  = f.value === 'Bull' ? 'bull' : f.value === 'Bear' ? 'bear' : 'neutral';
-      const wPct    = f.weight != null ? Math.round(f.weight * 100) + '%' : '';
-      const detail  = (f.detail || '').replace(/"/g, '&quot;');
-      return `<div class="cl-item" title="${detail}">` +
-        `<div class="cl-dot ${dotCls}"></div>` +
-        `${f.label || f.key || '?'}` +
-        `<span class="cl-weight">${wPct}</span>` +
-        `</div>`;
-    }).join('');
+  // ── Snap banner ─────────────────────────────────────────────────
+  const banner   = document.getElementById('snapBanner');
+  const snapText = ms.checklist_snap_banner || '';
+  if (snapText) {
+    banner.textContent = snapText;
+    banner.className   = 'snap-banner ' +
+      (snapText.includes('TAILWIND') || snapText.startsWith('✅') ? 'tailwind' :
+       snapText.includes('⚡') ? 'critical' : 'headwind');
   } else {
-    grid.innerHTML = '<div style="color:var(--muted);font-size:10px">No factors</div>';
+    banner.className = 'snap-banner none';
   }
+
+  // ── Structural bar ───────────────────────────────────────────────
+  const strSummary = document.getElementById('clStructuralSummary');
+  const strBarWrap = document.getElementById('clStructuralBarWrap');
+  const strBarFill = document.getElementById('clStructuralBarFill');
+  const strScoreVal= document.getElementById('clStructuralScoreVal');
+  const strGrid    = document.getElementById('clStructuralGrid');
+
+  const sLean  = ms.checklist_structural_lean       || 'Mixed';
+  const sConf  = ms.checklist_structural_confidence || 'Insufficient';
+  const sScore = ms.checklist_structural_score      ?? 50;
+  const sColor = sLean === 'Bull' ? 'var(--bull)' :
+                 sLean === 'Bear' ? 'var(--bear)' : 'var(--neutral)';
+
+  strSummary.innerHTML =
+    `<span style="color:${sColor};font-weight:700">${sLean}</span>` +
+    `<span style="color:var(--muted)"> · ${sConf}</span>`;
+  strBarWrap.style.display = '';
+  strBarFill.style.width      = Math.abs(sScore - 50) * 2 + '%';
+  strBarFill.style.left       = sScore >= 50 ? '50%' : sScore + '%';
+  strBarFill.style.background = sScore >= 50 ? 'var(--bull)' : 'var(--bear)';
+  strScoreVal.textContent     = Math.round(sScore);
+
+  // Structural factors (all except momentum + candle)
+  const tacticalKeys = ['price_momentum', 'candle_structure'];
+  const allFactors   = ms.checklist_factors || [];
+  const strFactors   = allFactors.filter(f => !tacticalKeys.includes(f.key));
+  strGrid.innerHTML  = strFactors.map(f => _clItem(f)).join('');
+
+  // ── Tactical bar ─────────────────────────────────────────────────
+  const tacSummary = document.getElementById('clTacticalSummary');
+  const tacBarWrap = document.getElementById('clTacticalBarWrap');
+  const tacBarFill = document.getElementById('clTacticalBarFill');
+  const tacScoreVal= document.getElementById('clTacticalScoreVal');
+  const tacGrid    = document.getElementById('clTacticalGrid');
+
+  const tLean  = ms.checklist_tactical_lean  || 'Mixed';
+  const tScore = ms.checklist_tactical_score ?? 50;
+  const tColor = tLean === 'Bull' ? 'var(--bull)' :
+                 tLean === 'Bear' ? 'var(--bear)' : 'var(--neutral)';
+
+  tacSummary.innerHTML =
+    `<span style="color:${tColor};font-weight:700">${tLean}</span>`;
+  tacBarWrap.style.display = '';
+  tacBarFill.style.width      = Math.abs(tScore - 50) * 2 + '%';
+  tacBarFill.style.left       = tScore >= 50 ? '50%' : tScore + '%';
+  tacBarFill.style.background = tScore >= 50 ? 'var(--bull)' : 'var(--bear)';
+  tacScoreVal.textContent     = Math.round(tScore);
+
+  const tacFactors  = allFactors.filter(f => tacticalKeys.includes(f.key));
+  tacGrid.innerHTML = tacFactors.map(f => _clItem(f)).join('');
 }
 
 // ── Pinned candidates ─────────────────────────────────────────────────────────
@@ -2279,6 +2384,11 @@ function loadSettings() {
       document.getElementById('cfg_pinned_allowed_trends').value  = (cfg.pinned_allowed_trends || ['Downtrend']).join(', ');
       document.getElementById('cfg_pinned_max_score').value       = cfg.pinned_max_score       ?? 62;
       document.getElementById('cfg_paper_stop_pct_pinned').value  = cfg.paper_stop_pct_pinned  ?? 0.20;
+      document.getElementById('cfg_momentum_short_ticks').value   = cfg.momentum_short_ticks   ?? 120;
+      document.getElementById('cfg_momentum_medium_ticks').value  = cfg.momentum_medium_ticks  ?? 360;
+      const sgOn = cfg.structure_gate_scanner ?? false;
+      document.getElementById('cfg_structure_gate_scanner').checked = sgOn;
+      document.getElementById('structureGateLabel').textContent = sgOn ? 'ON' : 'OFF';
       document.getElementById('cfg_iv_cap').value             = cfg.iv_cap             ?? 35;
       document.getElementById('cfg_vol_surge_mult').value     = cfg.vol_surge_mult     ?? 1.5;
       document.getElementById('cfg_surge_window').value     = cfg.surge_window ?? 10;
@@ -2345,6 +2455,9 @@ function saveSettings() {
     pinned_allowed_trends:  get('cfg_pinned_allowed_trends').value.split(',').map(s => s.trim()).filter(Boolean),
     pinned_max_score:       parseFloat(get('cfg_pinned_max_score').value),
     paper_stop_pct_pinned:  parseFloat(get('cfg_paper_stop_pct_pinned').value),
+    momentum_short_ticks:   parseInt(get('cfg_momentum_short_ticks').value),
+    momentum_medium_ticks:  parseInt(get('cfg_momentum_medium_ticks').value),
+    structure_gate_scanner: get('cfg_structure_gate_scanner').checked,
     iv_cap:                 parseFloat(get('cfg_iv_cap').value),
     vol_surge_mult:         parseFloat(get('cfg_vol_surge_mult').value),
     surge_window:      parseInt(get('cfg_surge_window').value),
@@ -3271,6 +3384,15 @@ function toggleAT() {
   // Re-render candidates with current state
   _doRender();
 }
+
+function applyStructureGate() {
+  const on = document.getElementById('cfg_structure_gate_scanner').checked;
+  document.getElementById('structureGateLabel').textContent = on ? 'ON' : 'OFF';
+}
+document.addEventListener('DOMContentLoaded', function() {
+  const sgEl = document.getElementById('cfg_structure_gate_scanner');
+  if (sgEl) sgEl.addEventListener('change', applyStructureGate);
+});
 
 // ── News Config (Settings page) ───────────────────────────────────────────────
 let _newsConfigFeeds = [];  // current feed list; mutated by add/remove before save

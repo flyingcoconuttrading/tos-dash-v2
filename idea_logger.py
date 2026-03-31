@@ -52,6 +52,7 @@ IDEA_HEADERS = [
     "entry_spy", "entry_spy_vol_rate", "entry_spy_vol_ratio",
     "entry_trend", "entry_regime", "entry_bias",
     "entry_net_gex", "entry_net_dex",
+    "entry_dex_bias", "entry_ms_trend", "entry_structural_lean",
     "entry_call_wall", "entry_put_wall", "entry_max_pain", "entry_gex_anchor",
     "entry_surge",
     "status",
@@ -345,6 +346,10 @@ class IdeaLogger:
             "entry_bias":          getattr(ms, "bias", None),
             "entry_net_gex":       getattr(ms, "net_gex", None),
             "entry_net_dex":       getattr(ms, "net_dex", None),
+            "entry_dex_bias":          getattr(candidate, "dex_bias", None),
+            "entry_ms_trend":          getattr(ms, "trend", None) if ms else None,
+            "entry_structural_lean":   getattr(getattr(ms, "checklist", None),
+                                               "structural_lean", None),
             "entry_call_wall":     call_wall,
             "entry_put_wall":      put_wall,
             "entry_max_pain":      getattr(ms, "max_pain", None),
@@ -366,11 +371,19 @@ class IdeaLogger:
                                f"delta={candidate.delta:.2f} trend={getattr(candidate,'underlying_trend','')} "
                                f"conf_ticks_target={state.confirm_ticks_target}")
         _surge_at_surface = spy_vol_ratio >= self._cfg.get("vol_surge_ratio", 1.8)
+        _ms_trend  = getattr(ms, "trend", "?") if ms else "?"
+        _str_lean  = getattr(getattr(ms, "checklist", None), "structural_lean", "?")
+        _str_conf  = getattr(getattr(ms, "checklist", None), "structural_confidence", "?")
         self._log.info(
             "IDEA #%d SURFACED  %s  score=%.1f  mark=%.2f  spy=%.2f  delta=%.2f"
+            "  regime=%s  trend=%s  dex=%s  structure=%s(%s)"
             "  conf_ticks=%d(%s)  vol_ratio=%.1f",
             idea_id, candidate.symbol, candidate.score,
             candidate.mark, spy_price, candidate.delta,
+            getattr(ms, "regime", "?") if ms else "?",
+            _ms_trend,
+            getattr(candidate, "dex_bias", "?"),
+            _str_lean, _str_conf,
             state.confirm_ticks_target,
             "surge" if _surge_at_surface else "normal",
             spy_vol_ratio,
@@ -844,6 +857,9 @@ class IdeaLogger:
             "paper_exit_reason TEXT",
             "paper_exit_minute INTEGER",
             "paper_pnl_pct REAL",
+            "entry_dex_bias TEXT",
+            "entry_ms_trend TEXT",
+            "entry_structural_lean TEXT",
         ]:
             try:
                 with self._connect() as conn:
