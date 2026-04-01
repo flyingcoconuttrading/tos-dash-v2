@@ -233,6 +233,21 @@ def build_snapshot() -> dict:
     spy_volume               = price_data.get("volume") or 0
     spy_vol_rate, spy_vol_ratio = _get_spy_vol_rate(spy_volume, cfg)
 
+    es_last  = price_data.get("es_last")
+    spx_last = price_data.get("spx_last")
+
+    # Live cross-instrument ratios — recomputed every tick from RTD prices.
+    # All three ratios default to None if either price is unavailable.
+    def _ratio(a, b):
+        try:
+            return round(a / b, 4) if a and b and b != 0 else None
+        except Exception:
+            return None
+
+    es_spy_ratio  = _ratio(es_last,  price)      # ES ÷ SPY
+    spx_spy_ratio = _ratio(spx_last, price)      # SPX ÷ SPY
+    spx_es_ratio  = _ratio(spx_last, es_last)    # SPX ÷ ES
+
     # Positions from positions.json
     pos_data  = read_json(THIS_DIR / "positions.json")
     positions = pos_data.get("positions", {}) if "error" not in pos_data else {}
@@ -447,6 +462,11 @@ def build_snapshot() -> dict:
         "option_count":     len(option_symbols),
         "spy_vol_rate":     round(spy_vol_rate, 0),
         "spy_vol_ratio":    round(spy_vol_ratio, 2),
+        "es_last":          es_last,
+        "spx_last":         spx_last,
+        "es_spy_ratio":     es_spy_ratio,
+        "spx_spy_ratio":    spx_spy_ratio,
+        "spx_es_ratio":     spx_es_ratio,
         "active_ideas":     idea_logger.get_active_ideas(),
         "positions":        positions,
         "chain":            {sym: {"LAST": chain_data.get("chain", {}).get(sym, {}).get("LAST")}

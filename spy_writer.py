@@ -48,6 +48,10 @@ POLL_MS       = cfg.get("poll_ms", 500)
 TEST_MODE     = cfg.get("test_mode", False)
 TEST_DATE     = cfg.get("test_date", None)
 
+ES_SYMBOL     = "/ES:XCME"
+SPX_SYMBOL    = "$SPX"
+COMPANION_QTS = [QuoteType.LAST]   # only need LAST for ratio tracking
+
 OPTION_QTS = [
     QuoteType.LAST, QuoteType.BID, QuoteType.ASK, QuoteType.MARK,
     QuoteType.VOLUME, QuoteType.OPEN_INT,
@@ -133,6 +137,17 @@ for qt in SPY_QTS:
     client.subscribe(qt, SYMBOL)
 print(f"[writer] Subscribed to {SYMBOL} underlying", file=sys.stderr)
 
+# ── Subscribe to ES and SPX for ratio converter ──────────────────────────────
+for sym in (ES_SYMBOL, SPX_SYMBOL):
+    for qt in COMPANION_QTS:
+        try:
+            client.subscribe(qt, sym)
+        except Exception as e:
+            print(f"[writer] Warning: could not subscribe {sym}: {e}",
+                  file=sys.stderr)
+print(f"[writer] Subscribed to {ES_SYMBOL} and {SPX_SYMBOL} (LAST only)",
+      file=sys.stderr)
+
 # ── Wait for initial price ────────────────────────────────────────────────────
 initial_price = None
 for _ in range(30):
@@ -194,6 +209,8 @@ while True:
         spy_volume   = safe_float(getattr(raw.get((SYMBOL, "VOLUME")),   "value", None))
         spy_bid_size = safe_float(getattr(raw.get((SYMBOL, "BID_SIZE")), "value", None))
         spy_ask_size = safe_float(getattr(raw.get((SYMBOL, "ASK_SIZE")), "value", None))
+        es_last  = safe_float(getattr(raw.get((ES_SYMBOL,  "LAST")), "value", None))
+        spx_last = safe_float(getattr(raw.get((SPX_SYMBOL, "LAST")), "value", None))
 
         price_payload = {
             "symbol":    SYMBOL,
@@ -208,6 +225,8 @@ while True:
             "timestamp": datetime.now().isoformat(timespec="milliseconds"),
             "expiry":    expiry.strftime("%Y-%m-%d"),
             "test_mode": TEST_MODE,
+            "es_last":   es_last,
+            "spx_last":  spx_last,
         }
         (THIS_DIR / "spy_price.json").write_text(json.dumps(price_payload, indent=2))
 
