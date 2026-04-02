@@ -149,6 +149,8 @@ DEFAULT_CONFIG = {
     "momentum_short_ticks":   120,
     "momentum_medium_ticks":  360,
     "structure_gate_scanner": False,
+    "no_trade_gate":      True,
+    "briefing_eod_hour":  14,   # 2:30 PM ET = hour 14, minute 30
     "iv_floor":              0.0,
     "iv_ceiling":            60.0,
 }
@@ -392,6 +394,7 @@ def build_snapshot() -> dict:
     except Exception as e:
         ms_dict = {"error": str(e)}
 
+    candidates = []
     try:
         candidates = scalp_advisor.get_recommendations(
             data           = data,
@@ -444,6 +447,143 @@ def build_snapshot() -> dict:
         candidates_list = []
         logger.warning("Candidates error: %s", e, exc_info=True)
 
+    # ── Trade Briefing ────────────────────────────────────────────────────────
+    try:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        _now_et  = datetime.now(ZoneInfo("America/New_York"))
+        _eod_hr  = cfg.get("briefing_eod_hour", 14)
+        _is_eod  = _now_et.hour >= _eod_hr and _now_et.minute >= 30
+
+        # No-trade determination
+        _ms_cl   = ms.checklist if ms else None
+        _s_conf  = _ms_cl.structural_confidence if _ms_cl else "Insufficient"
+        _s_lean  = _ms_cl.structural_lean       if _ms_cl else "Mixed"
+        _regime  = ms.regime if ms else "TRANSITION"
+        _trend   = ms.trend  if ms else "Choppy"
+        _gex_neg = ms.net_gex < 0 if ms else False
+
+        _gate_pass = (
+            _gex_neg
+            and _trend not in ("Choppy", "CHOPPY", "choppy")
+            and _s_conf in ("Strong", "Moderate")
+        )
+
+        _no_trade_reason = ""
+        if not _gex_neg:
+            _no_trade_reason = f"Regime: {_regime} (need TRENDING)"
+        elif _trend in ("Choppy", "CHOPPY", "choppy"):
+            _no_trade_reason = f"Trend: Choppy (need directional)"
+        elif _s_conf not in ("Strong", "Moderate"):
+            _no_trade_reason = f"Structure: {_s_lean}({_s_conf}) — insufficient conviction"
+
+        # Best contract selection from chain_full
+        # Criteria: delta 0.38–0.52, mark $0.50–$2.00, pick highest-scored candidate
+        # When no candidates (NO TRADE), still find best delta-range contract as watch
+        def _best_contract(side):
+            """Find best contract for given side ('Call' or 'Put')."""
+            # First try from scored candidates
+            cands = [c for c in (candidates or []) if c.option_type == side]
+            if cands:
+                in_range = [c for c in cands
+                            if 0.35 <= c.delta <= 0.55
+                            and 0.50 <= c.mark <= 2.00]
+                pool = in_range if in_range else cands
+                best = max(pool, key=lambda c: c.score)
+                return {
+                    "symbol": best.symbol,
+                    "strike": best.strike,
+                    "mark":   round(best.mark, 2),
+                    "delta":  round(best.delta, 2),
+                    "iv":     round(best.iv, 1),
+                    "score":  round(best.score, 1),
+                    "source": "candidate",
+                }
+            # Fallback: scan chain_full for best delta-range contract
+            chain = chain_data.get("chain", {})
+            best_sym, best_fields, best_delta_dist = None, None, 999
+            target_delta = 0.45
+            for sym, fields in chain.items():
+                if (side == "Call" and "C" not in sym[1:]) or \
+                   (side == "Put"  and "P" not in sym[1:]):
+                    continue
+                d = fields.get("DELTA")
+                m = fields.get("MARK")
+                if d is None or m is None:
+                    continue
+                abs_d = abs(float(d))
+                abs_m = float(m)
+                if 0.30 <= abs_d <= 0.60 and 0.50 <= abs_m <= 2.50:
+                    dist = abs(abs_d - target_delta)
+                    if dist < best_delta_dist:
+                        best_delta_dist = dist
+                        best_sym = sym
+                        best_fields = fields
+            if best_sym:
+                abs_d = abs(float(best_fields.get("DELTA", 0)))
+                return {
+                    "symbol": best_sym,
+                    "strike": None,
+                    "mark":   round(float(best_fields.get("MARK", 0)), 2),
+                    "delta":  round(abs_d, 2),
+                    "iv":     round(float(best_fields.get("IMPL_VOL") or 0), 1),
+                    "score":  None,
+                    "source": "watch",
+                }
+            return None
+
+        # EOD theta check — warn if theta > 15% of mark on recommended contract
+        def _eod_theta_warn(contract_dict):
+            if not contract_dict or not _is_eod:
+                return ""
+            sym = contract_dict.get("symbol")
+            if not sym:
+                return ""
+            fields = chain_data.get("chain", {}).get(sym, {})
+            theta = fields.get("THETA")
+            mark  = fields.get("MARK")
+            if theta and mark and mark > 0:
+                ratio = abs(float(theta)) / float(mark)
+                if ratio > 0.15:
+                    return f"⚠ Theta {ratio:.0%} of mark — consider 1-2 DTE"
+            return ""
+
+        # Watch levels
+        _watch_up = _watch_dn = ""
+        if ms:
+            if ms.snap_level and ms.snap_direction == "Above":
+                _watch_up = f"Break above ${ms.snap_level:.0f} (snap) → dealers chase upside"
+            elif ms.call_wall:
+                _watch_up = f"Resistance at call wall ${ms.call_wall:.0f}"
+            if ms.snap_level and ms.snap_direction == "Below":
+                _watch_dn = f"Break below ${ms.snap_level:.0f} (snap) → dealers chase downside"
+            elif ms.put_wall:
+                _watch_dn = f"Support at put wall ${ms.put_wall:.0f}"
+
+        _best_call = _best_contract("Call")
+        _best_put  = _best_contract("Put")
+
+        briefing = {
+            "trade_active":    _gate_pass,
+            "no_trade_reason": _no_trade_reason,
+            "structural_lean": _s_lean,
+            "structural_conf": _s_conf,
+            "regime":          _regime,
+            "trend":           _trend,
+            "snap_banner":     _ms_cl.snap_banner if _ms_cl else "",
+            "watch_up":        _watch_up,
+            "watch_dn":        _watch_dn,
+            "best_call":       _best_call,
+            "best_put":        _best_put,
+            "eod_theta_warn":  _eod_theta_warn(_best_call if _s_lean == "Bull"
+                                               else _best_put),
+            "is_eod":          _is_eod,
+            "invalidation":    ms.invalidation if ms else "",
+        }
+    except Exception as e:
+        logger.warning("Briefing error: %s", e)
+        briefing = {"trade_active": False, "no_trade_reason": "Error computing briefing"}
+
     return {
         "tick":             tick,
         "timestamp":        timestamp,
@@ -467,6 +607,7 @@ def build_snapshot() -> dict:
         "es_spy_ratio":     es_spy_ratio,
         "spx_spy_ratio":    spx_spy_ratio,
         "spx_es_ratio":     spx_es_ratio,
+        "briefing":         briefing,
         "active_ideas":     idea_logger.get_active_ideas(),
         "positions":        positions,
         "chain":            {sym: {"LAST": chain_data.get("chain", {}).get(sym, {}).get("LAST")}
@@ -533,6 +674,8 @@ class ConfigUpdate(BaseModel):
     momentum_short_ticks:    Optional[int]   = None
     momentum_medium_ticks:   Optional[int]   = None
     structure_gate_scanner:  Optional[bool]  = None
+    no_trade_gate:           Optional[bool]  = None
+    briefing_eod_hour:       Optional[int]   = None
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(title="tos-dash-v2")

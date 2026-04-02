@@ -255,6 +255,20 @@ class ScalpAdvisor:
         # ------------------------------------------------------------------
         this_tick_scores: dict[str, tuple] = {}
 
+        # ── No-trade gate ─────────────────────────────────────────────────────
+        # Require: TRENDING regime + non-Choppy trend + structural Strong/Moderate
+        # When gate fails, return empty list — scanner goes silent.
+        if self._cfg.get("no_trade_gate", True):
+            ms_cl = getattr(self._ms_ref, "checklist", None) if self._ms_ref else None
+            s_conf = ms_cl.structural_confidence if ms_cl else "Insufficient"
+            gate_pass = (
+                gex_negative                            # TRENDING (negative GEX)
+                and trend not in ("Choppy", "CHOPPY", "choppy")  # non-Choppy
+                and s_conf in ("Strong", "Moderate")   # structural conviction
+            )
+            if not gate_pass:
+                return []
+
         for strike in strikes:
             for opt_type in ("Call", "Put"):
                 marker = "C" if opt_type == "Call" else "P"
@@ -322,6 +336,9 @@ class ScalpAdvisor:
                     continue
                 #Suppress candidates in PINNED + no clear trend
                 if trend in ("Choppy", "CHOPPY", "choppy"):
+                    continue
+                # Block TRANSITION regime — GEX near zero, no directional anchor
+                if ms is not None and getattr(ms, "regime", "") == "TRANSITION":
                     continue
                 # PINNED regime trend gate — block disallowed trends in positive-GEX regime
                 if not gex_negative:  # False = PINNED (positive GEX)

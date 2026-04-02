@@ -334,6 +334,16 @@ def _build_checklist(
             add(CL_CANDLE, "Bear",
                 f"${diff:+.2f} below last candle close ${last_candle_close:.2f}")
 
+    # Redistribute zeroed max pain weight proportionally to other structural factors
+    # so morning structural scores aren't deflated by the inactive max pain factor.
+    if mp_weight_mult < 1.0:
+        _zeroed      = FACTOR_WEIGHTS[CL_MAX_PAIN] * (1.0 - mp_weight_mult)
+        _redist_keys = {CL_REGIME, CL_SNAP_DIR, CL_ANCHOR, CL_DEX_BIAS, CL_WALLS}
+        _redist_base = sum(FACTOR_WEIGHTS[k] for k in _redist_keys)
+        for f in factors:
+            if f.key in _redist_keys:
+                f.weight = FACTOR_WEIGHTS[f.key] + _zeroed * (FACTOR_WEIGHTS[f.key] / _redist_base)
+
     # ── Weighted score ────────────────────────────────────────────────────────
     bull_w    = sum(f.weight for f in factors if f.value == "Bull")
     bear_w    = sum(f.weight for f in factors if f.value == "Bear")

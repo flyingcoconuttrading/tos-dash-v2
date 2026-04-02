@@ -453,19 +453,29 @@ class IdeaLogger:
                              detail=f"SPY={spy_price:.2f} crossed entry call_wall={ew_call:.0f}")
             return
 
-        # Delta-adjusted SPY move
-        stop_pct  = cfg.get("stop_pct", 0.50)
-        delta     = state.entry_delta or 0.40
-        threshold = (state.entry_mark * stop_pct) / delta
-        spy_move  = spy_price - state.entry_spy
-        move_against = -spy_move if state.option_type == "Call" else spy_move
         vol_surge = spy_vol_ratio >= cfg.get("vol_surge_ratio", 1.8)
+        stop_pct  = cfg.get("stop_pct", 0.50)
 
-        if move_against > threshold:
+        # Use actual option mark vs entry mark for stop detection.
+        # entry_delta decays as trade moves against us — using it to estimate
+        # the SPY move needed causes stops to fire later than intended.
+        # Comparing option prices directly is more accurate and simpler.
+        option_stop_price = state.entry_mark * (1.0 - stop_pct)
+        current_mark = mark if mark and mark > 0 else None
+        move_against_option = (
+            current_mark is not None and current_mark <= option_stop_price
+        )
+
+        # Keep SPY move for WEAKENING detection (directional confirmation)
+        spy_move         = spy_price - state.entry_spy
+        move_against_spy = -spy_move if state.option_type == "Call" else spy_move
+
+        if move_against_option:
             if vol_surge:
                 self._invalidate(key, state, INVALIDATION_VOL_CONFIRMED, spy_price,
                                  mark or state.entry_mark, spy_vol_ratio, now,
-                                 detail=f"move_against={move_against:.2f} threshold={threshold:.2f} "
+                                 detail=f"option_mark={current_mark:.2f} <= stop={option_stop_price:.2f} "
+                                        f"entry={state.entry_mark:.2f} stop_pct={stop_pct:.0%} "
                                         f"vol_ratio={spy_vol_ratio:.1f} confirmed")
                 return
             elif state.status == STATUS_ACTIVE:
@@ -473,7 +483,8 @@ class IdeaLogger:
                 self._db_update_status(state.idea_id, STATUS_WEAKENING)
                 self._log_event(state.idea_id, "WEAKENING", score=score, mark=mark,
                                 spy=spy_price, spy_move=spy_move, vol_ratio=spy_vol_ratio,
-                                detail=f"move_against={move_against:.2f} threshold={threshold:.2f} unconfirmed")
+                                detail=f"spy_move_against={move_against_spy:.2f} "
+                                       f"option_near_stop={option_stop_price:.2f} unconfirmed")
                 self._log.debug("IDEA #%d WEAKENING  %s  move_against=%.2f  vol_ratio=%.1f",
                                 state.idea_id, state.symbol, move_against, spy_vol_ratio)
 

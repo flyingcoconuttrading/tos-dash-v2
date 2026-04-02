@@ -405,6 +405,107 @@ header {
 .cl-item { font-size: 11px; }
 .cl-summary { font-size: 12px; }
 
+/* ── Trade Briefing Panel ── */
+.bf-status {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  padding: 8px 10px;
+  border-radius: 3px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.bf-status.no-trade {
+  background: rgba(90,106,136,0.15);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.bf-status.calls {
+  background: rgba(0,230,118,0.10);
+  color: var(--bull);
+  border: 1px solid rgba(0,230,118,0.30);
+}
+.bf-status.puts {
+  background: rgba(255,61,87,0.10);
+  color: var(--bear);
+  border: 1px solid rgba(255,61,87,0.30);
+}
+.bf-reason {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+.bf-contract {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 2px;
+  margin-bottom: 5px;
+  border: 1px solid var(--border);
+}
+.bf-contract.primary-call { border-color: rgba(0,230,118,0.40); background: rgba(0,230,118,0.05); }
+.bf-contract.primary-put  { border-color: rgba(255,61,87,0.40);  background: rgba(255,61,87,0.05);  }
+.bf-contract.watch        { opacity: 0.65; }
+.bf-contract-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.bf-contract-detail {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+.bf-contract-detail.call { color: var(--bull); }
+.bf-contract-detail.put  { color: var(--bear); }
+.bf-contract-meta {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--dim);
+  text-align: right;
+}
+.bf-watch-row {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--dim);
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+  line-height: 1.6;
+}
+.bf-eod-warn {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--neutral);
+  padding: 5px 0;
+  margin-top: 4px;
+}
+.bf-factors-toggle {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  user-select: none;
+}
+.bf-factors-toggle:hover { color: var(--dim); }
+
+/* Chain recommended highlight — stronger than candidate */
+.chain-table tr.recommended-call td.call-side {
+  background: rgba(0,230,118,0.18);
+  outline: 1px solid rgba(0,230,118,0.5);
+}
+.chain-table tr.recommended-put td.put-side {
+  background: rgba(255,61,87,0.18);
+  outline: 1px solid rgba(255,61,87,0.5);
+}
+
 /* Snap banner */
 .snap-banner {
   font-family: var(--mono);
@@ -1386,44 +1487,95 @@ header {
       </div>
     </div>
 
-    <!-- Right: Checklist -->
-    <div class="panel">
-      <div class="panel-title">Directional Checklist</div>
+    <!-- Right: Trade Briefing -->
+    <div class="panel" style="overflow-y:auto">
+      <div class="panel-title">Trade Briefing</div>
+
+      <!-- Status -->
+      <div class="bf-status no-trade" id="bfStatus">NO TRADE</div>
+      <div class="bf-reason" id="bfReason">--</div>
 
       <!-- Snap banner -->
       <div class="snap-banner none" id="snapBanner"></div>
 
-      <!-- Structural bar -->
-      <div class="cl-section-label">Structure</div>
-      <div class="cl-summary" id="clStructuralSummary">--</div>
-      <div class="cl-score-bar-wrap" id="clStructuralBarWrap" style="display:none">
-        <div class="cl-score-bar-track">
-          <div class="cl-score-bar-fill" id="clStructuralBarFill"></div>
-          <div class="cl-score-bar-mid"></div>
-        </div>
-        <div class="cl-score-labels">
-          <span style="color:var(--bear)">Bear</span>
-          <span id="clStructuralScoreVal" style="color:var(--dim);font-size:10px">50</span>
-          <span style="color:var(--bull)">Bull</span>
+      <!-- Primary contract recommendation -->
+      <div id="bfPrimaryContract" style="display:none">
+        <div class="bf-contract-label" id="bfPrimaryLabel">BEST CALL</div>
+        <div class="bf-contract primary-call" id="bfPrimaryRow">
+          <div>
+            <div class="bf-contract-label" id="bfPrimaryType">CALL</div>
+            <div class="bf-contract-detail call" id="bfPrimaryDetail">--</div>
+          </div>
+          <div class="bf-contract-meta" id="bfPrimaryMeta">--</div>
         </div>
       </div>
-      <div class="cl-grid" id="clStructuralGrid"></div>
 
-      <!-- Tactical bar -->
-      <div class="cl-section-label" style="margin-top:12px">Tactical</div>
-      <div class="cl-summary" id="clTacticalSummary">--</div>
-      <div class="cl-score-bar-wrap" id="clTacticalBarWrap" style="display:none">
-        <div class="cl-score-bar-track">
-          <div class="cl-score-bar-fill" id="clTacticalBarFill"></div>
-          <div class="cl-score-bar-mid"></div>
-        </div>
-        <div class="cl-score-labels">
-          <span style="color:var(--bear)">Bear</span>
-          <span id="clTacticalScoreVal" style="color:var(--dim);font-size:10px">50</span>
-          <span style="color:var(--bull)">Bull</span>
+      <!-- If-reversal contract -->
+      <div id="bfReversalContract" style="display:none;margin-top:6px">
+        <div class="bf-contract-label" id="bfReversalLabel">IF REVERSAL</div>
+        <div class="bf-contract watch" id="bfReversalRow">
+          <div>
+            <div class="bf-contract-label" id="bfReversalType">PUT</div>
+            <div class="bf-contract-detail put" id="bfReversalDetail">--</div>
+          </div>
+          <div class="bf-contract-meta" id="bfReversalMeta">--</div>
         </div>
       </div>
-      <div class="cl-grid" id="clTacticalGrid"></div>
+
+      <!-- Watch contracts when NO TRADE -->
+      <div id="bfWatchContracts" style="margin-top:8px">
+        <div id="bfWatchCall" style="display:none">
+          <div class="bf-contract-label">WATCH CALL</div>
+          <div class="bf-contract watch">
+            <div>
+              <div class="bf-contract-detail call" id="bfWatchCallDetail">--</div>
+            </div>
+            <div class="bf-contract-meta" id="bfWatchCallMeta">--</div>
+          </div>
+        </div>
+        <div id="bfWatchPut" style="margin-top:5px;display:none">
+          <div class="bf-contract-label">WATCH PUT</div>
+          <div class="bf-contract watch">
+            <div>
+              <div class="bf-contract-detail put" id="bfWatchPutDetail">--</div>
+            </div>
+            <div class="bf-contract-meta" id="bfWatchPutMeta">--</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Watch levels -->
+      <div class="bf-watch-row" id="bfWatchLevels" style="display:none"></div>
+
+      <!-- Invalidation -->
+      <div class="bf-watch-row" id="bfInvalidation" style="display:none"></div>
+
+      <!-- EOD warning -->
+      <div class="bf-eod-warn" id="bfEodWarn" style="display:none"></div>
+
+      <!-- Collapsible structural factors -->
+      <div class="bf-factors-toggle" onclick="toggleBfFactors()">
+        STRUCTURE <span id="bfFactorsToggleArrow">▼</span>
+      </div>
+      <div id="bfFactorsBody">
+        <div class="cl-section-label" style="margin-top:6px">Structural</div>
+        <div class="cl-summary" id="clStructuralSummary">--</div>
+        <div class="cl-score-bar-wrap" id="clStructuralBarWrap" style="display:none">
+          <div class="cl-score-bar-track">
+            <div class="cl-score-bar-fill" id="clStructuralBarFill"></div>
+            <div class="cl-score-bar-mid"></div>
+          </div>
+          <div class="cl-score-labels">
+            <span style="color:var(--bear)">Bear</span>
+            <span id="clStructuralScoreVal" style="color:var(--dim);font-size:10px">50</span>
+            <span style="color:var(--bull)">Bull</span>
+          </div>
+        </div>
+        <div class="cl-grid" id="clStructuralGrid"></div>
+        <div class="cl-section-label" style="margin-top:8px">Tactical</div>
+        <div class="cl-summary" id="clTacticalSummary">--</div>
+        <div class="cl-grid" id="clTacticalGrid"></div>
+      </div>
     </div>
 
   </div>
@@ -1853,6 +2005,28 @@ header {
           <div style="display:flex;flex-direction:column;gap:2px;flex:1">
             <input class="field-input" id="cfg_max_surface_score" type="number" min="55" max="100" step="1">
             <span class="field-desc">Hard ceiling on surface score. 100 = disabled. Data: 65-70 band is -1.5% avg PnL vs +13.5% for 55-60.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">NO-TRADE GATE</span>
+          <div class="field-toggle">
+            <label class="toggle-switch">
+              <input type="checkbox" id="cfg_no_trade_gate" onchange="applyNoTradeGate()">
+              <div class="toggle-track"></div>
+              <div class="toggle-knob"></div>
+            </label>
+            <span id="noTradeGateLabel" style="font-size:10px;color:var(--dim)">ON</span>
+          </div>
+          <span class="field-desc" style="font-size:9px;color:var(--muted);margin-top:2px">
+            Require TRENDING + directional + Strong/Moderate structure to surface ideas.
+            Data: silences losing days, preserves winning ones.
+          </span>
+        </div>
+        <div class="field-row">
+          <span class="field-label">EOD HOUR</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_briefing_eod_hour" type="number" min="12" max="15" step="1">
+            <span class="field-desc">Hour (ET) when EOD DTE warning activates. 14 = 2:30pm.</span>
           </div>
         </div>
         <div class="field-row">
@@ -2321,8 +2495,8 @@ function update(snap) {
   dexBar.style.width = dexPct + '%';
   dexBar.className = 'bar-fill ' + (dex > 0 ? 'bear' : 'bull');
 
-  // Checklist
-  renderChecklist(ms);
+  // Briefing panel
+  renderBriefing(snap);
 
   // Converter widget
   updateConverter(snap);
@@ -2359,8 +2533,22 @@ function _clItem(f) {
     `</div>`;
 }
 
-function renderChecklist(ms) {
-  // ── Snap banner ─────────────────────────────────────────────────
+let _bfFactorsOpen = true;
+let _bfRecommendedCallStrike = null;
+let _bfRecommendedPutStrike  = null;
+
+function toggleBfFactors() {
+  _bfFactorsOpen = !_bfFactorsOpen;
+  document.getElementById('bfFactorsBody').style.display = _bfFactorsOpen ? '' : 'none';
+  document.getElementById('bfFactorsToggleArrow').textContent = _bfFactorsOpen ? '▼' : '▶';
+}
+
+function renderBriefing(snap) {
+  const ms  = snap.market_structure || {};
+  const bf  = snap.briefing         || {};
+  const f2  = v => v != null ? v.toFixed(2) : '--';
+
+  // ── Snap banner ──────────────────────────────────────────────────
   const banner   = document.getElementById('snapBanner');
   const snapText = ms.checklist_snap_banner || '';
   if (snapText) {
@@ -2372,56 +2560,169 @@ function renderChecklist(ms) {
     banner.className = 'snap-banner none';
   }
 
-  // ── Structural bar ───────────────────────────────────────────────
-  const strSummary = document.getElementById('clStructuralSummary');
+  // ── Status badge ─────────────────────────────────────────────────
+  const statusEl = document.getElementById('bfStatus');
+  const reasonEl = document.getElementById('bfReason');
+  const active   = bf.trade_active;
+  const sLean    = bf.structural_lean || 'Mixed';
+
+  if (!active) {
+    statusEl.className   = 'bf-status no-trade';
+    statusEl.textContent = '⊘  NO TRADE';
+    reasonEl.textContent = bf.no_trade_reason || '';
+  } else if (sLean === 'Bull') {
+    statusEl.className   = 'bf-status calls';
+    statusEl.textContent = '▲  CALLS FAVORED';
+    reasonEl.textContent = `${bf.regime} · ${bf.trend} · Structure: ${sLean}(${bf.structural_conf})`;
+  } else if (sLean === 'Bear') {
+    statusEl.className   = 'bf-status puts';
+    statusEl.textContent = '▼  PUTS FAVORED';
+    reasonEl.textContent = `${bf.regime} · ${bf.trend} · Structure: ${sLean}(${bf.structural_conf})`;
+  } else {
+    statusEl.className   = 'bf-status no-trade';
+    statusEl.textContent = '◈  MIXED';
+    reasonEl.textContent = `${bf.regime} · ${bf.trend} · Structure: ${sLean}(${bf.structural_conf})`;
+  }
+
+  // ── Contract helper ──────────────────────────────────────────────
+  function _contractDetail(c, side) {
+    if (!c) return ['--', '--'];
+    const strikeStr = c.strike ? `${c.strike}${side === 'Call' ? 'C' : 'P'}` : c.symbol || '--';
+    const detail    = `${strikeStr}  $${f2(c.mark)}`;
+    const meta      = `Δ${f2(c.delta)}  IV ${c.iv || '--'}%` +
+                      (c.score ? `  score ${c.score}` : '  watch');
+    return [detail, meta];
+  }
+
+  // ── Primary + reversal contracts (when TRADE ACTIVE) ─────────────
+  const primaryDiv   = document.getElementById('bfPrimaryContract');
+  const reversalDiv  = document.getElementById('bfReversalContract');
+  const watchDiv     = document.getElementById('bfWatchContracts');
+
+  if (active) {
+    primaryDiv.style.display  = '';
+    reversalDiv.style.display = '';
+    watchDiv.style.display    = 'none';
+
+    const isPutFavored = sLean === 'Bear';
+    const primary  = isPutFavored ? bf.best_put  : bf.best_call;
+    const reversal = isPutFavored ? bf.best_call : bf.best_put;
+
+    document.getElementById('bfPrimaryLabel').textContent  =
+      isPutFavored ? 'BEST PUT' : 'BEST CALL';
+    document.getElementById('bfPrimaryType').textContent   =
+      isPutFavored ? 'PUT' : 'CALL';
+
+    const primaryRow = document.getElementById('bfPrimaryRow');
+    primaryRow.className = isPutFavored ? 'bf-contract primary-put' : 'bf-contract primary-call';
+
+    const pDetailEl = document.getElementById('bfPrimaryDetail');
+    pDetailEl.className = isPutFavored ? 'bf-contract-detail put' : 'bf-contract-detail call';
+
+    const [pd, pm] = _contractDetail(primary, isPutFavored ? 'Put' : 'Call');
+    pDetailEl.textContent = pd;
+    document.getElementById('bfPrimaryMeta').textContent = pm;
+
+    document.getElementById('bfReversalLabel').textContent =
+      isPutFavored ? 'IF BOUNCE' : 'IF REVERSAL';
+    const [rd, rm] = _contractDetail(reversal, isPutFavored ? 'Call' : 'Put');
+    document.getElementById('bfReversalDetail').textContent = rd;
+    document.getElementById('bfReversalDetail').className =
+      isPutFavored ? 'bf-contract-detail call' : 'bf-contract-detail put';
+    document.getElementById('bfReversalMeta').textContent = rm;
+
+  } else {
+    // NO TRADE — show watch contracts
+    primaryDiv.style.display  = 'none';
+    reversalDiv.style.display = 'none';
+    watchDiv.style.display    = '';
+
+    const callDiv = document.getElementById('bfWatchCall');
+    const putDiv  = document.getElementById('bfWatchPut');
+
+    if (bf.best_call) {
+      callDiv.style.display = '';
+      const [cd, cm] = _contractDetail(bf.best_call, 'Call');
+      document.getElementById('bfWatchCallDetail').textContent = cd;
+      document.getElementById('bfWatchCallMeta').textContent   = cm;
+    } else {
+      callDiv.style.display = 'none';
+    }
+
+    if (bf.best_put) {
+      putDiv.style.display = '';
+      const [pd, pm] = _contractDetail(bf.best_put, 'Put');
+      document.getElementById('bfWatchPutDetail').textContent = pd;
+      document.getElementById('bfWatchPutMeta').textContent   = pm;
+    } else {
+      putDiv.style.display = 'none';
+    }
+  }
+
+  // ── Watch levels ─────────────────────────────────────────────────
+  const watchEl = document.getElementById('bfWatchLevels');
+  const levels  = [bf.watch_up, bf.watch_dn].filter(Boolean).join('  ·  ');
+  if (levels) {
+    watchEl.style.display = '';
+    watchEl.textContent   = levels;
+  } else {
+    watchEl.style.display = 'none';
+  }
+
+  // ── Invalidation ─────────────────────────────────────────────────
+  const invEl = document.getElementById('bfInvalidation');
+  if (bf.invalidation) {
+    invEl.style.display = '';
+    invEl.textContent   = `Invalidation: ${bf.invalidation}`;
+  } else {
+    invEl.style.display = 'none';
+  }
+
+  // ── EOD warning ──────────────────────────────────────────────────
+  const eodEl = document.getElementById('bfEodWarn');
+  if (bf.eod_theta_warn) {
+    eodEl.style.display = '';
+    eodEl.textContent   = bf.eod_theta_warn;
+  } else {
+    eodEl.style.display = 'none';
+  }
+
+  // ── Structural factors (collapsible) ─────────────────────────────
+  const sLeanVal  = ms.checklist_structural_lean       || 'Mixed';
+  const sConfVal  = ms.checklist_structural_confidence || 'Insufficient';
+  const sScore    = ms.checklist_structural_score      ?? 50;
+  const sColor    = sLeanVal === 'Bull' ? 'var(--bull)' :
+                    sLeanVal === 'Bear' ? 'var(--bear)' : 'var(--neutral)';
+  const strSumEl  = document.getElementById('clStructuralSummary');
+  strSumEl.innerHTML =
+    `<span style="color:${sColor};font-weight:700">${sLeanVal}</span>` +
+    `<span style="color:var(--muted)"> · ${sConfVal}</span>`;
+
   const strBarWrap = document.getElementById('clStructuralBarWrap');
   const strBarFill = document.getElementById('clStructuralBarFill');
-  const strScoreVal= document.getElementById('clStructuralScoreVal');
-  const strGrid    = document.getElementById('clStructuralGrid');
-
-  const sLean  = ms.checklist_structural_lean       || 'Mixed';
-  const sConf  = ms.checklist_structural_confidence || 'Insufficient';
-  const sScore = ms.checklist_structural_score      ?? 50;
-  const sColor = sLean === 'Bull' ? 'var(--bull)' :
-                 sLean === 'Bear' ? 'var(--bear)' : 'var(--neutral)';
-
-  strSummary.innerHTML =
-    `<span style="color:${sColor};font-weight:700">${sLean}</span>` +
-    `<span style="color:var(--muted)"> · ${sConf}</span>`;
-  strBarWrap.style.display = '';
+  const strScoreV  = document.getElementById('clStructuralScoreVal');
+  strBarWrap.style.display    = '';
   strBarFill.style.width      = Math.abs(sScore - 50) * 2 + '%';
   strBarFill.style.left       = sScore >= 50 ? '50%' : sScore + '%';
   strBarFill.style.background = sScore >= 50 ? 'var(--bull)' : 'var(--bear)';
-  strScoreVal.textContent     = Math.round(sScore);
+  strScoreV.textContent       = Math.round(sScore);
 
-  // Structural factors (all except momentum + candle)
   const tacticalKeys = ['price_momentum', 'candle_structure'];
   const allFactors   = ms.checklist_factors || [];
-  const strFactors   = allFactors.filter(f => !tacticalKeys.includes(f.key));
-  strGrid.innerHTML  = strFactors.map(f => _clItem(f)).join('');
-
-  // ── Tactical bar ─────────────────────────────────────────────────
-  const tacSummary = document.getElementById('clTacticalSummary');
-  const tacBarWrap = document.getElementById('clTacticalBarWrap');
-  const tacBarFill = document.getElementById('clTacticalBarFill');
-  const tacScoreVal= document.getElementById('clTacticalScoreVal');
-  const tacGrid    = document.getElementById('clTacticalGrid');
+  const strGrid      = document.getElementById('clStructuralGrid');
+  const tacGrid      = document.getElementById('clTacticalGrid');
+  strGrid.innerHTML  = allFactors.filter(f => !tacticalKeys.includes(f.key)).map(_clItem).join('');
+  tacGrid.innerHTML  = allFactors.filter(f =>  tacticalKeys.includes(f.key)).map(_clItem).join('');
 
   const tLean  = ms.checklist_tactical_lean  || 'Mixed';
-  const tScore = ms.checklist_tactical_score ?? 50;
   const tColor = tLean === 'Bull' ? 'var(--bull)' :
                  tLean === 'Bear' ? 'var(--bear)' : 'var(--neutral)';
-
-  tacSummary.innerHTML =
+  document.getElementById('clTacticalSummary').innerHTML =
     `<span style="color:${tColor};font-weight:700">${tLean}</span>`;
-  tacBarWrap.style.display = '';
-  tacBarFill.style.width      = Math.abs(tScore - 50) * 2 + '%';
-  tacBarFill.style.left       = tScore >= 50 ? '50%' : tScore + '%';
-  tacBarFill.style.background = tScore >= 50 ? 'var(--bull)' : 'var(--bear)';
-  tacScoreVal.textContent     = Math.round(tScore);
 
-  const tacFactors  = allFactors.filter(f => tacticalKeys.includes(f.key));
-  tacGrid.innerHTML = tacFactors.map(f => _clItem(f)).join('');
+  // ── Chain: update recommended strike sets for highlighting ────────
+  _bfRecommendedCallStrike = active && bf.best_call ? bf.best_call.strike : null;
+  _bfRecommendedPutStrike  = active && bf.best_put  ? bf.best_put.strike  : null;
 }
 
 // ── ES/SPX/SPY Converter ──────────────────────────────────────────────────────
@@ -2765,6 +3066,10 @@ function loadSettings() {
       document.getElementById('cfg_min_delta').value          = cfg.min_delta          ?? 0.25;
       document.getElementById('cfg_min_mark').value           = cfg.min_mark           ?? 0.50;
       document.getElementById('cfg_max_surface_score').value      = cfg.max_surface_score      ?? 100;
+      const ntg = cfg.no_trade_gate ?? true;
+      document.getElementById('cfg_no_trade_gate').checked = ntg;
+      document.getElementById('noTradeGateLabel').textContent = ntg ? 'ON' : 'OFF';
+      document.getElementById('cfg_briefing_eod_hour').value = cfg.briefing_eod_hour ?? 14;
       document.getElementById('cfg_pinned_allowed_trends').value  = (cfg.pinned_allowed_trends || ['Downtrend']).join(', ');
       document.getElementById('cfg_pinned_max_score').value       = cfg.pinned_max_score       ?? 62;
       document.getElementById('cfg_paper_stop_pct_pinned').value  = cfg.paper_stop_pct_pinned  ?? 0.20;
@@ -2836,6 +3141,8 @@ function saveSettings() {
     min_delta:              parseFloat(get('cfg_min_delta').value),
     min_mark:               parseFloat(get('cfg_min_mark').value),
     max_surface_score:      parseFloat(get('cfg_max_surface_score').value),
+    no_trade_gate:          get('cfg_no_trade_gate').checked,
+    briefing_eod_hour:      parseInt(get('cfg_briefing_eod_hour').value),
     pinned_allowed_trends:  get('cfg_pinned_allowed_trends').value.split(',').map(s => s.trim()).filter(Boolean),
     pinned_max_score:       parseFloat(get('cfg_pinned_max_score').value),
     paper_stop_pct_pinned:  parseFloat(get('cfg_paper_stop_pct_pinned').value),
@@ -3300,6 +3607,10 @@ async function renderChain() {
     const isMaxPain   = maxPain  && strike === maxPain;
     const isCandCall  = candCallStrikes.has(strike);
     const isCandPut   = candPutStrikes.has(strike);
+    const isRecCall = _bfRecommendedCallStrike != null &&
+                      strike === _bfRecommendedCallStrike;
+    const isRecPut  = _bfRecommendedPutStrike  != null &&
+                      strike === _bfRecommendedPutStrike;
 
     let rowClass = '';
     // Priority: ATM > wall. When price is ON a wall, price marker wins visually.
@@ -3312,6 +3623,8 @@ async function renderChain() {
     if (isMaxPain)                     rowClass += ' max-pain-row';
     if (isCandCall)                    rowClass += ' candidate-call';
     if (isCandPut)                     rowClass += ' candidate-put';
+    if (isRecCall)                     rowClass += ' recommended-call';
+    if (isRecPut)                      rowClass += ' recommended-put';
 
     // Heatmap opacities — VOL and OI relative to max across all visible strikes
     const cVolOp = maxVol  > 0 ? (Math.min((cd.VOLUME  || 0) / maxVol,  1) * 0.55).toFixed(2) : '0';
@@ -3915,6 +4228,11 @@ function toggleAT() {
 function applyStructureGate() {
   const on = document.getElementById('cfg_structure_gate_scanner').checked;
   document.getElementById('structureGateLabel').textContent = on ? 'ON' : 'OFF';
+}
+
+function applyNoTradeGate() {
+  const on = document.getElementById('cfg_no_trade_gate').checked;
+  document.getElementById('noTradeGateLabel').textContent = on ? 'ON' : 'OFF';
 }
 document.addEventListener('DOMContentLoaded', function() {
   const sgEl = document.getElementById('cfg_structure_gate_scanner');
