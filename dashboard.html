@@ -699,6 +699,67 @@ header {
 .save-status.ok   { color: var(--bull); }
 .save-status.err  { color: var(--bear); }
 
+/* ── AI Settings Advisor ── */
+.advisor-panel {
+  background: rgba(0,212,255,0.04);
+  border: 1px solid rgba(0,212,255,0.15);
+  border-radius: 3px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  max-width: 1100px;
+}
+.advisor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.advisor-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+}
+.advisor-btn {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.10em;
+  padding: 4px 12px;
+  border-radius: 2px;
+  cursor: pointer;
+  border: 1px solid rgba(0,212,255,0.3);
+  background: transparent;
+  color: var(--accent);
+  transition: all 0.15s;
+}
+.advisor-btn:hover { background: rgba(0,212,255,0.08); }
+.advisor-btn:disabled { opacity: 0.4; cursor: default; }
+.advisor-body {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--dim);
+  line-height: 1.6;
+  min-height: 40px;
+}
+.advisor-body.loading { color: var(--muted); font-style: italic; }
+.advisor-body.error   { color: var(--bear); }
+.advisor-bullet {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  align-items: flex-start;
+}
+.advisor-bullet-dot {
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.advisor-no-key {
+  color: var(--muted);
+  font-size: 11px;
+  font-family: var(--mono);
+}
+
 /* ── Spinner ── */
 .spinner { width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; margin:auto; }
 @keyframes spin { to { transform:rotate(360deg); } }
@@ -1595,6 +1656,18 @@ header {
 <!-- ══ SETTINGS PAGE ══ -->
 <div class="page" id="pageSettings">
   <div class="settings-page">
+    <!-- ── AI Settings Advisor ── -->
+    <div class="advisor-panel" id="advisorPanel">
+      <div class="advisor-header">
+        <span class="advisor-title">⚡ AI SETTINGS ADVISOR</span>
+        <button class="advisor-btn" id="advisorBtn" onclick="runSettingsAdvisor()">
+          REFRESH ANALYSIS
+        </button>
+      </div>
+      <div class="advisor-body" id="advisorBody">
+        <span class="advisor-no-key">Open Settings to load analysis…</span>
+      </div>
+    </div>
     <div class="settings-grid" style="grid-template-columns:1fr 1fr;max-width:1100px">
 
       <!-- ── DATA ── -->
@@ -2111,7 +2184,10 @@ function showPage(name) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
   document.querySelector(`[onclick="showPage('${name}')"]`).classList.add('active');
-  if (name === 'settings') loadSettings();
+  if (name === 'settings') {
+    loadSettings();
+    runSettingsAdvisor();
+  }
   if (name === 'chain') {
     renderChain();
     // No interval needed — WS update() calls renderChain() when tab is active
@@ -3430,6 +3506,149 @@ When answering:
 
 const AI_USER_PROMPT = "In 2-3 sentences, summarize current market conditions and whether calls, puts, or neither are favored right now. Be specific about price vs walls.";
 
+const ADVISOR_SYSTEM_PROMPT = `You are a quantitative trading system analyst reviewing
+configuration settings for a SPY 0DTE options scalp scanner.
+The system scores option candidates 0-100 and surfaces them for scalp trades.
+
+When given config values and performance data, respond ONLY with bullet points.
+Format: each bullet starts with the setting name in brackets if recommending a change,
+followed by a concise reason backed by the data.
+
+Rules:
+- Maximum 6 bullets
+- Each bullet under 20 words
+- Lead with the highest-impact change
+- If a setting is already optimal, do not mention it
+- Be specific: use actual numbers from the data
+- No preamble, no summary, bullets only`;
+
+async function runSettingsAdvisor() {
+  const bodyEl = document.getElementById('advisorBody');
+  const btn    = document.getElementById('advisorBtn');
+  const apiKey = localStorage.getItem('ai_api_key') || '';
+
+  if (!apiKey) {
+    bodyEl.className   = 'advisor-body';
+    bodyEl.innerHTML   = '<span class="advisor-no-key">No API key set — add key in AI Assistant section below.</span>';
+    return;
+  }
+
+  bodyEl.className   = 'advisor-body loading';
+  bodyEl.textContent = 'Fetching config and performance data…';
+  btn.disabled       = true;
+
+  try {
+    // Fetch config and ideas in parallel
+    const [cfgResp, ideasResp] = await Promise.all([
+      fetch(`${API}/config`),
+      fetch(`${API}/ideas`),
+    ]);
+    const cfg   = await cfgResp.json();
+    const ideas = await ideasResp.json();
+
+    // Build performance summary from stats
+    const stats = ideas.stats || {};
+    const rows  = ideas.rows  || [];
+
+    // Today's ideas
+    const today     = new Date().toISOString().slice(0, 10);
+    const todayRows = rows.filter(r => (r.surfaced_at || '').startsWith(today));
+    const todayDone = todayRows.filter(r => r.paper_exit_reason);
+    const todayStops    = todayDone.filter(r => r.paper_exit_reason === 'STOP').length;
+    const todayTargets  = todayDone.filter(r => (r.paper_exit_reason || '').startsWith('TARGET')).length;
+    const todayAvgPnl   = todayDone.length
+      ? (todayDone.reduce((s, r) => s + (r.paper_pnl_pct || 0), 0) / todayDone.length).toFixed(1)
+      : 'n/a';
+
+    // Recent 50 ideas paper stats
+    const recent = rows.slice(0, 50).filter(r => r.paper_exit_reason);
+    const recentStops   = recent.filter(r => r.paper_exit_reason === 'STOP').length;
+    const recentTargets = recent.filter(r => (r.paper_exit_reason || '').startsWith('TARGET')).length;
+    const recentAvgPnl  = recent.length
+      ? (recent.reduce((s, r) => s + (r.paper_pnl_pct || 0), 0) / recent.length).toFixed(1)
+      : 'n/a';
+
+    // Score band breakdown from recent
+    const bands = {'<58':[], '58-62':[], '62-66':[], '66+':[]};
+    recent.forEach(r => {
+      const sc = r.entry_score || 0;
+      const b  = sc < 58 ? '<58' : sc < 62 ? '58-62' : sc < 66 ? '62-66' : '66+';
+      bands[b].push(r.paper_pnl_pct || 0);
+    });
+    const bandSummary = Object.entries(bands).map(([b, pnls]) =>
+      pnls.length ? `${b}: n=${pnls.length} avg=${(pnls.reduce((a,b)=>a+b,0)/pnls.length).toFixed(1)}%` : null
+    ).filter(Boolean).join(' | ');
+
+    // By regime
+    const regimes = {};
+    recent.forEach(r => {
+      const reg = r.entry_regime || 'UNKNOWN';
+      if (!regimes[reg]) regimes[reg] = [];
+      regimes[reg].push(r.paper_pnl_pct || 0);
+    });
+    const regimeSummary = Object.entries(regimes).map(([reg, pnls]) =>
+      `${reg}: n=${pnls.length} avg=${(pnls.reduce((a,b)=>a+b,0)/pnls.length).toFixed(1)}%`
+    ).join(' | ');
+
+    // Hit rates from stats
+    const hit1m  = stats['1m']?.hit_rate?.toFixed(1)  ?? 'n/a';
+    const hit5m  = stats['5m']?.hit_rate?.toFixed(1)  ?? 'n/a';
+    const hit10m = stats['10m']?.hit_rate?.toFixed(1) ?? 'n/a';
+
+    // Build prompt
+    const prompt = `CURRENT CONFIG (key settings):
+confirm_ticks=${cfg.confirm_ticks}  confirm_ticks_surge=${cfg.confirm_ticks_surge}
+drop_threshold=${cfg.drop_threshold}  max_surface_score=${cfg.max_surface_score}
+min_delta=${cfg.min_delta}  min_mark=${cfg.min_mark}
+paper_stop_pct=${cfg.paper_stop_pct}  paper_stop_pct_pinned=${cfg.paper_stop_pct_pinned}
+paper_target_1_pct=${cfg.paper_target_1_pct}  paper_target_2_pct=${cfg.paper_target_2_pct}
+pinned_max_score=${cfg.pinned_max_score}  pinned_allowed_trends=${JSON.stringify(cfg.pinned_allowed_trends)}
+open_gate_minutes=${cfg.open_gate_minutes}  idea_cooldown_min=${cfg.idea_cooldown_min}
+structure_gate_scanner=${cfg.structure_gate_scanner}
+momentum_short_ticks=${cfg.momentum_short_ticks}  momentum_medium_ticks=${cfg.momentum_medium_ticks}
+
+HISTORICAL PERFORMANCE (last 500 ideas):
+Hit rates: 1m=${hit1m}%  5m=${hit5m}%  10m=${hit10m}%
+Score bands (paper PnL): ${bandSummary}
+By regime: ${regimeSummary}
+
+RECENT 50 IDEAS:
+Targets=${recentTargets}  Stops=${recentStops}  AvgPnL=${recentAvgPnl}%
+
+TODAY (${today}):
+Ideas=${todayDone.length}  Targets=${todayTargets}  Stops=${todayStops}  AvgPnL=${todayAvgPnl}%
+
+Based on this data, what settings changes would improve performance?`;
+
+    bodyEl.className   = 'advisor-body loading';
+    bodyEl.textContent = 'Analyzing with Claude…';
+
+    const reply = await _callClaude(
+      [{ role: 'user', content: prompt }],
+      400,
+      ADVISOR_SYSTEM_PROMPT   // override system prompt
+    );
+
+    // Render bullets
+    const lines = reply.split('\n').map(l => l.trim()).filter(Boolean);
+    bodyEl.className = 'advisor-body';
+    bodyEl.innerHTML = lines.map(line => {
+      // Strip leading bullet chars
+      const text = line.replace(/^[-•*·]\s*/, '');
+      return `<div class="advisor-bullet">
+        <span class="advisor-bullet-dot">▸</span>
+        <span>${text}</span>
+      </div>`;
+    }).join('');
+
+  } catch(err) {
+    bodyEl.className   = 'advisor-body error';
+    bodyEl.textContent = `Error: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 let _aiFirstSnap = true;
 let _aiLastRefresh = 0;
 let _aiCommentaryPaused = false;
@@ -3508,7 +3727,7 @@ function _buildCompactContext(snap) {
   return `[Price: ${snap.price ?? '--'} | Regime: ${ms.regime ?? '--'} | GEX: ${ms.net_gex ?? '--'} | Snap: ${ms.snap_level ?? '--'} (${ms.snap_direction ?? '--'})]`;
 }
 
-async function _callClaude(messages, maxTokens = 300) {
+async function _callClaude(messages, maxTokens = 300, systemPrompt = null) {
   const apiKey = localStorage.getItem('ai_api_key') || '';
   if (!apiKey) throw new Error('NO_KEY');
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -3522,7 +3741,7 @@ async function _callClaude(messages, maxTokens = 300) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
       max_tokens: maxTokens,
-      system: AI_SYSTEM_PROMPT,
+      system: systemPrompt || AI_SYSTEM_PROMPT,
       messages,
     }),
   });
