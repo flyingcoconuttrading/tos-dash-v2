@@ -486,7 +486,7 @@ class IdeaLogger:
                                 detail=f"spy_move_against={move_against_spy:.2f} "
                                        f"option_near_stop={option_stop_price:.2f} unconfirmed")
                 self._log.debug("IDEA #%d WEAKENING  %s  move_against=%.2f  vol_ratio=%.1f",
-                                state.idea_id, state.symbol, move_against_spy, spy_vol_ratio)
+                                state.idea_id, state.symbol, move_against, spy_vol_ratio)
 
         # Score decay
         if score is not None:

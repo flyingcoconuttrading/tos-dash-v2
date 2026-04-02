@@ -1363,6 +1363,7 @@ header {
     <div class="spy-price-block">
       <div class="spy-symbol-label" id="priceSymbolLabel">SPY</div>
       <div class="spy-price flat" id="spyPrice">--</div>
+      <div id="priceTypeLabel" style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:0.10em;text-align:center">LAST</div>
     </div>
     <div class="meta-group">
       <div class="meta-label">BID / ASK</div>
@@ -1526,7 +1527,7 @@ header {
       <div id="bfWatchContracts" style="margin-top:8px">
         <div id="bfWatchCall" style="display:none">
           <div class="bf-contract-label">WATCH CALL</div>
-          <div class="bf-contract watch">
+          <div class="bf-contract watch" id="bfWatchCallRow">
             <div>
               <div class="bf-contract-detail call" id="bfWatchCallDetail">--</div>
             </div>
@@ -1535,7 +1536,7 @@ header {
         </div>
         <div id="bfWatchPut" style="margin-top:5px;display:none">
           <div class="bf-contract-label">WATCH PUT</div>
-          <div class="bf-contract watch">
+          <div class="bf-contract watch" id="bfWatchPutRow">
             <div>
               <div class="bf-contract-detail put" id="bfWatchPutDetail">--</div>
             </div>
@@ -1998,6 +1999,39 @@ header {
           <div style="display:flex;flex-direction:column;gap:2px;flex:1">
             <input class="field-input" id="cfg_min_mark" type="number" min="0" max="5.00" step="0.05">
             <span class="field-desc">Skip options with mark price below this. 0.50 recommended to avoid untradeable wide-spread contracts.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">MAX MARK ($)</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_max_mark" type="number"
+                   min="0.50" max="10.00" step="0.25" style="max-width:90px">
+            <span class="field-desc">
+              Upper mark filter for briefing contract. $2.00 default.
+              Raise to $3.00+ on high-IV days.
+            </span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">BRIEFING Δ MIN</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_briefing_delta_min" type="number"
+                   min="0.10" max="0.70" step="0.05" style="max-width:90px">
+            <span class="field-desc">
+              Min delta for recommended contract. 0.35 default.
+              Lower = cheaper, needs bigger move.
+            </span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">BRIEFING Δ MAX</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_briefing_delta_max" type="number"
+                   min="0.10" max="0.70" step="0.05" style="max-width:90px">
+            <span class="field-desc">
+              Max delta for recommended contract. 0.50 default.
+              Higher = deeper ITM, less time-decay risk.
+            </span>
           </div>
         </div>
         <div class="field-row">
@@ -2477,8 +2511,10 @@ function update(snap) {
   document.getElementById('tsEl').textContent = snap.timestamp?.slice(11,19) || '--';
   document.getElementById('tickEl').textContent = snap.tick;
 
-  // Price
-  const price = snap.price;
+  // Price — use MARK as fallback when LAST is zero or absent (premarket/after-hours)
+  const lastPrice = snap.price;
+  const price     = (lastPrice != null && lastPrice > 0) ? lastPrice : (snap.mark ?? lastPrice);
+  const usingMark = price !== lastPrice && price != null;
   const el = document.getElementById('spyPrice');
   el.textContent = f2(price);
   if (prevPrice !== null && price !== prevPrice) {
@@ -2486,6 +2522,9 @@ function update(snap) {
     setTimeout(() => el.classList.add('flat'), 400);
   }
   prevPrice = price;
+  // Show (MARK) label when falling back to mark price
+  const priceTypeEl = document.getElementById('priceTypeLabel');
+  if (priceTypeEl) priceTypeEl.textContent = usingMark ? 'MARK' : 'LAST';
 
   // Symbol label (strips leading slash for futures: /ES → ES)
   const symLabel = (snap.symbol || 'SPY').replace(/^\//, '');
@@ -2643,6 +2682,20 @@ function renderBriefing(snap) {
     return [detail, meta];
   }
 
+  function _wireContractCopy(rowId, c) {
+    const row = document.getElementById(rowId);
+    if (!row || !c?.symbol) return;
+    row.style.cursor = 'copy';
+    row.title = `Click to copy ${c.symbol}`;
+    row.onclick = () => {
+      const text = `${c.symbol}  $${f2(c.mark)}`;
+      navigator.clipboard?.writeText(text).catch(() => {});
+      const orig = row.style.outline;
+      row.style.outline = '2px solid var(--accent)';
+      setTimeout(() => { row.style.outline = orig; }, 600);
+    };
+  }
+
   // ── Primary + reversal contracts (when TRADE ACTIVE) ─────────────
   const primaryDiv   = document.getElementById('bfPrimaryContract');
   const reversalDiv  = document.getElementById('bfReversalContract');
@@ -2671,6 +2724,7 @@ function renderBriefing(snap) {
     const [pd, pm] = _contractDetail(primary, isPutFavored ? 'Put' : 'Call');
     pDetailEl.textContent = pd;
     document.getElementById('bfPrimaryMeta').textContent = pm;
+    _wireContractCopy('bfPrimaryRow', primary);
 
     document.getElementById('bfReversalLabel').textContent =
       isPutFavored ? 'IF BOUNCE' : 'IF REVERSAL';
@@ -2679,6 +2733,7 @@ function renderBriefing(snap) {
     document.getElementById('bfReversalDetail').className =
       isPutFavored ? 'bf-contract-detail call' : 'bf-contract-detail put';
     document.getElementById('bfReversalMeta').textContent = rm;
+    _wireContractCopy('bfReversalRow', reversal);
 
   } else {
     // NO TRADE — show watch contracts
@@ -2694,6 +2749,7 @@ function renderBriefing(snap) {
       const [cd, cm] = _contractDetail(bf.best_call, 'Call');
       document.getElementById('bfWatchCallDetail').textContent = cd;
       document.getElementById('bfWatchCallMeta').textContent   = cm;
+      _wireContractCopy('bfWatchCallRow', bf.best_call);
     } else {
       callDiv.style.display = 'none';
     }
@@ -2703,6 +2759,7 @@ function renderBriefing(snap) {
       const [pd, pm] = _contractDetail(bf.best_put, 'Put');
       document.getElementById('bfWatchPutDetail').textContent = pd;
       document.getElementById('bfWatchPutMeta').textContent   = pm;
+      _wireContractCopy('bfWatchPutRow', bf.best_put);
     } else {
       putDiv.style.display = 'none';
     }
@@ -3114,6 +3171,9 @@ function loadSettings() {
       document.getElementById('cfg_drop_threshold').value     = cfg.drop_threshold     ?? 55;
       document.getElementById('cfg_min_delta').value          = cfg.min_delta          ?? 0.25;
       document.getElementById('cfg_min_mark').value           = cfg.min_mark           ?? 0.50;
+      document.getElementById('cfg_max_mark').value           = cfg.max_mark           ?? 2.00;
+      document.getElementById('cfg_briefing_delta_min').value = cfg.briefing_delta_min ?? 0.35;
+      document.getElementById('cfg_briefing_delta_max').value = cfg.briefing_delta_max ?? 0.50;
       document.getElementById('cfg_max_surface_score').value      = cfg.max_surface_score      ?? 100;
       const ntg = cfg.no_trade_gate ?? true;
       document.getElementById('cfg_no_trade_gate').checked = ntg;
@@ -3192,6 +3252,9 @@ function saveSettings() {
     drop_threshold:         parseFloat(get('cfg_drop_threshold').value),
     min_delta:              parseFloat(get('cfg_min_delta').value),
     min_mark:               parseFloat(get('cfg_min_mark').value),
+    max_mark:               parseFloat(get('cfg_max_mark').value),
+    briefing_delta_min:     parseFloat(get('cfg_briefing_delta_min').value),
+    briefing_delta_max:     parseFloat(get('cfg_briefing_delta_max').value),
     max_surface_score:      parseFloat(get('cfg_max_surface_score').value),
     no_trade_gate:          get('cfg_no_trade_gate').checked,
     briefing_eod_hour:      parseInt(get('cfg_briefing_eod_hour').value),

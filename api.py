@@ -142,6 +142,9 @@ DEFAULT_CONFIG = {
     "drop_threshold":        55,
     "min_delta":             0.25,
     "min_mark":              0.50,
+    "max_mark":              2.00,
+    "briefing_delta_min":    0.35,
+    "briefing_delta_max":    0.50,
     "pinned_allowed_trends":  ["Downtrend"],
     "pinned_max_score":       62,
     "max_surface_score":      100,
@@ -485,9 +488,13 @@ def build_snapshot() -> dict:
             # First try from scored candidates
             cands = [c for c in (candidates or []) if c.option_type == side]
             if cands:
+                _d_min = cfg.get("briefing_delta_min", 0.35)
+                _d_max = cfg.get("briefing_delta_max", 0.50)
+                _m_min = cfg.get("min_mark",  0.50)
+                _m_max = cfg.get("max_mark",  2.00)
                 in_range = [c for c in cands
-                            if 0.35 <= c.delta <= 0.55
-                            and 0.50 <= c.mark <= 2.00]
+                            if _d_min <= c.delta <= _d_max
+                            and _m_min <= c.mark  <= _m_max]
                 pool = in_range if in_range else cands
                 best = max(pool, key=lambda c: c.score)
                 return {
@@ -502,7 +509,11 @@ def build_snapshot() -> dict:
             # Fallback: scan chain_full for best delta-range contract
             chain = chain_data.get("chain", {})
             best_sym, best_fields, best_delta_dist = None, None, 999
-            target_delta = 0.45
+            _d_min = cfg.get("briefing_delta_min", 0.35)
+            _d_max = cfg.get("briefing_delta_max", 0.50)
+            _m_min = cfg.get("min_mark",  0.50)
+            _m_max = cfg.get("max_mark",  2.00)
+            target_delta = (_d_min + _d_max) / 2
             for sym, fields in chain.items():
                 if (side == "Call" and "C" not in sym[1:]) or \
                    (side == "Put"  and "P" not in sym[1:]):
@@ -513,7 +524,7 @@ def build_snapshot() -> dict:
                     continue
                 abs_d = abs(float(d))
                 abs_m = float(m)
-                if 0.30 <= abs_d <= 0.60 and 0.50 <= abs_m <= 2.50:
+                if _d_min <= abs_d <= _d_max and _m_min <= abs_m <= _m_max:
                     dist = abs(abs_d - target_delta)
                     if dist < best_delta_dist:
                         best_delta_dist = dist
@@ -591,6 +602,7 @@ def build_snapshot() -> dict:
         "price":            price,
         "bid":              price_data.get("bid"),
         "ask":              price_data.get("ask"),
+        "mark":             price_data.get("mark"),
         "expiry":           expiry,
         "test_mode":        price_data.get("test_mode", False),
         "max_pain":         max_pain,
@@ -665,6 +677,9 @@ class ConfigUpdate(BaseModel):
     drop_threshold:          Optional[float] = None
     min_delta:               Optional[float] = None
     min_mark:                Optional[float] = None
+    max_mark:                Optional[float] = None
+    briefing_delta_min:      Optional[float] = None
+    briefing_delta_max:      Optional[float] = None
     iv_floor:                Optional[float] = None
     iv_ceiling:              Optional[float] = None
     pinned_allowed_trends:   Optional[list]  = None

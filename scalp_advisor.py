@@ -259,15 +259,20 @@ class ScalpAdvisor:
         # Require: TRENDING regime + non-Choppy trend + structural Strong/Moderate
         # When gate fails, return empty list — scanner goes silent.
         if self._cfg.get("no_trade_gate", True):
-            ms_cl = getattr(self._ms_ref, "checklist", None) if self._ms_ref else None
+            ms_cl  = getattr(self._ms_ref, "checklist", None) if self._ms_ref else None
             s_conf = ms_cl.structural_confidence if ms_cl else "Insufficient"
+            s_lean = ms_cl.structural_lean       if ms_cl else "Mixed"
             gate_pass = (
-                gex_negative                            # TRENDING (negative GEX)
+                gex_negative                                      # TRENDING (negative GEX)
                 and trend not in ("Choppy", "CHOPPY", "choppy")  # non-Choppy
-                and s_conf in ("Strong", "Moderate")   # structural conviction
+                and s_conf in ("Strong", "Moderate")             # structural conviction
+                and s_lean in ("Bull", "Bear")                   # clear directional lean
             )
             if not gate_pass:
                 return []
+        else:
+            ms_cl  = getattr(self._ms_ref, "checklist", None) if self._ms_ref else None
+            s_lean = ms_cl.structural_lean if ms_cl else "Mixed"
 
         for strike in strikes:
             for opt_type in ("Call", "Put"):
@@ -340,6 +345,12 @@ class ScalpAdvisor:
                 # Block TRANSITION regime — GEX near zero, no directional anchor
                 if ms is not None and getattr(ms, "regime", "") == "TRANSITION":
                     continue
+                # Direction alignment — only surface trades that match structural lean
+                if self._cfg.get("no_trade_gate", True) and ms_cl is not None:
+                    if s_lean == "Bear" and opt_type == "Call":
+                        continue   # structure bearish — no calls
+                    if s_lean == "Bull" and opt_type == "Put":
+                        continue   # structure bullish — no puts
                 # PINNED regime trend gate — block disallowed trends in positive-GEX regime
                 if not gex_negative:  # False = PINNED (positive GEX)
                     allowed_raw = self._cfg.get("pinned_allowed_trends", ["Downtrend"])
