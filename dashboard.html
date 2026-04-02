@@ -2233,6 +2233,35 @@ header {
             <span class="field-desc">Minutes between auto-refreshes. Fires sooner on bias flip, alert escalation, or $2+ price move. Set to 60+ to effectively disable auto.</span>
           </div>
         </div>
+        <div class="field-row">
+          <span class="field-label">ADVISOR INTERVAL min</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_advisor_interval" type="number"
+                   min="1" max="120" step="1" style="max-width:90px"
+                   onchange="localStorage.setItem('advisor_interval', this.value)">
+            <span class="field-desc">
+              Min minutes between advisor auto-runs when Settings opens.
+              Same API key as AT Chat. Set high to call manually only.
+            </span>
+          </div>
+        </div>
+        <div class="field-row" style="align-items:flex-start">
+          <span class="field-label">API CALLS</span>
+          <div style="display:flex;flex-direction:column;gap:5px;flex:1">
+            <span id="apiCallCounter"
+                  style="font-family:var(--mono);font-size:10px;color:var(--dim)">
+              Today: 0  ·  Session: 0  ·  Total: 0
+            </span>
+            <button class="btn btn-secondary"
+                    style="font-size:9px;padding:3px 10px;width:fit-content"
+                    onclick="resetApiCallTotal()">
+              RESET TOTAL
+            </button>
+            <span style="font-family:var(--mono);font-size:9px;color:var(--muted)">
+              Used by: Advisor · AT Commentary · AI Chat — all use same API key
+            </span>
+          </div>
+        </div>
         <div class="field-row" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
           <span class="field-label">ENABLE TEST MODE</span>
           <div class="field-toggle">
@@ -2339,6 +2368,26 @@ const WS  = 'ws://127.0.0.1:8001/ws';
 let ws = null;
 let lastTick = -1;
 let prevPrice = null;
+
+// API call counters — all persisted to localStorage
+let _apiCallSession = 0;   // resets on page load
+let _apiCallToday   = parseInt(localStorage.getItem('api_calls_today_count') || '0');
+let _apiCallDate    = localStorage.getItem('api_calls_today_date') || '';
+let _apiCallTotal   = parseInt(localStorage.getItem('api_calls_total') || '0');
+
+// Reset today counter if it's a new day
+(function() {
+  const today = new Date().toISOString().slice(0, 10);
+  if (_apiCallDate !== today) {
+    _apiCallToday = 0;
+    _apiCallDate  = today;
+    localStorage.setItem('api_calls_today_count', '0');
+    localStorage.setItem('api_calls_today_date', today);
+  }
+})();
+
+// Advisor cooldown
+let _advisorLastCall = 0;   // monotonic ms of last advisor API call
 
 // Disconnect tracking
 let _disconnectTime    = null;   // Date when disconnect first detected
@@ -3095,6 +3144,9 @@ function loadSettings() {
       document.getElementById('cfg_ai_enabled').checked = aiOn;
       document.getElementById('aiEnabledLabel').textContent = aiOn ? 'ON' : 'OFF';
       document.getElementById('cfg_ai_interval').value = localStorage.getItem('ai_commentary_interval') || '5';
+      document.getElementById('cfg_advisor_interval').value =
+        localStorage.getItem('advisor_interval') || '10';
+      _updateApiCounterDisplay();
       // Alpaca keys (stored server-side in config.json)
       document.getElementById('cfg_alpaca_api_key').value    = cfg.alpaca_api_key    || '';
       document.getElementById('cfg_alpaca_secret_key').value = cfg.alpaca_secret_key || '';
@@ -3840,6 +3892,15 @@ async function runSettingsAdvisor() {
   const btn    = document.getElementById('advisorBtn');
   const apiKey = localStorage.getItem('ai_api_key') || '';
 
+  // Cooldown — don't re-call if opened within advisor_interval minutes
+  const cooldownMin = parseInt(localStorage.getItem('advisor_interval') || '10');
+  const cooldownMs  = cooldownMin * 60 * 1000;
+  const now         = Date.now();
+  if (now - _advisorLastCall < cooldownMs) {
+    // Still within cooldown — just show last result without re-calling
+    return;
+  }
+
   if (!apiKey) {
     bodyEl.className   = 'advisor-body';
     bodyEl.innerHTML   = '<span class="advisor-no-key">No API key set — add key in AI Assistant section below.</span>';
@@ -3954,6 +4015,8 @@ Based on this data, what settings changes would improve performance?`;
       </div>`;
     }).join('');
 
+    _advisorLastCall = Date.now();
+
   } catch(err) {
     bodyEl.className   = 'advisor-body error';
     bodyEl.textContent = `Error: ${err.message}`;
@@ -4063,7 +4126,27 @@ async function _callClaude(messages, maxTokens = 300, systemPrompt = null) {
     throw new Error(err.error?.message || `HTTP ${resp.status}`);
   }
   const data = await resp.json();
+  // Increment API call counters
+  _apiCallSession++;
+  _apiCallToday++;
+  _apiCallTotal++;
+  localStorage.setItem('api_calls_today_count', String(_apiCallToday));
+  localStorage.setItem('api_calls_total',        String(_apiCallTotal));
+  _updateApiCounterDisplay();
   return data.content?.[0]?.text ?? '';
+}
+
+function _updateApiCounterDisplay() {
+  const el = document.getElementById('apiCallCounter');
+  if (!el) return;
+  el.textContent =
+    `Today: ${_apiCallToday}  ·  Session: ${_apiCallSession}  ·  Total: ${_apiCallTotal}`;
+}
+
+function resetApiCallTotal() {
+  _apiCallTotal = 0;
+  localStorage.setItem('api_calls_total', '0');
+  _updateApiCounterDisplay();
 }
 
 // Returns true if snap differs enough from _aiLastSnap to warrant early refresh
