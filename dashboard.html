@@ -127,6 +127,33 @@ header {
 }
 .test-banner.show { display: block; }
 
+/* ── Disconnect banner ── */
+.disconnect-banner {
+  display: none;
+  background: rgba(255,61,87,0.18);
+  border-bottom: 2px solid rgba(255,61,87,0.7);
+  padding: 10px 20px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.10em;
+  color: #ff6b7a;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.disconnect-banner.show {
+  display: flex;
+}
+.disconnect-banner.failed {
+  background: rgba(255,61,87,0.28);
+  border-bottom-color: var(--bear);
+  color: var(--bear);
+}
+.disconnect-msg  { flex: 1; }
+.disconnect-timer { font-size: 13px; font-weight: 700; color: var(--bear); }
+.disconnect-retry { font-size: 10px; color: rgba(255,107,122,0.7); }
+
 /* ── Alert banner ── */
 .alert-banner {
   display: none;
@@ -1152,6 +1179,11 @@ header {
 </header>
 
 <div class="test-banner" id="testBanner">⚠ TEST MODE -- override date active</div>
+<div class="disconnect-banner" id="disconnectBanner">
+  <span class="disconnect-msg" id="disconnectMsg">⚠ SERVER DISCONNECTED</span>
+  <span class="disconnect-timer" id="disconnectTimer">00:00:00</span>
+  <span class="disconnect-retry" id="disconnectRetry"></span>
+</div>
 <div class="alert-banner" id="alertBanner"></div>
 
 <!-- ══ DASHBOARD PAGE ══ -->
@@ -2061,6 +2093,14 @@ let ws = null;
 let lastTick = -1;
 let prevPrice = null;
 
+// Disconnect tracking
+let _disconnectTime    = null;   // Date when disconnect first detected
+let _disconnectTimer   = null;   // setInterval handle for elapsed counter
+let _retryCount        = 0;      // current reconnect attempt number
+let _retryMax          = 3;      // max auto-retry attempts
+let _retryTimeout      = null;   // setTimeout handle for next retry
+let _audioCtx          = null;   // Web Audio context for beep
+
 // ── Page nav ──────────────────────────────────────────────────────────────────
 let chartTick = -1;
 let chartInterval = null;
@@ -2507,13 +2547,107 @@ function _doRender() {
 }
 
 // ── WebSocket ─────────────────────────────────────────────────────────────────
+function _beepDisconnect() {
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc  = _audioCtx.createOscillator();
+    const gain = _audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(_audioCtx.destination);
+    osc.type      = 'sine';
+    osc.frequency.setValueAtTime(880, _audioCtx.currentTime);           // A5
+    osc.frequency.setValueAtTime(660, _audioCtx.currentTime + 0.15);   // E5
+    gain.gain.setValueAtTime(0.4, _audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + 0.5);
+    osc.start(_audioCtx.currentTime);
+    osc.stop(_audioCtx.currentTime + 0.5);
+  } catch(e) {
+    // Web Audio not available — silent fail
+  }
+}
+
+function showDisconnectBanner() {
+  if (_disconnectTime) return;   // already showing
+  _disconnectTime = new Date();
+  _retryCount     = 0;
+  _beepDisconnect();
+
+  const banner   = document.getElementById('disconnectBanner');
+  const msgEl    = document.getElementById('disconnectMsg');
+  const timerEl  = document.getElementById('disconnectTimer');
+  const retryEl  = document.getElementById('disconnectRetry');
+
+  msgEl.textContent   = '⚠  SERVER DISCONNECTED';
+  retryEl.textContent = `Retrying… (attempt 1 of ${_retryMax})`;
+  banner.className    = 'disconnect-banner show';
+
+  // Elapsed timer — updates every second
+  _disconnectTimer = setInterval(() => {
+    if (!_disconnectTime) return;
+    const secs = Math.floor((Date.now() - _disconnectTime.getTime()) / 1000);
+    const h    = String(Math.floor(secs / 3600)).padStart(2, '0');
+    const m    = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+    const s    = String(secs % 60).padStart(2, '0');
+    timerEl.textContent = `${h}:${m}:${s}`;
+  }, 1000);
+}
+
+function hideDisconnectBanner() {
+  _disconnectTime = null;
+  _retryCount     = 0;
+  clearInterval(_disconnectTimer);
+  clearTimeout(_retryTimeout);
+  _disconnectTimer = null;
+  _retryTimeout    = null;
+  const banner = document.getElementById('disconnectBanner');
+  banner.className = 'disconnect-banner';
+}
+
+function markRetryFailed() {
+  const banner  = document.getElementById('disconnectBanner');
+  const retryEl = document.getElementById('disconnectRetry');
+  banner.className    = 'disconnect-banner show failed';
+  retryEl.textContent = 'Auto-retry exhausted — restart manually (python api.py)';
+}
+
 function connect() {
   setStatus('connecting');
   ws = new WebSocket(WS);
-  ws.onopen    = () => setStatus('live');
-  ws.onmessage = e => { try { update(JSON.parse(e.data)); } catch(_){} };
-  ws.onerror   = () => setStatus('error');
-  ws.onclose   = () => { setStatus('error'); setTimeout(connect, 3000); };
+
+  ws.onopen = () => {
+    setStatus('live');
+    hideDisconnectBanner();
+  };
+
+  ws.onmessage = e => {
+    try { update(JSON.parse(e.data)); } catch(_) {}
+  };
+
+  ws.onerror = () => {
+    setStatus('error');
+  };
+
+  ws.onclose = () => {
+    setStatus('error');
+
+    // First disconnect — show banner and beep
+    if (!_disconnectTime) {
+      showDisconnectBanner();
+    }
+
+    _retryCount++;
+    const retryEl = document.getElementById('disconnectRetry');
+
+    if (_retryCount < _retryMax) {
+      // Schedule next retry
+      if (retryEl) retryEl.textContent =
+        `Retrying… (attempt ${_retryCount + 1} of ${_retryMax})`;
+      _retryTimeout = setTimeout(connect, 10000);
+    } else {
+      // Exhausted — stop retrying
+      markRetryFailed();
+    }
+  };
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
