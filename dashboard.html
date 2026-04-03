@@ -2535,11 +2535,14 @@ function setStatus(s) {
 // ── Update dashboard ──────────────────────────────────────────────────────────
 function update(snap) {
   if (!snap || snap.error) return;
+
+  // Always track last WebSocket message time (before early-return guard)
+  // Used by stale checker — must update even when tick is unchanged
+  _lastTickTime = Date.now();
+
   if (snap.tick === lastTick) return;
   lastTick = snap.tick;
-  // Stale tracking — record new tick arrival
   _lastTickSeen = snap.tick;
-  _lastTickTime = Date.now();
   if (_isStale) { _isStale = false; hideDisconnectBanner(); }
 
   // Sync DTE mode from server
@@ -3208,7 +3211,9 @@ function _startStaleChecker() {
   _staleCheckInt = setInterval(() => {
     if (_lastTickTime === 0) return;   // no tick received yet
     const age = Date.now() - _lastTickTime;
-    if (!_isStale && age > _staleThreshMs) {
+    const tickStale = _lastTickSeen >= 0 && _lastTickSeen === lastTick &&
+                      age > _staleThreshMs;
+    if (!_isStale && tickStale) {
       _isStale = true;
       showDisconnectBanner();
       const msgEl = document.getElementById('disconnectMsg');

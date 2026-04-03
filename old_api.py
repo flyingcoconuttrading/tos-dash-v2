@@ -76,11 +76,12 @@ _spy_last_volume: float = 0.0
 # VIX EMA/SMA tracking
 _vix_history:  deque = deque(maxlen=21)
 _vix_open:     float = 0.0
-_vix_open_set: bool  = False
+_vix_open_set: bool         = False
+_vix_prev_ema_above: Optional[bool] = None   # previous EMA > SMA state
 
 def _compute_vix_signals(vix: float) -> dict:
     """Compute VIX EMA(9)/SMA(21), cross signals, and vs open."""
-    global _vix_open, _vix_open_set
+    global _vix_open, _vix_open_set, _vix_prev_ema_above
     if vix is None:
         return {}
     _vix_history.append(vix)
@@ -95,7 +96,16 @@ def _compute_vix_signals(vix: float) -> dict:
         ema9 = v * k9 + ema9 * (1 - k9)
     # SMA(21)
     sma21 = sum(hist) / len(hist)
-    cross = "above" if ema9 > sma21 else "below"
+    now_above = ema9 > sma21
+    if _vix_prev_ema_above is None:
+        cross = ""   # no cross on first tick
+    elif now_above and not _vix_prev_ema_above:
+        cross = "RISING"    # EMA just crossed ABOVE SMA — VIX rising = caution
+    elif not now_above and _vix_prev_ema_above:
+        cross = "FALLING"   # EMA just crossed BELOW SMA — VIX falling = calls favored
+    else:
+        cross = ""   # no cross this tick
+    _vix_prev_ema_above = now_above
     vs_open = vix - _vix_open if _vix_open else 0.0
     return {
         "last":     round(vix, 2),
@@ -891,17 +901,28 @@ def dte_next():
 
 @app.post("/dte/set")
 def dte_set(mode: str):
-    global _dte_mode
+    global _dte_mode, cfg
     if mode not in ("0DTE", "1DTE"):
         return {"error": f"Invalid mode '{mode}' — use '0DTE' or '1DTE'"}
     _dte_mode = mode
-    new_expiry = get_next_1dte() if mode == "1DTE" else None
-    _cfg = load_config()
-    _cfg["expiry_date"] = new_expiry
-    save_config(_cfg)
+
+    # Update expiry_date in config and restart writer
+    new_expiry = get_next_1dte() if mode == "1DTE" else None  # None = today (0DTE)
+    cfg["expiry_date"] = new_expiry
+    try:
+        saved = json.loads(CONFIG_FILE.read_text())
+    except Exception:
+        saved = {}
+    saved["expiry_date"] = new_expiry
+    CONFIG_FILE.write_text(json.dumps(saved, indent=2))
+
+    # Restart writer to load new chain
     threading.Thread(target=start_writer, daemon=True).start()
-    logger.info("DTE switched to %s — expiry_date=%s, writer restarting", mode, new_expiry)
-    return {"dte_mode": _dte_mode, "next_1dte": get_next_1dte(), "expiry_date": new_expiry}
+    logger.info("DTE switched to %s — expiry_date=%s, writer restarting",
+                mode, new_expiry)
+
+    return {"dte_mode": _dte_mode, "next_1dte": get_next_1dte(),
+            "expiry_date": new_expiry}
 
 @app.get("/status")
 def get_status():
