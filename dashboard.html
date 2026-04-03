@@ -113,6 +113,31 @@ header {
   padding: 1px 5px;
 }
 
+/* ── DTE toggle ── */
+.dte-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin-right: 4px;
+}
+.dte-toggle {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 7px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.dte-toggle:hover { background: var(--border); }
+.dte-toggle.dte-active-1 {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+}
+
 /* ── Test mode banner ── */
 .test-banner {
   display: none;
@@ -1333,6 +1358,8 @@ header {
   </nav>
   <button class="ai-nav-btn" id="aiToggleBtn" onclick="toggleAIChat()">AI CHAT</button>
   <div class="header-right">
+    <span class="dte-badge" id="dteBadge">0DTE</span>
+    <button class="dte-toggle" id="dteToggleBtn" onclick="toggleDTE()" title="Switch expiry">1DTE</button>
     <div class="status-dot" id="statusDot"></div>
     <span class="status-txt" id="statusTxt">CONNECTING</span>
     <span class="version-tag">v2.1</span>
@@ -1399,6 +1426,20 @@ header {
       <div class="level-row"><span class="level-name">SNAP LEVEL</span><span class="level-val" id="snapLevel">--</span></div>
       <div class="level-row"><span class="level-name">SNAP DIR</span><span class="level-val sm" id="snapDist">--</span></div>
       <div class="level-row"><span class="level-name">INVALIDATION</span><span class="level-val sm" id="invalidation">--</span></div>
+
+      <!-- VIX / NYSE TICK -->
+      <div class="level-row">
+        <span class="level-name">VIX</span>
+        <span class="level-val sm" id="vixLast">--</span>
+        <span class="level-val sm muted" id="vixCross" style="font-size:10px;margin-left:4px"></span>
+      </div>
+      <div class="level-row">
+        <span class="level-name">TICK</span>
+        <span class="level-val sm" id="ntickVal">--</span>
+        <div class="bar-track" style="flex:1;margin-left:6px">
+          <div id="ntickBar" style="height:100%;width:50%;background:var(--muted);border-radius:2px;transition:width .3s,background .3s"></div>
+        </div>
+      </div>
 
       <div class="panel-title section-gap">Net GEX</div>
       <div class="gex-row">
@@ -1553,6 +1594,9 @@ header {
 
       <!-- EOD warning -->
       <div class="bf-eod-warn" id="bfEodWarn" style="display:none"></div>
+
+      <!-- Trend/structure conflict note -->
+      <div class="bf-eod-warn" id="bfConflictNote" style="display:none;color:var(--warn,#f0a500)"></div>
 
       <!-- Collapsible structural factors -->
       <div class="bf-factors-toggle" onclick="toggleBfFactors()">
@@ -2423,6 +2467,16 @@ let _apiCallTotal   = parseInt(localStorage.getItem('api_calls_total') || '0');
 // Advisor cooldown
 let _advisorLastCall = 0;   // monotonic ms of last advisor API call
 
+// Stale data detection
+let _lastTickSeen   = -1;     // last snap.tick value received
+let _lastTickTime   = 0;      // Date.now() when last new tick arrived
+let _staleThreshMs  = 10000;  // 10 seconds without tick advance = stale
+let _staleCheckInt  = null;   // setInterval handle for stale checker
+let _isStale        = false;  // current stale state
+
+// DTE mode tracking
+let _dteMode = '0DTE';   // '0DTE' or '1DTE'
+
 // Disconnect tracking
 let _disconnectTime    = null;   // Date when disconnect first detected
 let _disconnectTimer   = null;   // setInterval handle for elapsed counter
@@ -2483,6 +2537,16 @@ function update(snap) {
   if (!snap || snap.error) return;
   if (snap.tick === lastTick) return;
   lastTick = snap.tick;
+  // Stale tracking — record new tick arrival
+  _lastTickSeen = snap.tick;
+  _lastTickTime = Date.now();
+  if (_isStale) { _isStale = false; hideDisconnectBanner(); }
+
+  // Sync DTE mode from server
+  if (snap.dte_mode && snap.dte_mode !== _dteMode) {
+    _dteMode = snap.dte_mode;
+    _updateDTEDisplay();
+  }
 
   // Cache for chain page
   _chainSnap = snap;
@@ -2585,6 +2649,7 @@ function update(snap) {
 
   // Briefing panel
   renderBriefing(snap);
+  updateTickVix(snap);
 
   // Converter widget
   updateConverter(snap);
@@ -2629,6 +2694,47 @@ function toggleBfFactors() {
   _bfFactorsOpen = !_bfFactorsOpen;
   document.getElementById('bfFactorsBody').style.display = _bfFactorsOpen ? '' : 'none';
   document.getElementById('bfFactorsToggleArrow').textContent = _bfFactorsOpen ? '▼' : '▶';
+}
+
+function updateTickVix(snap) {
+  // VIX display
+  const vix = snap.vix || {};
+  const vixLastEl  = document.getElementById('vixLast');
+  const vixCrossEl = document.getElementById('vixCross');
+  if (vixLastEl) {
+    if (vix.last != null) {
+      vixLastEl.textContent = vix.last.toFixed(2);
+      const vs = vix.vs_open ?? 0;
+      vixLastEl.style.color = vs > 0.5 ? 'var(--bear)' : vs < -0.5 ? 'var(--bull)' : 'var(--text)';
+    } else {
+      vixLastEl.textContent = '--';
+      vixLastEl.style.color = '';
+    }
+  }
+  if (vixCrossEl) {
+    if (vix.cross) {
+      vixCrossEl.textContent = vix.cross === 'above' ? 'EMA>SMA \u26a0' : 'EMA<SMA';
+      vixCrossEl.style.color = vix.cross === 'above' ? 'var(--bear)' : 'var(--bull)';
+    } else {
+      vixCrossEl.textContent = '';
+    }
+  }
+
+  // TICK (NYSE) bar — range -1500..+1500, center 0 = 50%
+  const ntickEl  = document.getElementById('ntickVal');
+  const ntickBar = document.getElementById('ntickBar');
+  const tick = snap.ntick;
+  if (ntickEl) {
+    ntickEl.textContent = tick != null ? tick.toLocaleString() : '--';
+    ntickEl.style.color = tick == null ? '' : tick > 600 ? 'var(--bull)' : tick < -600 ? 'var(--bear)' : 'var(--text)';
+  }
+  if (ntickBar && tick != null) {
+    const clamped = Math.max(-1500, Math.min(1500, tick));
+    const pct     = ((clamped + 1500) / 3000) * 100;
+    ntickBar.style.width      = Math.abs(clamped / 1500 * 50) + '%';
+    ntickBar.style.marginLeft = clamped >= 0 ? '50%' : (50 + clamped / 1500 * 50) + '%';
+    ntickBar.style.background = clamped > 0 ? 'var(--bull)' : 'var(--bear)';
+  }
 }
 
 function renderBriefing(snap) {
@@ -2791,6 +2897,17 @@ function renderBriefing(snap) {
     eodEl.textContent   = bf.eod_theta_warn;
   } else {
     eodEl.style.display = 'none';
+  }
+
+  // ── Trend/structure conflict ─────────────────────────────────────
+  const conflictEl = document.getElementById('bfConflictNote');
+  if (conflictEl) {
+    if (bf.struct_conflict && bf.conflict_note) {
+      conflictEl.style.display = '';
+      conflictEl.textContent   = '\u26a0\ufe0f  ' + bf.conflict_note;
+    } else {
+      conflictEl.style.display = 'none';
+    }
   }
 
   // ── Structural factors (collapsible) ─────────────────────────────
@@ -3086,6 +3203,49 @@ function hideDisconnectBanner() {
   banner.className = 'disconnect-banner';
 }
 
+function _startStaleChecker() {
+  if (_staleCheckInt) return;
+  _staleCheckInt = setInterval(() => {
+    if (_lastTickTime === 0) return;   // no tick received yet
+    const age = Date.now() - _lastTickTime;
+    if (!_isStale && age > _staleThreshMs) {
+      _isStale = true;
+      showDisconnectBanner();
+      const msgEl = document.getElementById('disconnectMsg');
+      if (msgEl) msgEl.textContent = '\u26a0\ufe0f  DATA STALE \u2014 TOS not feeding';
+    } else if (_isStale && age <= _staleThreshMs) {
+      _isStale = false;
+      hideDisconnectBanner();
+    }
+  }, 2000);
+}
+
+async function toggleDTE() {
+  const next = _dteMode === '0DTE' ? '1DTE' : '0DTE';
+  try {
+    await fetch(`${API}/dte/set?mode=${next}`, { method: 'POST' });
+    _dteMode = next;
+    _updateDTEDisplay();
+  } catch(e) {
+    console.warn('DTE toggle failed:', e);
+  }
+}
+
+function _updateDTEDisplay() {
+  const badge  = document.getElementById('dteBadge');
+  const btn    = document.getElementById('dteToggleBtn');
+  if (!badge || !btn) return;
+  if (_dteMode === '1DTE') {
+    badge.textContent = '1DTE';
+    btn.textContent   = '0DTE';
+    btn.classList.add('dte-active-1');
+  } else {
+    badge.textContent = '0DTE';
+    btn.textContent   = '1DTE';
+    btn.classList.remove('dte-active-1');
+  }
+}
+
 function markRetryFailed() {
   const banner  = document.getElementById('disconnectBanner');
   const retryEl = document.getElementById('disconnectRetry');
@@ -3100,6 +3260,7 @@ function connect() {
   ws.onopen = () => {
     setStatus('live');
     hideDisconnectBanner();
+    _startStaleChecker();
   };
 
   ws.onmessage = e => {
@@ -3964,6 +4125,12 @@ async function runSettingsAdvisor() {
     return;
   }
 
+  if (_isStale || _disconnectTime) {
+    bodyEl.className = 'advisor-body';
+    bodyEl.innerHTML = '<span class="advisor-no-key">\u26a0\ufe0f Data stale or disconnected — reconnect before running advisor.</span>';
+    return;
+  }
+
   if (!apiKey) {
     bodyEl.className   = 'advisor-body';
     bodyEl.innerHTML   = '<span class="advisor-no-key">No API key set — add key in AI Assistant section below.</span>';
@@ -4169,6 +4336,7 @@ function _buildCompactContext(snap) {
 async function _callClaude(messages, maxTokens = 300, systemPrompt = null) {
   const apiKey = localStorage.getItem('ai_api_key') || '';
   if (!apiKey) throw new Error('NO_KEY');
+  if (_isStale || _disconnectTime) throw new Error('STALE');
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -4263,7 +4431,7 @@ async function refreshAICommentary(force = false) {
     ageEl.textContent = refreshTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
   } catch(e) {
     textEl.className = 'ai-commentary-text muted';
-    textEl.textContent = e.message === 'NO_KEY' ? 'Add API key in Settings.' : `Error: ${e.message}`;
+    textEl.textContent = e.message === 'NO_KEY' ? 'Add API key in Settings.' : e.message === 'STALE' ? 'Data stale — reconnect first.' : `Error: ${e.message}`;
     ageEl.textContent = '';
   }
 }
@@ -4346,7 +4514,7 @@ async function sendAIChat() {
     _appendChatMsg('assistant', reply);
   } catch(e) {
     thinking?.remove();
-    const msg = e.message === 'NO_KEY' ? 'Add API key in Settings.' : `Error: ${e.message}`;
+    const msg = e.message === 'NO_KEY' ? 'Add API key in Settings.' : e.message === 'STALE' ? 'Data stale — reconnect first.' : `Error: ${e.message}`;
     _appendChatMsg('sys', msg);
     _aiChatHistory.pop(); // remove failed user message
   }

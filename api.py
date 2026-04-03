@@ -64,9 +64,47 @@ _last_snapshot: dict = {}   # cached by tick_loop; served by GET /snapshot
 _last_tick_seen: int   = -1
 _last_tick_time: float = 0.0
 
+# 1DTE next-trading-day cache
+_next_1dte_date: str   = ""     # "YYYY-MM-DD"
+_next_1dte_time: float = 0.0    # time.time() when cache was set
+_dte_mode: str         = "0DTE" # "0DTE" or "1DTE"
+
 # SPY volume tracker — rolling tick volume rate
 _spy_vol_history: deque = deque(maxlen=50)
 _spy_last_volume: float = 0.0
+
+# VIX EMA/SMA tracking
+_vix_history:  deque = deque(maxlen=21)
+_vix_open:     float = 0.0
+_vix_open_set: bool  = False
+
+def _compute_vix_signals(vix: float) -> dict:
+    """Compute VIX EMA(9)/SMA(21), cross signals, and vs open."""
+    global _vix_open, _vix_open_set
+    if vix is None:
+        return {}
+    _vix_history.append(vix)
+    if not _vix_open_set:
+        _vix_open     = vix
+        _vix_open_set = True
+    hist = list(_vix_history)
+    # EMA(9)
+    ema9 = hist[-1]
+    k9 = 2 / (9 + 1)
+    for v in hist[-9:]:
+        ema9 = v * k9 + ema9 * (1 - k9)
+    # SMA(21)
+    sma21 = sum(hist) / len(hist)
+    cross = "above" if ema9 > sma21 else "below"
+    vs_open = vix - _vix_open if _vix_open else 0.0
+    return {
+        "last":     round(vix, 2),
+        "ema9":     round(ema9, 2),
+        "sma21":    round(sma21, 2),
+        "cross":    cross,
+        "vs_open":  round(vs_open, 2),
+        "open":     round(_vix_open, 2),
+    }
 
 def _get_spy_vol_rate(current_volume: float, cfg: dict) -> tuple[float, float]:
     """Returns (tick_vol_rate, vol_ratio_vs_rolling_avg)."""
@@ -84,6 +122,25 @@ def _get_spy_vol_rate(current_volume: float, cfg: dict) -> tuple[float, float]:
 idea_logger = IdeaLogger(cfg=cfg_snapshot)
 
 logger.info("tos-dash-v2 starting up — root=%s", THIS_DIR)
+
+# ── 1DTE next-trading-day helpers ─────────────────────────────────────────────
+import time as _time_mod
+
+def _compute_next_trading_day() -> str:
+    """Return the next trading day after today as YYYY-MM-DD (skips Sat/Sun)."""
+    from datetime import date, timedelta
+    d = date.today() + timedelta(days=1)
+    while d.weekday() >= 5:  # 5=Sat, 6=Sun
+        d += timedelta(days=1)
+    return d.isoformat()
+
+def get_next_1dte() -> str:
+    """Return cached next trading day, refreshing if >1 hour old."""
+    global _next_1dte_date, _next_1dte_time
+    if not _next_1dte_date or (_time_mod.time() - _next_1dte_time) > 3600:
+        _next_1dte_date = _compute_next_trading_day()
+        _next_1dte_time = _time_mod.time()
+    return _next_1dte_date
 
 def _reconfigure_advisor(cfg: dict):
     """Apply EMA/SMA tick settings to the ScalpAdvisor instance."""
@@ -152,8 +209,9 @@ DEFAULT_CONFIG = {
     "momentum_short_ticks":   120,
     "momentum_medium_ticks":  360,
     "structure_gate_scanner": False,
-    "no_trade_gate":      True,
-    "briefing_eod_hour":  14,   # 2:30 PM ET = hour 14, minute 30
+    "no_trade_gate":          True,
+    "gate_hysteresis_ticks":  6,    # consecutive fail ticks before gate closes
+    "briefing_eod_hour":      14,   # 2:30 PM ET = hour 14, minute 30
     "iv_floor":              0.0,
     "iv_ceiling":            60.0,
 }
@@ -238,8 +296,12 @@ def build_snapshot() -> dict:
     spy_volume               = price_data.get("volume") or 0
     spy_vol_rate, spy_vol_ratio = _get_spy_vol_rate(spy_volume, cfg)
 
-    es_last  = price_data.get("es_last")
-    spx_last = price_data.get("spx_last")
+    es_last   = price_data.get("es_last")
+    spx_last  = price_data.get("spx_last")
+    vix_raw   = price_data.get("vix_last")
+    ntick_raw = price_data.get("ntick_val")
+    vix_signals = _compute_vix_signals(vix_raw)
+    ntick = int(ntick_raw) if ntick_raw is not None else None
 
     # Live cross-instrument ratios — recomputed every tick from RTD prices.
     # All three ratios default to None if either price is unavailable.
@@ -574,6 +636,17 @@ def build_snapshot() -> dict:
         _best_call = _best_contract("Call")
         _best_put  = _best_contract("Put")
 
+        # ── Trend/structure conflict detection ──────────────────────────────
+        # Conflict = momentum trend direction disagrees with structural lean
+        _struct_conflict = False
+        _conflict_note   = ""
+        if _s_lean == "Bull" and _trend in ("Bearish", "BEARISH", "bearish"):
+            _struct_conflict = True
+            _conflict_note   = "Trend BEARISH but structure BULL — avoid longs"
+        elif _s_lean == "Bear" and _trend in ("Bullish", "BULLISH", "bullish"):
+            _struct_conflict = True
+            _conflict_note   = "Trend BULLISH but structure BEAR — avoid shorts"
+
         briefing = {
             "trade_active":    _gate_pass,
             "no_trade_reason": _no_trade_reason,
@@ -590,6 +663,8 @@ def build_snapshot() -> dict:
                                                else _best_put),
             "is_eod":          _is_eod,
             "invalidation":    ms.invalidation if ms else "",
+            "struct_conflict": _struct_conflict,
+            "conflict_note":   _conflict_note,
         }
     except Exception as e:
         logger.warning("Briefing error: %s", e)
@@ -620,6 +695,10 @@ def build_snapshot() -> dict:
         "spx_spy_ratio":    spx_spy_ratio,
         "spx_es_ratio":     spx_es_ratio,
         "briefing":         briefing,
+        "dte_mode":         _dte_mode,
+        "next_1dte":        get_next_1dte(),
+        "vix":              vix_signals,
+        "ntick":            ntick,
         "active_ideas":     idea_logger.get_active_ideas(),
         "positions":        positions,
         "chain":            {sym: {"LAST": chain_data.get("chain", {}).get(sym, {}).get("LAST")}
@@ -689,8 +768,9 @@ class ConfigUpdate(BaseModel):
     momentum_short_ticks:    Optional[int]   = None
     momentum_medium_ticks:   Optional[int]   = None
     structure_gate_scanner:  Optional[bool]  = None
-    no_trade_gate:           Optional[bool]  = None
-    briefing_eod_hour:       Optional[int]   = None
+    no_trade_gate:            Optional[bool]  = None
+    gate_hysteresis_ticks:    Optional[int]   = None
+    briefing_eod_hour:        Optional[int]   = None
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(title="tos-dash-v2")
@@ -738,12 +818,20 @@ async def _watchdog():
                     threading.Thread(target=start_writer, daemon=True).start()
                     _last_tick_time = now  # reset to avoid rapid restarts
 
+            # Midnight refresh — reset 1DTE cache so next call recomputes
+            from datetime import datetime as _dt
+            if _dt.now().hour == 0 and _dt.now().minute < 1:
+                global _next_1dte_date, _next_1dte_time
+                _next_1dte_date = ""
+                _next_1dte_time = 0.0
+
         except Exception as e:
             logger.error(f"Watchdog error: {e}")
 
 
 @app.on_event("startup")
 async def startup():
+    get_next_1dte()   # warm 1DTE cache on boot
     start_writer()
     asyncio.create_task(tick_loop())
     asyncio.create_task(_watchdog())
@@ -796,6 +884,18 @@ def update_config(update: ConfigUpdate):
 def restart_writer():
     threading.Thread(target=start_writer, daemon=True).start()
     return {"status": "restarting"}
+
+@app.get("/dte/next")
+def dte_next():
+    return {"next_1dte": get_next_1dte(), "dte_mode": _dte_mode}
+
+@app.post("/dte/set")
+def dte_set(mode: str):
+    global _dte_mode
+    if mode not in ("0DTE", "1DTE"):
+        return {"error": f"Invalid mode '{mode}' — use '0DTE' or '1DTE'"}
+    _dte_mode = mode
+    return {"dte_mode": _dte_mode, "next_1dte": get_next_1dte()}
 
 @app.get("/status")
 def get_status():

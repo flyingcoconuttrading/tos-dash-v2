@@ -374,6 +374,16 @@ class IdeaLogger:
         _ms_trend  = getattr(ms, "trend", "?") if ms else "?"
         _str_lean  = getattr(getattr(ms, "checklist", None), "structural_lean", "?")
         _str_conf  = getattr(getattr(ms, "checklist", None), "structural_confidence", "?")
+        # Trend/structure conflict check at surface time
+        _conflict = (
+            (_str_lean == "Bull" and _ms_trend in ("Bearish", "BEARISH", "bearish")) or
+            (_str_lean == "Bear" and _ms_trend in ("Bullish", "BULLISH", "bullish"))
+        )
+        if _conflict:
+            self._log.warning(
+                "IDEA #%d CONFLICT at surface: trend=%s vs structure=%s — proceed with caution",
+                idea_id, _ms_trend, _str_lean,
+            )
         self._log.info(
             "IDEA #%d SURFACED  %s  score=%.1f  mark=%.2f  spy=%.2f  delta=%.2f"
             "  regime=%s  trend=%s  dex=%s  structure=%s(%s)"

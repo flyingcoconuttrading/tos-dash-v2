@@ -50,6 +50,8 @@ TEST_DATE     = cfg.get("test_date", None)
 
 ES_SYMBOL     = "/ES:XCME"
 SPX_SYMBOL    = "$SPX"
+VIX_SYMBOL    = "$VIX.X"
+NTICK_SYMBOL  = "$TICK"
 COMPANION_QTS = [QuoteType.LAST]   # only need LAST for ratio tracking
 
 OPTION_QTS = [
@@ -148,6 +150,17 @@ for sym in (ES_SYMBOL, SPX_SYMBOL):
 print(f"[writer] Subscribed to {ES_SYMBOL} and {SPX_SYMBOL} (LAST only)",
       file=sys.stderr)
 
+# ── Subscribe to VIX and NYSE TICK ───────────────────────────────────────────
+for sym in (VIX_SYMBOL, NTICK_SYMBOL):
+    for qt in COMPANION_QTS:
+        try:
+            client.subscribe(qt, sym)
+        except Exception as e:
+            print(f"[writer] Warning: could not subscribe {sym}: {e}",
+                  file=sys.stderr)
+print(f"[writer] Subscribed to {VIX_SYMBOL} and {NTICK_SYMBOL} (LAST only)",
+      file=sys.stderr)
+
 # ── Wait for initial price ────────────────────────────────────────────────────
 initial_price = None
 for _ in range(30):
@@ -209,8 +222,10 @@ while True:
         spy_volume   = safe_float(getattr(raw.get((SYMBOL, "VOLUME")),   "value", None))
         spy_bid_size = safe_float(getattr(raw.get((SYMBOL, "BID_SIZE")), "value", None))
         spy_ask_size = safe_float(getattr(raw.get((SYMBOL, "ASK_SIZE")), "value", None))
-        es_last  = safe_float(getattr(raw.get((ES_SYMBOL,  "LAST")), "value", None))
-        spx_last = safe_float(getattr(raw.get((SPX_SYMBOL, "LAST")), "value", None))
+        es_last   = safe_float(getattr(raw.get((ES_SYMBOL,    "LAST")), "value", None))
+        spx_last  = safe_float(getattr(raw.get((SPX_SYMBOL,  "LAST")), "value", None))
+        vix_last  = safe_float(getattr(raw.get((VIX_SYMBOL,  "LAST")), "value", None))
+        ntick_val = safe_float(getattr(raw.get((NTICK_SYMBOL,"LAST")), "value", None))
 
         price_payload = {
             "symbol":    SYMBOL,
@@ -227,6 +242,8 @@ while True:
             "test_mode": TEST_MODE,
             "es_last":   es_last,
             "spx_last":  spx_last,
+            "vix_last":  vix_last,
+            "ntick_val": ntick_val,
         }
         (THIS_DIR / "spy_price.json").write_text(json.dumps(price_payload, indent=2))
 

@@ -135,6 +135,10 @@ class ScalpAdvisor:
         # reference to latest MarketStructure — set each tick for structural gate
         self._ms_ref = None
 
+        # gate hysteresis — prevent briefing flicker when gate condition momentarily fails
+        self._gate_fail_ticks: int  = 0   # consecutive ticks gate condition was false
+        self._gate_open: bool       = False  # True while gate is passing
+
     def reset(self):
         self._score_history.clear()
         self._tick_count.clear()
@@ -148,6 +152,8 @@ class ScalpAdvisor:
         self._day_high          = 0.0
         self._day_low           = float('inf')
         self._cfg.clear()
+        self._gate_fail_ticks = 0
+        self._gate_open       = False
 
     def get_recommendations(
         self,
@@ -258,21 +264,29 @@ class ScalpAdvisor:
         # ── No-trade gate ─────────────────────────────────────────────────────
         # Require: TRENDING regime + non-Choppy trend + structural Strong/Moderate
         # When gate fails, return empty list — scanner goes silent.
+        ms_cl  = getattr(self._ms_ref, "checklist", None) if self._ms_ref else None
+        s_conf = ms_cl.structural_confidence if ms_cl else "Insufficient"
+        s_lean = ms_cl.structural_lean       if ms_cl else "Mixed"
+
         if self._cfg.get("no_trade_gate", True):
-            ms_cl  = getattr(self._ms_ref, "checklist", None) if self._ms_ref else None
-            s_conf = ms_cl.structural_confidence if ms_cl else "Insufficient"
-            s_lean = ms_cl.structural_lean       if ms_cl else "Mixed"
             gate_pass = (
                 gex_negative                                      # TRENDING (negative GEX)
                 and trend not in ("Choppy", "CHOPPY", "choppy")  # non-Choppy
                 and s_conf in ("Strong", "Moderate")             # structural conviction
                 and s_lean in ("Bull", "Bear")                   # clear directional lean
             )
-            if not gate_pass:
+            hysteresis = int(self._cfg.get("gate_hysteresis_ticks", 6))
+            if gate_pass:
+                self._gate_fail_ticks = 0
+                self._gate_open       = True
+            else:
+                if self._gate_open:
+                    self._gate_fail_ticks += 1
+                    if self._gate_fail_ticks >= hysteresis:
+                        self._gate_open = False
+                # gate_open=False and gate_pass=False → still closed, no change needed
+            if not self._gate_open:
                 return []
-        else:
-            ms_cl  = getattr(self._ms_ref, "checklist", None) if self._ms_ref else None
-            s_lean = ms_cl.structural_lean if ms_cl else "Mixed"
 
         for strike in strikes:
             for opt_type in ("Call", "Put"):
