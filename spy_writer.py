@@ -204,8 +204,11 @@ print(f"[writer] Subscribed to {subscribed} option fields — poll loop starting
 time.sleep(0.3)
 
 # ── Write loop ────────────────────────────────────────────────────────────────
-tick     = 0
-poll_sec = POLL_MS / 1000.0
+tick              = 0
+poll_sec          = POLL_MS / 1000.0
+_last_spy_price   = None   # previous SPY price for freeze detection
+_frozen_ticks     = 0      # consecutive ticks with unchanged price
+_FREEZE_THRESHOLD = 20     # 10 seconds at 500ms = data likely stale
 
 while True:
     t0 = time.perf_counter()
@@ -245,6 +248,14 @@ while True:
             "vix_last":  vix_last,
             "ntick_val": ntick_val,
         }
+        # Detect price freeze (RTD stopped feeding)
+        if spy_last is not None and spy_last == _last_spy_price:
+            _frozen_ticks += 1
+        else:
+            _frozen_ticks = 0
+        _last_spy_price = spy_last
+        price_payload["rtd_stale"] = _frozen_ticks >= _FREEZE_THRESHOLD
+        price_payload["frozen_ticks"] = _frozen_ticks
         (THIS_DIR / "spy_price.json").write_text(json.dumps(price_payload, indent=2))
 
         chain = {}
@@ -288,9 +299,10 @@ while True:
             "positions": positions,
         }, indent=2))
 
+        live = sum(1 for e in chain.values() for v in e.values() if v is not None)
+        price_payload["live_fields"] = live
         if tick % 60 == 0:
-            live = sum(1 for e in chain.values() for v in e.values() if v is not None)
-            print(f"[writer] tick={tick} {SYMBOL}=${spy_last} live={live}", file=sys.stderr)
+            print(f"[writer] tick={tick} {SYMBOL}=${spy_last} live={live} frozen={_frozen_ticks}", file=sys.stderr)
 
         tick += 1
 

@@ -206,6 +206,8 @@ DEFAULT_CONFIG = {
     "pinned_max_score":       62,
     "max_surface_score":      100,
     "paper_stop_pct_pinned":  0.20,
+    "paper_starting_balance": 10000.0,
+    "paper_risk_pct":         2.0,
     "momentum_short_ticks":   120,
     "momentum_medium_ticks":  360,
     "structure_gate_scanner": False,
@@ -678,6 +680,8 @@ def build_snapshot() -> dict:
         "bid":              price_data.get("bid"),
         "ask":              price_data.get("ask"),
         "mark":             price_data.get("mark"),
+        "rtd_stale":        price_data.get("rtd_stale", False),
+        "live_fields":      price_data.get("live_fields", 0),
         "expiry":           expiry,
         "test_mode":        price_data.get("test_mode", False),
         "max_pain":         max_pain,
@@ -699,6 +703,7 @@ def build_snapshot() -> dict:
         "next_1dte":        get_next_1dte(),
         "vix":              vix_signals,
         "ntick":            ntick,
+        "paper_stats":      idea_logger.get_paper_stats(),
         "active_ideas":     idea_logger.get_active_ideas(),
         "positions":        positions,
         "chain":            {sym: {"LAST": chain_data.get("chain", {}).get(sym, {}).get("LAST")}
@@ -765,6 +770,8 @@ class ConfigUpdate(BaseModel):
     pinned_max_score:        Optional[float] = None
     max_surface_score:       Optional[float] = None
     paper_stop_pct_pinned:   Optional[float] = None
+    paper_starting_balance:  Optional[float] = None
+    paper_risk_pct:          Optional[float] = None
     momentum_short_ticks:    Optional[int]   = None
     momentum_medium_ticks:   Optional[int]   = None
     structure_gate_scanner:  Optional[bool]  = None
@@ -885,6 +892,15 @@ def restart_writer():
     threading.Thread(target=start_writer, daemon=True).start()
     return {"status": "restarting"}
 
+@app.get("/paper/stats")
+def get_paper_stats_endpoint():
+    """Return paper trading balance and daily P&L."""
+    try:
+        return idea_logger.get_paper_stats()
+    except Exception as e:
+        logger.error("Paper stats error: %s", e)
+        return {"balance": 0, "daily_pnl": 0, "daily_count": 0}
+
 @app.get("/dte/next")
 def dte_next():
     return {"next_1dte": get_next_1dte(), "dte_mode": _dte_mode}
@@ -895,13 +911,7 @@ def dte_set(mode: str):
     if mode not in ("0DTE", "1DTE"):
         return {"error": f"Invalid mode '{mode}' — use '0DTE' or '1DTE'"}
     _dte_mode = mode
-    new_expiry = get_next_1dte() if mode == "1DTE" else None
-    _cfg = load_config()
-    _cfg["expiry_date"] = new_expiry
-    save_config(_cfg)
-    threading.Thread(target=start_writer, daemon=True).start()
-    logger.info("DTE switched to %s — expiry_date=%s, writer restarting", mode, new_expiry)
-    return {"dte_mode": _dte_mode, "next_1dte": get_next_1dte(), "expiry_date": new_expiry}
+    return {"dte_mode": _dte_mode, "next_1dte": get_next_1dte()}
 
 @app.get("/status")
 def get_status():

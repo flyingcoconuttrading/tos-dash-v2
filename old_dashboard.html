@@ -92,25 +92,6 @@ header {
 .status-dot.live  { background: var(--bull); box-shadow: 0 0 8px var(--bull); }
 .status-dot.error { background: var(--bear); }
 
-/* AI call indicator */
-.ai-call-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--muted);
-  transition: background 0.15s, box-shadow 0.15s;
-  flex-shrink: 0;
-}
-.ai-call-dot.active {
-  background: var(--neutral);
-  box-shadow: 0 0 6px var(--neutral);
-}
-.ai-call-label {
-  font-family: var(--mono);
-  font-size: 9px;
-  color: var(--muted);
-  letter-spacing: 0.08em;
-}
-
 .status-txt {
   font-family: var(--mono);
   font-size: 10px;
@@ -528,25 +509,6 @@ header {
   padding: 5px 0;
   margin-top: 4px;
 }
-/* ── Paper balance bar ── */
-.paper-balance-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 5px 10px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  font-family: var(--mono);
-  font-size: 9px;
-  color: var(--dim);
-  margin-bottom: 6px;
-  flex-shrink: 0;
-}
-.paper-bal-val { font-size: 11px; font-weight: 700; }
-.paper-pnl-pos { color: var(--bull); }
-.paper-pnl-neg { color: var(--bear); }
-
 .bf-factors-toggle {
   font-family: var(--mono);
   font-size: 9px;
@@ -1400,8 +1362,6 @@ header {
     <button class="dte-toggle" id="dteToggleBtn" onclick="toggleDTE()" title="Switch expiry">1DTE</button>
     <div class="status-dot" id="statusDot"></div>
     <span class="status-txt" id="statusTxt">CONNECTING</span>
-    <div class="ai-call-dot" id="aiCallDot" title="AI API calls"></div>
-    <span class="ai-call-label" id="aiCallLabel">AI 0</span>
     <span class="version-tag">v2.1</span>
     <span class="ts" id="tsEl">--</span>
   </div>
@@ -1561,13 +1521,6 @@ header {
     <div class="panel" style="display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden">
       <div style="padding:16px;border-bottom:1px solid var(--border);flex-shrink:0">
         <div class="panel-title">Scalp Candidates</div>
-        <!-- Paper balance -->
-        <div class="paper-balance-bar" id="paperBalanceBar" style="display:none">
-          <span style="color:var(--muted)">PAPER</span>
-          <span class="paper-bal-val" id="paperBalance">$10,000</span>
-          <span id="paperDailyPnl">Day: --</span>
-          <span id="paperTradeCount" style="color:var(--muted)">0T</span>
-        </div>
         <div id="candContainer"><div class="no-data-msg">Waiting for data...</div></div>
       </div>
       <div style="padding:16px;flex:1;overflow-y:auto">
@@ -2308,24 +2261,6 @@ header {
             <span class="field-desc">Take-profit level 3 (e.g. 0.75 = +75%)</span>
           </div>
         </div>
-        <div class="field-row">
-          <span class="field-label">STARTING BAL $</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_paper_starting_balance"
-                   type="number" min="1000" max="100000" step="500"
-                   style="max-width:100px">
-            <span class="field-desc">Virtual starting balance. Default $10,000.</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">RISK PER TRADE %</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_paper_risk_pct"
-                   type="number" min="0.5" max="10" step="0.5"
-                   style="max-width:90px">
-            <span class="field-desc">% of current balance risked per trade. 2% = $200 on $10k. Contracts = risk$ ÷ (mark × 100 × stop%).</span>
-          </div>
-        </div>
       </div>
 
       <!-- ── TRADING CONTROLS ── -->
@@ -2601,24 +2536,14 @@ function setStatus(s) {
 function update(snap) {
   if (!snap || snap.error) return;
 
+  // Always track last WebSocket message time (before early-return guard)
+  // Used by stale checker — must update even when tick is unchanged
   _lastTickTime = Date.now();
-
-  // RTD stale flag — writer detected price frozen (OnDemand/TOS stopped feeding)
-  // Fires even when ticks advance, catching scenarios the tick-advance check misses
-  if (snap.rtd_stale && !_isStale) {
-    _isStale = true;
-    showDisconnectBanner();
-    const _staleMsg = document.getElementById('disconnectMsg');
-    if (_staleMsg) _staleMsg.textContent = '⚠️  DATA STALE — RTD not feeding';
-  } else if (!snap.rtd_stale && _isStale) {
-    _isStale = false;
-    hideDisconnectBanner();
-  }
 
   if (snap.tick === lastTick) return;
   lastTick = snap.tick;
   _lastTickSeen = snap.tick;
-  _lastTickAdvance = Date.now();
+  if (_isStale) { _isStale = false; hideDisconnectBanner(); }
 
   // Sync DTE mode from server
   if (snap.dte_mode && snap.dte_mode !== _dteMode) {
@@ -2728,7 +2653,6 @@ function update(snap) {
   // Briefing panel
   renderBriefing(snap);
   updateTickVix(snap);
-  updatePaperBalance(snap);
 
   // Converter widget
   updateConverter(snap);
@@ -2813,33 +2737,6 @@ function updateTickVix(snap) {
     ntickBar.style.width      = Math.abs(clamped / 1500 * 50) + '%';
     ntickBar.style.marginLeft = clamped >= 0 ? '50%' : (50 + clamped / 1500 * 50) + '%';
     ntickBar.style.background = clamped > 0 ? 'var(--bull)' : 'var(--bear)';
-  }
-}
-
-function updatePaperBalance(snap) {
-  const ps  = snap.paper_stats;
-  const bar = document.getElementById('paperBalanceBar');
-  if (!ps || !bar) return;
-  bar.style.display = '';
-
-  const balEl = document.getElementById('paperBalance');
-  const pnlEl = document.getElementById('paperDailyPnl');
-  const cntEl = document.getElementById('paperTradeCount');
-
-  if (balEl) {
-    balEl.textContent = '$' + Math.round(ps.balance).toLocaleString('en-US');
-    balEl.style.color = ps.balance >= ps.starting_balance
-      ? 'var(--bull)' : 'var(--bear)';
-  }
-  if (pnlEl) {
-    const d    = ps.daily_pnl || 0;
-    const sign = d >= 0 ? '+' : '';
-    pnlEl.textContent = `Day: ${sign}$${Math.abs(d).toFixed(0)}`;
-    pnlEl.className   = d >= 0 ? 'paper-pnl-pos' : 'paper-pnl-neg';
-  }
-  if (cntEl) {
-    cntEl.textContent =
-      `${ps.daily_count}T ${ps.daily_targets}W ${ps.daily_stops}L`;
   }
 }
 
@@ -3451,8 +3348,6 @@ function loadSettings() {
       document.getElementById('cfg_pinned_allowed_trends').value  = (cfg.pinned_allowed_trends || ['Downtrend']).join(', ');
       document.getElementById('cfg_pinned_max_score').value       = cfg.pinned_max_score       ?? 62;
       document.getElementById('cfg_paper_stop_pct_pinned').value  = cfg.paper_stop_pct_pinned  ?? 0.20;
-      document.getElementById('cfg_paper_starting_balance').value = cfg.paper_starting_balance ?? 10000;
-      document.getElementById('cfg_paper_risk_pct').value         = cfg.paper_risk_pct         ?? 2.0;
       document.getElementById('cfg_momentum_short_ticks').value   = cfg.momentum_short_ticks   ?? 120;
       document.getElementById('cfg_momentum_medium_ticks').value  = cfg.momentum_medium_ticks  ?? 360;
       const sgOn = cfg.structure_gate_scanner ?? false;
@@ -3532,8 +3427,6 @@ function saveSettings() {
     pinned_allowed_trends:  get('cfg_pinned_allowed_trends').value.split(',').map(s => s.trim()).filter(Boolean),
     pinned_max_score:       parseFloat(get('cfg_pinned_max_score').value),
     paper_stop_pct_pinned:  parseFloat(get('cfg_paper_stop_pct_pinned').value),
-    paper_starting_balance: parseFloat(get('cfg_paper_starting_balance').value),
-    paper_risk_pct:         parseFloat(get('cfg_paper_risk_pct').value),
     momentum_short_ticks:   parseInt(get('cfg_momentum_short_ticks').value),
     momentum_medium_ticks:  parseInt(get('cfg_momentum_medium_ticks').value),
     structure_gate_scanner: get('cfg_structure_gate_scanner').checked,
@@ -4481,18 +4374,9 @@ async function _callClaude(messages, maxTokens = 300, systemPrompt = null) {
 
 function _updateApiCounterDisplay() {
   const el = document.getElementById('apiCallCounter');
-  if (el) {
-    el.textContent =
-      `Today: ${_apiCallToday}  ·  Session: ${_apiCallSession}  ·  Total: ${_apiCallTotal}`;
-  }
-  // Flash AI dot in header
-  const dot   = document.getElementById('aiCallDot');
-  const label = document.getElementById('aiCallLabel');
-  if (dot) {
-    dot.classList.add('active');
-    setTimeout(() => dot.classList.remove('active'), 1500);
-  }
-  if (label) label.textContent = `AI ${_apiCallSession}`;
+  if (!el) return;
+  el.textContent =
+    `Today: ${_apiCallToday}  ·  Session: ${_apiCallSession}  ·  Total: ${_apiCallTotal}`;
 }
 
 function resetApiCallTotal() {

@@ -73,6 +73,7 @@ IDEA_HEADERS = [
     "out_marks_json",
     "paper_entry_ask", "paper_exit_bid", "paper_exit_reason",
     "paper_exit_minute", "paper_pnl_pct",
+    "paper_contracts", "paper_dollar_pnl",
 ]
 EVENT_HEADERS = ["id","idea_id","event_time","event_type","score","mark","spy","spy_move","vol_ratio","detail"]
 ALERT_HEADERS = ["id","logged_at","alert_zone","alert_message","spy_price","snap_level","snap_distance","snap_direction","regime","bias","net_gex","net_dex"]
@@ -323,6 +324,18 @@ class IdeaLogger:
     def _surface_new_idea(self, key, candidate, spy_price, spy_vol_rate, spy_vol_ratio, ms, surge_syms, now):
         call_wall = getattr(ms, "call_wall", None)
         put_wall  = getattr(ms, "put_wall", None)
+
+        # Compute position sizing before building row dict
+        _p_balance  = self._cfg.get("paper_starting_balance", 10000.0)
+        _p_risk_pct = self._cfg.get("paper_risk_pct", 2.0)
+        _today_pnl  = self._get_today_dollar_pnl()
+        _cur_bal    = _p_balance + _today_pnl
+        _risk_dol   = _cur_bal * (_p_risk_pct / 100.0)
+        _e_ask      = float(candidate.ask) if float(candidate.ask) > 0 else float(candidate.mark)
+        _stop_pct_v = self._cfg.get("paper_stop_pct", 0.30)
+        _risk_per_c = _e_ask * 100 * _stop_pct_v
+        _contracts  = max(1, int(_risk_dol / _risk_per_c)) if _risk_per_c > 0 else 1
+
         row = {
             "model_version":       MODEL_VERSION,
             "symbol":              candidate.symbol,
@@ -358,7 +371,8 @@ class IdeaLogger:
             "status":              STATUS_ACTIVE,
             "reentry_count":       0,
             "traded":              0,
-            "paper_entry_ask":     float(candidate.ask) if float(candidate.ask) > 0 else float(candidate.mark),
+            "paper_entry_ask":     _e_ask,
+            "paper_contracts":     _contracts,
         }
         idea_id = self._db_insert_idea(row)
         self._csv_append_idea({**{k: "" for k in IDEA_HEADERS}, **row, "id": idea_id})
@@ -670,6 +684,23 @@ class IdeaLogger:
             if row["paper_entry_ask"]:
                 self._run_paper_sim(row, existing, elapsed_min)
 
+    def _get_today_dollar_pnl(self) -> float:
+        """Sum of paper_dollar_pnl for ideas closed today."""
+        from datetime import date
+        today = date.today().isoformat()
+        try:
+            with self._connect() as conn:
+                cur = conn.execute("""
+                    SELECT COALESCE(SUM(paper_dollar_pnl), 0)
+                    FROM ideas
+                    WHERE paper_exit_reason IS NOT NULL
+                      AND date(surfaced_at) = ?
+                      AND paper_dollar_pnl IS NOT NULL
+                """, (today,))
+                return float(cur.fetchone()[0])
+        except Exception:
+            return 0.0
+
     def _run_paper_sim(self, row, marks: dict, elapsed_min: float):
         """Evaluate paper trade exit against captured marks. Writes once when exit triggers."""
         entry_ask = row["paper_entry_ask"]
@@ -740,14 +771,18 @@ class IdeaLogger:
         if exit_reason is None:
             return  # not yet triggered
 
-        pnl_pct = (exit_bid - entry_ask) / entry_ask * 100
+        pnl_pct    = (exit_bid - entry_ask) / entry_ask * 100
+        contracts  = row.get("paper_contracts") or 1
+        dollar_pnl = (exit_bid - entry_ask) * 100 * contracts
         with self._connect() as conn:
             conn.execute("""
                 UPDATE ideas
                 SET paper_exit_bid=?, paper_exit_reason=?,
-                    paper_exit_minute=?, paper_pnl_pct=?
+                    paper_exit_minute=?, paper_pnl_pct=?,
+                    paper_dollar_pnl=?
                 WHERE id=?
-            """, (exit_bid, exit_reason, exit_minute, pnl_pct, row["id"]))
+            """, (exit_bid, exit_reason, exit_minute, pnl_pct,
+                  dollar_pnl, row["id"]))
 
     # ── Public read API ───────────────────────────────────────────────────────
 
@@ -767,6 +802,60 @@ class IdeaLogger:
                 "reentry_count": state.reentry_count,
                 "age_min":       round((datetime.now() - state.surfaced_at).total_seconds()/60, 1),
             } for state in self._active.values()]
+
+    def get_paper_stats(self) -> dict:
+        """Return paper trading balance, daily P&L, and trade counts."""
+        from datetime import date
+        today        = date.today().isoformat()
+        cfg          = self._cfg
+        starting_bal = cfg.get("paper_starting_balance", 10000.0)
+        try:
+            with self._connect() as conn:
+                conn.row_factory = sqlite3.Row
+                cur = conn.execute("""
+                    SELECT
+                        COUNT(*)                                                           AS count,
+                        COALESCE(SUM(paper_dollar_pnl), 0)                                AS daily_pnl,
+                        SUM(CASE WHEN paper_exit_reason LIKE 'TARGET%' THEN 1 ELSE 0 END) AS targets,
+                        SUM(CASE WHEN paper_exit_reason = 'STOP'       THEN 1 ELSE 0 END) AS stops
+                    FROM ideas
+                    WHERE paper_exit_reason IS NOT NULL
+                      AND date(surfaced_at) = ?
+                      AND paper_dollar_pnl  IS NOT NULL
+                """, (today,))
+                row           = cur.fetchone()
+                daily_count   = row["count"]
+                daily_pnl     = float(row["daily_pnl"])
+                daily_targets = row["targets"] or 0
+                daily_stops   = row["stops"]   or 0
+                cur2 = conn.execute("""
+                    SELECT COALESCE(SUM(paper_dollar_pnl), 0) AS total_pnl
+                    FROM ideas
+                    WHERE paper_exit_reason IS NOT NULL
+                      AND paper_dollar_pnl  IS NOT NULL
+                """)
+                total_pnl = float(cur2.fetchone()[0])
+            return {
+                "starting_balance": starting_bal,
+                "balance":          round(starting_bal + total_pnl, 2),
+                "total_pnl":        round(total_pnl, 2),
+                "daily_pnl":        round(daily_pnl, 2),
+                "daily_count":      daily_count,
+                "daily_targets":    daily_targets,
+                "daily_stops":      daily_stops,
+                "risk_pct":         cfg.get("paper_risk_pct", 2.0),
+            }
+        except Exception:
+            return {
+                "starting_balance": starting_bal,
+                "balance":          starting_bal,
+                "total_pnl":        0.0,
+                "daily_pnl":        0.0,
+                "daily_count":      0,
+                "daily_targets":    0,
+                "daily_stops":      0,
+                "risk_pct":         2.0,
+            }
 
     def get_all_ideas(self) -> list:
         with self._connect() as conn:
@@ -878,6 +967,8 @@ class IdeaLogger:
             "paper_exit_reason TEXT",
             "paper_exit_minute INTEGER",
             "paper_pnl_pct REAL",
+            "paper_contracts INTEGER",
+            "paper_dollar_pnl REAL",
             "entry_dex_bias TEXT",
             "entry_ms_trend TEXT",
             "entry_structural_lean TEXT",
