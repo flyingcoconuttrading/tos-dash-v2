@@ -772,7 +772,7 @@ class IdeaLogger:
             return  # not yet triggered
 
         pnl_pct    = (exit_bid - entry_ask) / entry_ask * 100
-        contracts  = row.get("paper_contracts") or 1
+        contracts  = row["paper_contracts"] if row["paper_contracts"] else 1
         dollar_pnl = (exit_bid - entry_ask) * 100 * contracts
         with self._connect() as conn:
             conn.execute("""

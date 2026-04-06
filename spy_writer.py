@@ -50,7 +50,7 @@ TEST_DATE     = cfg.get("test_date", None)
 
 ES_SYMBOL     = "/ES:XCME"
 SPX_SYMBOL    = "$SPX"
-VIX_SYMBOL    = "$VIX.X"
+VIX_SYMBOL    = "$VIX"
 NTICK_SYMBOL  = "$TICK"
 COMPANION_QTS = [QuoteType.LAST]   # only need LAST for ratio tracking
 
@@ -206,9 +206,9 @@ time.sleep(0.3)
 # ── Write loop ────────────────────────────────────────────────────────────────
 tick              = 0
 poll_sec          = POLL_MS / 1000.0
-_last_spy_price   = None   # previous SPY price for freeze detection
-_frozen_ticks     = 0      # consecutive ticks with unchanged price
-_FREEZE_THRESHOLD = 20     # 10 seconds at 500ms = data likely stale
+_last_spy_mark    = None   # previous SPY MARK for freeze detection (LAST freezes premarket)
+_frozen_ticks     = 0      # consecutive ticks with unchanged MARK price
+_FREEZE_THRESHOLD = 120    # 120 ticks = 60s at 500ms — tolerates slow premarket movement
 
 while True:
     t0 = time.perf_counter()
@@ -248,16 +248,6 @@ while True:
             "vix_last":  vix_last,
             "ntick_val": ntick_val,
         }
-        # Detect price freeze (RTD stopped feeding)
-        if spy_last is not None and spy_last == _last_spy_price:
-            _frozen_ticks += 1
-        else:
-            _frozen_ticks = 0
-        _last_spy_price = spy_last
-        price_payload["rtd_stale"] = _frozen_ticks >= _FREEZE_THRESHOLD
-        price_payload["frozen_ticks"] = _frozen_ticks
-        (THIS_DIR / "spy_price.json").write_text(json.dumps(price_payload, indent=2))
-
         chain = {}
         positions = {}
         for sym in option_symbols:
@@ -280,6 +270,22 @@ while True:
                     "iv":              entry.get("IMPL_VOL"),
                 }
 
+        # Live field count — computed here so it's available for price_payload
+        live = sum(1 for e in chain.values() for v in e.values() if v is not None)
+        price_payload["live_fields"] = live
+
+        # Detect RTD freeze — use MARK (not LAST) because LAST freezes premarket
+        # MARK = (bid+ask)/2 and updates continuously even before market open
+        _mark_val = spy_mark if spy_mark is not None else spy_last
+        if _mark_val is not None and _mark_val == _last_spy_mark:
+            _frozen_ticks += 1
+        else:
+            _frozen_ticks = 0
+        _last_spy_mark = _mark_val
+        price_payload["rtd_stale"]    = _frozen_ticks >= _FREEZE_THRESHOLD
+        price_payload["frozen_ticks"] = _frozen_ticks
+        (THIS_DIR / "spy_price.json").write_text(json.dumps(price_payload, indent=2))
+
         chain_payload = {
             "symbol":        SYMBOL,
             "tick":          tick,
@@ -299,8 +305,6 @@ while True:
             "positions": positions,
         }, indent=2))
 
-        live = sum(1 for e in chain.values() for v in e.values() if v is not None)
-        price_payload["live_fields"] = live
         if tick % 60 == 0:
             print(f"[writer] tick={tick} {SYMBOL}=${spy_last} live={live} frozen={_frozen_ticks}", file=sys.stderr)
 

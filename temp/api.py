@@ -206,6 +206,8 @@ DEFAULT_CONFIG = {
     "pinned_max_score":       62,
     "max_surface_score":      100,
     "paper_stop_pct_pinned":  0.20,
+    "paper_starting_balance": 10000.0,
+    "paper_risk_pct":         2.0,
     "momentum_short_ticks":   120,
     "momentum_medium_ticks":  360,
     "structure_gate_scanner": False,
@@ -242,12 +244,6 @@ def start_writer():
             except subprocess.TimeoutExpired:
                 writer_proc.kill()
             writer_proc = None
-
-        # Reset VIX history so stale values don't persist into new session
-        global _vix_history, _vix_open, _vix_open_set
-        _vix_history.clear()
-        _vix_open     = 0.0
-        _vix_open_set = False
 
         logger.info("Starting spy_writer.py...")
         writer_proc = subprocess.Popen(
@@ -707,6 +703,7 @@ def build_snapshot() -> dict:
         "next_1dte":        get_next_1dte(),
         "vix":              vix_signals,
         "ntick":            ntick,
+        "paper_stats":      idea_logger.get_paper_stats(),
         "active_ideas":     idea_logger.get_active_ideas(),
         "positions":        positions,
         "chain":            {sym: {"LAST": chain_data.get("chain", {}).get(sym, {}).get("LAST")}
@@ -773,6 +770,8 @@ class ConfigUpdate(BaseModel):
     pinned_max_score:        Optional[float] = None
     max_surface_score:       Optional[float] = None
     paper_stop_pct_pinned:   Optional[float] = None
+    paper_starting_balance:  Optional[float] = None
+    paper_risk_pct:          Optional[float] = None
     momentum_short_ticks:    Optional[int]   = None
     momentum_medium_ticks:   Optional[int]   = None
     structure_gate_scanner:  Optional[bool]  = None
@@ -892,6 +891,15 @@ def update_config(update: ConfigUpdate):
 def restart_writer():
     threading.Thread(target=start_writer, daemon=True).start()
     return {"status": "restarting"}
+
+@app.get("/paper/stats")
+def get_paper_stats_endpoint():
+    """Return paper trading balance and daily P&L."""
+    try:
+        return idea_logger.get_paper_stats()
+    except Exception as e:
+        logger.error("Paper stats error: %s", e)
+        return {"balance": 0, "daily_pnl": 0, "daily_count": 0}
 
 @app.get("/dte/next")
 def dte_next():
