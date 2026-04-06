@@ -50,7 +50,7 @@ TEST_DATE     = cfg.get("test_date", None)
 
 ES_SYMBOL     = "/ES:XCME"
 SPX_SYMBOL    = "$SPX"
-VIX_SYMBOL    = "$VIX"
+VIX_SYMBOL    = "VIX"
 NTICK_SYMBOL  = "$TICK"
 COMPANION_QTS = [QuoteType.LAST]   # only need LAST for ratio tracking
 

@@ -79,14 +79,18 @@ def calculate_max_pain(data: dict, strikes: list, option_symbols: list,
 
 
 def calculate_walls(data: dict, strikes: list, option_symbols: list,
+                    current_price: float = 0.0,
                     debug: bool = False) -> tuple:
     """
-    Call Wall = strike with highest call OI within the provided strikes window.
-    Put Wall  = strike with highest put  OI within the provided strikes window.
+    Call Wall = strike ABOVE current price with highest call OI.
+    Put Wall  = strike BELOW current price with highest put OI.
 
-    The caller is responsible for pre-filtering strikes to the desired ±range
-    around current price (wall_range config key).  Global max within that
-    window matches the Streamlit reference implementation.
+    This matches the standard GEX definition:
+      - Call wall = resistance ceiling above price
+      - Put wall  = support floor below price
+
+    Falls back to global max if no strikes exist above/below price
+    (e.g. price is at extreme of chain range).
 
     Returns (call_wall, put_wall); either may be None.
     """
@@ -108,15 +112,29 @@ def calculate_walls(data: dict, strikes: list, option_symbols: list,
         call_oi[s] = _oi(c_sym) if c_sym else 0.0
         put_oi[s]  = _oi(p_sym) if p_sym else 0.0
 
-    call_wall = max(call_oi, key=call_oi.get) if call_oi else None
-    put_wall  = max(put_oi,  key=put_oi.get)  if put_oi  else None
+    # Filter by price: call wall above price, put wall below price
+    if current_price > 0:
+        above_strikes = {s: v for s, v in call_oi.items() if s > current_price}
+        below_strikes = {s: v for s, v in put_oi.items()  if s < current_price}
+        # Fall back to global max if no strikes exist in the filtered set
+        call_pool = above_strikes if above_strikes else call_oi
+        put_pool  = below_strikes if below_strikes else put_oi
+    else:
+        call_pool = call_oi
+        put_pool  = put_oi
+
+    call_wall = max(call_pool, key=call_pool.get) if call_pool else None
+    put_wall  = max(put_pool,  key=put_pool.get)  if put_pool  else None
 
     if debug:
-        top_calls = sorted(call_oi.items(), key=lambda x: x[1], reverse=True)[:5]
-        top_puts  = sorted(put_oi.items(),  key=lambda x: x[1], reverse=True)[:5]
-        print(f"[walls] {len(strikes)} strikes  ${min(strikes)}-${max(strikes)}")
-        print(f"[walls] top 5 call OI: {[(s, int(oi)) for s, oi in top_calls]}")
-        print(f"[walls] top 5 put  OI: {[(s, int(oi)) for s, oi in top_puts]}")
+        top_calls = sorted(call_pool.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_puts  = sorted(put_pool.items(),  key=lambda x: x[1], reverse=True)[:5]
+        print(f"[walls] price=${current_price}  {len(strikes)} strikes  "
+              f"${min(strikes)}-${max(strikes)}")
+        print(f"[walls] top 5 call OI (above ${current_price:.0f}): "
+              f"{[(s, int(oi)) for s, oi in top_calls]}")
+        print(f"[walls] top 5 put  OI (below ${current_price:.0f}): "
+              f"{[(s, int(oi)) for s, oi in top_puts]}")
         print(f"[walls] call_wall=${call_wall}  put_wall=${put_wall}")
 
     return call_wall, put_wall
@@ -185,7 +203,8 @@ class GammaChartBuilder:
 
         # Max pain + walls (filtered to wall_range window around current price)
         max_pain = calculate_max_pain(data, wall_strikes_list, wall_syms)
-        call_wall, put_wall = calculate_walls(data, wall_strikes_list, wall_syms, debug=False)
+        call_wall, put_wall = calculate_walls(data, wall_strikes_list, wall_syms,
+                                              current_price=price_ref, debug=False)
 
         self._add_traces(fig, pos_values, neg_values, strikes,
                          max_pos_strike, max_pos, max_neg_strike, min_neg)

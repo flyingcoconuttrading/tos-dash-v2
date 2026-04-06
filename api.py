@@ -78,14 +78,17 @@ _vix_history:  deque = deque(maxlen=21)
 _vix_open:     float = 0.0
 _vix_open_set: bool  = False
 
+
 def _compute_vix_signals(vix: float) -> dict:
     """Compute VIX EMA(9)/SMA(21), cross signals, and vs open."""
     global _vix_open, _vix_open_set
     if vix is None:
         return {}
     _vix_history.append(vix)
-    if not _vix_open_set:
-        _vix_open     = vix
+    # Wait for 3+ ticks before locking in open — first tick is often
+    # a stale RTD cache value from the previous session
+    if not _vix_open_set and len(_vix_history) >= 3:
+        _vix_open     = sorted(list(_vix_history)[:3])[1]  # median of first 3
         _vix_open_set = True
     hist = list(_vix_history)
     # EMA(9)
@@ -231,7 +234,10 @@ writer_proc: Optional[subprocess.Popen] = None
 writer_lock = threading.Lock()
 
 def start_writer():
-    global writer_proc
+    global writer_proc, _vix_history, _vix_open, _vix_open_set
+    _vix_history.clear()
+    _vix_open     = 0.0
+    _vix_open_set = False
     with writer_lock:
         # Kill existing
         if writer_proc and writer_proc.poll() is None:
@@ -242,12 +248,6 @@ def start_writer():
             except subprocess.TimeoutExpired:
                 writer_proc.kill()
             writer_proc = None
-
-        # Reset VIX history so stale values don't persist into new session
-        global _vix_history, _vix_open, _vix_open_set
-        _vix_history.clear()
-        _vix_open     = 0.0
-        _vix_open_set = False
 
         logger.info("Starting spy_writer.py...")
         writer_proc = subprocess.Popen(
@@ -392,7 +392,8 @@ def build_snapshot() -> dict:
             max_pain = None
 
         try:
-            call_wall, put_wall = calculate_walls(data, wall_strikes, wall_option_symbols, debug=False)
+            call_wall, put_wall = calculate_walls(data, wall_strikes, wall_option_symbols,
+                                                  current_price=price_val, debug=False)
         except Exception:
             call_wall = put_wall = None
 
