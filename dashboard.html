@@ -133,29 +133,42 @@ header {
 }
 
 /* ── DTE toggle ── */
-.dte-badge {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--muted);
-  margin-right: 4px;
-}
 .dte-toggle {
   font-family: var(--mono);
-  font-size: 11px;
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 2px 7px;
+  font-size: 9px;
+  letter-spacing: 0.10em;
+  padding: 3px 8px;
+  border-radius: 2px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--dim);
+  transition: all 0.15s;
 }
-.dte-toggle:hover { background: var(--border); }
-.dte-toggle.dte-active-1 {
+.dte-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.dte-toggle.dte-active {
   background: var(--accent);
-  color: #000;
+  color: var(--bg);
   border-color: var(--accent);
+  cursor: default;
 }
+.ai-quick-toggle {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.10em;
+  padding: 3px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.15s;
+}
+.ai-quick-toggle.ai-on {
+  border-color: var(--neutral);
+  color: var(--neutral);
+}
+.ai-quick-toggle:hover { opacity: 0.8; }
 
 /* ── Test mode banner ── */
 .test-banner {
@@ -1396,8 +1409,9 @@ header {
   </nav>
   <button class="ai-nav-btn" id="aiToggleBtn" onclick="toggleAIChat()">AI CHAT</button>
   <div class="header-right">
-    <span class="dte-badge" id="dteBadge">0DTE</span>
-    <button class="dte-toggle" id="dteToggleBtn" onclick="toggleDTE()" title="Switch expiry">1DTE</button>
+    <button class="dte-toggle dte-active" id="dteBtn0" onclick="setDTE('0DTE')">0DTE</button>
+    <button class="dte-toggle" id="dteBtn1" onclick="setDTE('1DTE')">1DTE</button>
+    <button class="ai-quick-toggle" id="aiQuickToggle" onclick="quickToggleAI()">AI</button>
     <div class="status-dot" id="statusDot"></div>
     <span class="status-txt" id="statusTxt">CONNECTING</span>
     <div class="ai-call-dot" id="aiCallDot" title="AI API calls"></div>
@@ -2326,6 +2340,33 @@ header {
             <span class="field-desc">% of current balance risked per trade. 2% = $200 on $10k. Contracts = risk$ ÷ (mark × 100 × stop%).</span>
           </div>
         </div>
+        <div class="field-row">
+          <span class="field-label">COMMISSION $/CONTRACT</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_commission_per_contract"
+                   type="number" min="0" max="5" step="0.05"
+                   style="max-width:90px">
+            <span class="field-desc">Commission per contract per leg. Default $0.65 (tastytrade). Applied to entry + exit.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">MAX SURFACE CANDIDATES</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_max_surface_candidates"
+                   type="number" min="1" max="10" step="1"
+                   style="max-width:90px">
+            <span class="field-desc">Max simultaneous ideas surfaced. Caps cognitive load and position sizing exposure. Default 3.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">POST-STOP COOLDOWN sec</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_post_stop_cooldown_sec"
+                   type="number" min="0" max="300" step="5"
+                   style="max-width:90px">
+            <span class="field-desc">Suppress new surfaces for N seconds after a stop. 0 = disabled. Default 30.</span>
+          </div>
+        </div>
       </div>
 
       <!-- ── TRADING CONTROLS ── -->
@@ -2425,6 +2466,41 @@ header {
         </div>
       </div>
 
+      <!-- ── DATA COLLECTION ── -->
+      <div class="settings-card">
+        <div class="settings-card-title">Data Collection · Replay</div>
+        <div class="field-row">
+          <span class="field-label">TICK HISTORY</span>
+          <div class="field-toggle">
+            <label class="toggle-switch">
+              <input type="checkbox" id="cfg_tick_history_enabled">
+              <div class="toggle-track"></div>
+              <div class="toggle-knob"></div>
+            </label>
+            <span class="toggle-label" id="tickHistoryLabel">ON</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">REPLAY DB PATH</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_replay_db_path"
+                   type="text" placeholder="D:/tos-dash-v2-replay/"
+                   style="max-width:240px">
+            <span class="field-desc">Directory for daily replay SQLite files. One DB per trading day.</span>
+          </div>
+        </div>
+        <div class="field-row" style="margin-top:8px">
+          <span class="field-label">RECORDER</span>
+          <div style="display:flex;gap:8px;flex:1">
+            <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
+                    onclick="pauseTickRecorder()">PAUSE REC</button>
+            <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
+                    onclick="resumeTickRecorder()">RESUME REC</button>
+            <span id="tickRecorderStatus" style="font-size:9px;color:var(--dim);align-self:center">—</span>
+          </div>
+        </div>
+      </div>
+
       <!-- ── NEWS FEEDS ── -->
       <div class="settings-card" style="grid-column:1/-1">
         <div class="settings-card-title">News Feeds</div>
@@ -2481,7 +2557,6 @@ header {
 
     <div class="settings-footer">
       <button class="btn btn-primary" onclick="saveSettings()">APPLY &amp; RESTART</button>
-      <button class="btn btn-secondary" onclick="loadSettings()">RESET</button>
       <button class="btn btn-danger" onclick="restartWriter()">RESTART WRITER</button>
       <span class="save-status" id="saveStatus"></span>
     </div>
@@ -3328,29 +3403,34 @@ function _startStaleChecker() {
   }, 2000);
 }
 
-async function toggleDTE() {
-  const next = _dteMode === '0DTE' ? '1DTE' : '0DTE';
+async function setDTE(mode) {
+  if (_dteMode === mode) return;   // already active — no-op
+  const btn0 = document.getElementById('dteBtn0');
+  const btn1 = document.getElementById('dteBtn1');
+  if (btn0) btn0.disabled = true;
+  if (btn1) btn1.disabled = true;
   try {
-    await fetch(`${API}/dte/set?mode=${next}`, { method: 'POST' });
-    _dteMode = next;
+    await fetch(`${API}/dte/set?mode=${mode}`, { method: 'POST' });
+    _dteMode = mode;
     _updateDTEDisplay();
   } catch(e) {
-    console.warn('DTE toggle failed:', e);
+    console.warn('DTE set failed:', e);
+  } finally {
+    if (btn0) btn0.disabled = false;
+    if (btn1) btn1.disabled = false;
   }
 }
 
 function _updateDTEDisplay() {
-  const badge  = document.getElementById('dteBadge');
-  const btn    = document.getElementById('dteToggleBtn');
-  if (!badge || !btn) return;
+  const btn0 = document.getElementById('dteBtn0');
+  const btn1 = document.getElementById('dteBtn1');
+  if (!btn0 || !btn1) return;
   if (_dteMode === '1DTE') {
-    badge.textContent = '1DTE';
-    btn.textContent   = '0DTE';
-    btn.classList.add('dte-active-1');
+    btn0.className = 'dte-toggle';
+    btn1.className = 'dte-toggle dte-active';
   } else {
-    badge.textContent = '0DTE';
-    btn.textContent   = '1DTE';
-    btn.classList.remove('dte-active-1');
+    btn0.className = 'dte-toggle dte-active';
+    btn1.className = 'dte-toggle';
   }
 }
 
@@ -3443,16 +3523,23 @@ function loadSettings() {
       document.getElementById('cfg_max_mark').value           = cfg.max_mark           ?? 2.00;
       document.getElementById('cfg_briefing_delta_min').value = cfg.briefing_delta_min ?? 0.35;
       document.getElementById('cfg_briefing_delta_max').value = cfg.briefing_delta_max ?? 0.50;
-      document.getElementById('cfg_max_surface_score').value      = cfg.max_surface_score      ?? 100;
+      document.getElementById('cfg_max_surface_score').value      = cfg.max_surface_score      ?? 66;
       const ntg = cfg.no_trade_gate ?? true;
       document.getElementById('cfg_no_trade_gate').checked = ntg;
       document.getElementById('noTradeGateLabel').textContent = ntg ? 'ON' : 'OFF';
       document.getElementById('cfg_briefing_eod_hour').value = cfg.briefing_eod_hour ?? 14;
       document.getElementById('cfg_pinned_allowed_trends').value  = (cfg.pinned_allowed_trends || ['Downtrend']).join(', ');
-      document.getElementById('cfg_pinned_max_score').value       = cfg.pinned_max_score       ?? 62;
+      document.getElementById('cfg_pinned_max_score').value       = cfg.pinned_max_score       ?? 60;
       document.getElementById('cfg_paper_stop_pct_pinned').value  = cfg.paper_stop_pct_pinned  ?? 0.20;
       document.getElementById('cfg_paper_starting_balance').value = cfg.paper_starting_balance ?? 10000;
       document.getElementById('cfg_paper_risk_pct').value         = cfg.paper_risk_pct         ?? 2.0;
+      document.getElementById('cfg_commission_per_contract').value = cfg.commission_per_contract ?? 0.65;
+      document.getElementById('cfg_max_surface_candidates').value  = cfg.max_surface_candidates ?? 3;
+      document.getElementById('cfg_post_stop_cooldown_sec').value  = cfg.post_stop_cooldown_sec ?? 30;
+      const thEnabled = cfg.tick_history_enabled ?? true;
+      document.getElementById('cfg_tick_history_enabled').checked = thEnabled;
+      document.getElementById('tickHistoryLabel').textContent = thEnabled ? 'ON' : 'OFF';
+      document.getElementById('cfg_replay_db_path').value = cfg.replay_db_path ?? 'D:/tos-dash-v2-replay/';
       document.getElementById('cfg_momentum_short_ticks').value   = cfg.momentum_short_ticks   ?? 120;
       document.getElementById('cfg_momentum_medium_ticks').value  = cfg.momentum_medium_ticks  ?? 360;
       const sgOn = cfg.structure_gate_scanner ?? false;
@@ -3478,6 +3565,7 @@ function loadSettings() {
       document.getElementById('cfg_advisor_interval').value =
         localStorage.getItem('advisor_interval') || '10';
       _updateApiCounterDisplay();
+      _updateAIQuickToggle();
       // Alpaca keys (stored server-side in config.json)
       document.getElementById('cfg_alpaca_api_key').value    = cfg.alpaca_api_key    || '';
       document.getElementById('cfg_alpaca_secret_key').value = cfg.alpaca_secret_key || '';
@@ -3532,9 +3620,14 @@ function saveSettings() {
     pinned_allowed_trends:  get('cfg_pinned_allowed_trends').value.split(',').map(s => s.trim()).filter(Boolean),
     pinned_max_score:       parseFloat(get('cfg_pinned_max_score').value),
     paper_stop_pct_pinned:  parseFloat(get('cfg_paper_stop_pct_pinned').value),
-    paper_starting_balance: parseFloat(get('cfg_paper_starting_balance').value),
-    paper_risk_pct:         parseFloat(get('cfg_paper_risk_pct').value),
-    momentum_short_ticks:   parseInt(get('cfg_momentum_short_ticks').value),
+    paper_starting_balance:  parseFloat(get('cfg_paper_starting_balance').value),
+    paper_risk_pct:          parseFloat(get('cfg_paper_risk_pct').value),
+    commission_per_contract: parseFloat(get('cfg_commission_per_contract').value),
+    max_surface_candidates:  parseInt(get('cfg_max_surface_candidates').value),
+    post_stop_cooldown_sec:  parseInt(get('cfg_post_stop_cooldown_sec').value),
+    tick_history_enabled:    get('cfg_tick_history_enabled').checked,
+    replay_db_path:          get('cfg_replay_db_path').value.trim() || 'D:/tos-dash-v2-replay/',
+    momentum_short_ticks:    parseInt(get('cfg_momentum_short_ticks').value),
     momentum_medium_ticks:  parseInt(get('cfg_momentum_medium_ticks').value),
     structure_gate_scanner: get('cfg_structure_gate_scanner').checked,
     iv_cap:                 parseFloat(get('cfg_iv_cap').value),
@@ -3588,6 +3681,24 @@ function restartWriter() {
       s.textContent = '✓ Writer restarting...';
       s.className = 'save-status show ok';
       setTimeout(() => { s.className = 'save-status'; }, 3000);
+    });
+}
+
+function pauseTickRecorder() {
+  fetch(`${API}/tick-recorder/pause`, {method:'POST'})
+    .then(r => r.json())
+    .then(d => {
+      const el = document.getElementById('tickRecorderStatus');
+      if (el) el.textContent = d.status === 'paused' ? 'PAUSED' : d.status;
+    });
+}
+
+function resumeTickRecorder() {
+  fetch(`${API}/tick-recorder/resume`, {method:'POST'})
+    .then(r => r.json())
+    .then(d => {
+      const el = document.getElementById('tickRecorderStatus');
+      if (el) el.textContent = d.status === 'resumed' ? 'RECORDING' : d.status;
     });
 }
 
@@ -4372,6 +4483,26 @@ let _aiLastRefresh = 0;
 let _aiCommentaryPaused = false;
 let _aiLastSnap = null;
 
+function quickToggleAI() {
+  const current = localStorage.getItem('ai_enabled') !== 'false';
+  const next    = !current;
+  localStorage.setItem('ai_enabled', next ? 'true' : 'false');
+  // Sync with the Settings checkbox
+  const cb = document.getElementById('cfg_ai_enabled');
+  if (cb) cb.checked = next;
+  _updateAIQuickToggle();
+  // If turning on, trigger a refresh
+  if (next) refreshAICommentary(true);
+}
+
+function _updateAIQuickToggle() {
+  const btn = document.getElementById('aiQuickToggle');
+  if (!btn) return;
+  const on = localStorage.getItem('ai_enabled') !== 'false';
+  btn.className = on ? 'ai-quick-toggle ai-on' : 'ai-quick-toggle';
+  btn.textContent = on ? 'AI ON' : 'AI OFF';
+}
+
 function applyAIEnabled() {
   const enabled = localStorage.getItem('ai_enabled') !== 'false';
   const cb = document.getElementById('cfg_ai_enabled');
@@ -4831,6 +4962,7 @@ function loadNews() {
 // ── Init ──────────────────────────────────────────────────────────────────────
 _applyATState();
 applyAIEnabled();
+_updateAIQuickToggle();
 fetch(`${API}/snapshot`).then(r=>r.json()).then(update).catch(()=>{}).finally(connect);
 renderTrades();
 </script>

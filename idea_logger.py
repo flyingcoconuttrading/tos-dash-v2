@@ -55,6 +55,7 @@ IDEA_HEADERS = [
     "entry_dex_bias", "entry_ms_trend", "entry_structural_lean",
     "entry_call_wall", "entry_put_wall", "entry_max_pain", "entry_gex_anchor",
     "entry_surge",
+    "entry_vix", "entry_tick", "entry_vix_trend",
     "status",
     "confirmed_at", "confirmed_score", "confirmed_spy",
     "invalidated_at", "invalidation_reason",
@@ -74,6 +75,7 @@ IDEA_HEADERS = [
     "paper_entry_ask", "paper_exit_bid", "paper_exit_reason",
     "paper_exit_minute", "paper_pnl_pct",
     "paper_contracts", "paper_dollar_pnl",
+    "commission_per_contract", "paper_commission", "paper_net_dollar_pnl",
 ]
 EVENT_HEADERS = ["id","idea_id","event_time","event_type","score","mark","spy","spy_move","vol_ratio","detail"]
 ALERT_HEADERS = ["id","logged_at","alert_zone","alert_message","spy_price","snap_level","snap_distance","snap_direction","regime","bias","net_gex","net_dex"]
@@ -154,6 +156,10 @@ class IdeaLogger:
         self._ensure_storage()
         self._log.info("IdeaLogger %s initialised — %s", MODEL_VERSION, DB_PATH)
 
+        # Latest VIX/TICK snapshot for use in surfacing
+        self._last_vix_signals: dict = {}
+        self._last_ntick: Optional[int] = None
+
         # Alert dedup — zone-level and per-snap-level cooldowns
         self._last_alert_zone: str   = "normal"
         self._last_alert_time: float = 0.0
@@ -167,8 +173,11 @@ class IdeaLogger:
 
     # ── Main tick entry point ─────────────────────────────────────────────────
 
-    def process_tick(self, candidates, data, spy_price, spy_vol_rate, spy_vol_ratio, ms, surge_syms):
+    def process_tick(self, candidates, data, spy_price, spy_vol_rate, spy_vol_ratio, ms, surge_syms,
+                     vix_signals=None, ntick=None):
         now       = datetime.now()
+        self._last_vix_signals = vix_signals or {}
+        self._last_ntick       = ntick
         cand_map  = {c.symbol: c for c in (candidates or [])}
         call_wall = getattr(ms, "call_wall", None)
         put_wall  = getattr(ms, "put_wall", None)
@@ -204,6 +213,37 @@ class IdeaLogger:
         # 3. Outcome filling + minute mark capture
         self._fill_outcomes(data, now)
         self._fill_marks(data, now)
+
+        # 3b. Tick history — record one row per active idea per tick (market hours only)
+        if self._cfg.get("tick_history_enabled", True) and self._active:
+            try:
+                from datetime import time as _dtime
+                _now_t = now.time()
+                _mkt_open  = _dtime(9, 30)
+                _mkt_close = _dtime(16, 0)
+                if _mkt_open <= _now_t <= _mkt_close:
+                    _vix_val = self._last_vix_signals.get("last")
+                    _rows = []
+                    for key, state in self._active.items():
+                        c = cand_map.get(state.symbol)
+                        _rows.append((
+                            state.idea_id,
+                            now.isoformat(timespec="seconds"),
+                            spy_price,
+                            float(c.mark) if c else None,
+                            float(c.score) if c else None,
+                            _vix_val,
+                            self._last_ntick,
+                        ))
+                    with self._connect() as conn:
+                        conn.executemany(
+                            "INSERT INTO idea_tick_history "
+                            "(idea_id, tick_time, spy, mark, score, vix, ntick) "
+                            "VALUES (?,?,?,?,?,?,?)",
+                            _rows
+                        )
+            except Exception:
+                pass
 
         # 4. Alerts — two-level dedup:
         #    - zone level:      same zone suppressed for alert_cooldown_s (60s); zone change has 10s floor
@@ -368,6 +408,9 @@ class IdeaLogger:
             "entry_max_pain":      getattr(ms, "max_pain", None),
             "entry_gex_anchor":    getattr(ms, "gex_anchor", None),
             "entry_surge":         1 if candidate.symbol in surge_syms else 0,
+            "entry_vix":           self._last_vix_signals.get("last"),
+            "entry_tick":          self._last_ntick,
+            "entry_vix_trend":     self._last_vix_signals.get("cross"),
             "status":              STATUS_ACTIVE,
             "reentry_count":       0,
             "traded":              0,
@@ -776,16 +819,20 @@ class IdeaLogger:
             contracts = row["paper_contracts"] or 1
         except (IndexError, KeyError):
             contracts = 1
-        dollar_pnl = (exit_bid - entry_ask) * 100 * contracts
+        commission_per = cfg.get("commission_per_contract", 0.65)
+        gross_pnl      = (exit_bid - entry_ask) * 100 * contracts
+        total_commission = commission_per * contracts * 2   # entry + exit legs
+        net_pnl        = gross_pnl - total_commission
         with self._connect() as conn:
             conn.execute("""
                 UPDATE ideas
                 SET paper_exit_bid=?, paper_exit_reason=?,
                     paper_exit_minute=?, paper_pnl_pct=?,
-                    paper_dollar_pnl=?
+                    paper_dollar_pnl=?,
+                    commission_per_contract=?, paper_commission=?, paper_net_dollar_pnl=?
                 WHERE id=?
             """, (exit_bid, exit_reason, exit_minute, pnl_pct,
-                  dollar_pnl, row["id"]))
+                  gross_pnl, commission_per, total_commission, net_pnl, row["id"]))
 
     # ── Public read API ───────────────────────────────────────────────────────
 
@@ -958,6 +1005,23 @@ class IdeaLogger:
                     FOREIGN KEY(idea_id) REFERENCES ideas(id)
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS idea_tick_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    idea_id INTEGER NOT NULL,
+                    tick_time TEXT NOT NULL,
+                    spy REAL,
+                    mark REAL,
+                    score REAL,
+                    vix REAL,
+                    ntick INTEGER,
+                    FOREIGN KEY(idea_id) REFERENCES ideas(id)
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_tick_history_idea_id
+                ON idea_tick_history(idea_id)
+            """)
         # Migration guard — add new columns to existing DB without recreating table
         for col_def in [
             "out_1m_mark REAL", "out_1m_pnl_pct REAL", "out_1m_correct INTEGER",
@@ -975,6 +1039,12 @@ class IdeaLogger:
             "entry_dex_bias TEXT",
             "entry_ms_trend TEXT",
             "entry_structural_lean TEXT",
+            "entry_vix REAL",
+            "entry_tick INTEGER",
+            "entry_vix_trend TEXT",
+            "commission_per_contract REAL",
+            "paper_commission REAL",
+            "paper_net_dollar_pnl REAL",
         ]:
             try:
                 with self._connect() as conn:

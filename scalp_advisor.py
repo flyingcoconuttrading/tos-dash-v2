@@ -139,6 +139,9 @@ class ScalpAdvisor:
         self._gate_fail_ticks: int  = 0   # consecutive ticks gate condition was false
         self._gate_open: bool       = False  # True while gate is passing
 
+        # post-stop cooldown — suppress new surfaces briefly after a stop
+        self._last_stop_time: float = 0.0
+
     def reset(self):
         self._score_history.clear()
         self._tick_count.clear()
@@ -154,6 +157,7 @@ class ScalpAdvisor:
         self._cfg.clear()
         self._gate_fail_ticks = 0
         self._gate_open       = False
+        self._last_stop_time  = 0.0
 
     def get_recommendations(
         self,
@@ -172,7 +176,7 @@ class ScalpAdvisor:
     ) -> list[ScalpCandidate]:
 
         from datetime import datetime, timezone
-
+        import time as _time_import
 
         if not strikes or not option_symbols:
             return []
@@ -186,6 +190,13 @@ class ScalpAdvisor:
         vol_surge_mult  = self._cfg.get("vol_surge_mult",      DEFAULT_VOL_SURGE_MULT)
         open_gate_min   = self._cfg.get("open_gate_minutes",   DEFAULT_OPEN_GATE_MINUTES)
         drop_threshold  = self._cfg.get("drop_threshold",      55)
+        stop_cooldown   = self._cfg.get("post_stop_cooldown_sec", 30)
+
+        # Post-stop cooldown: suppress all new surfaces for N seconds after a stop
+        if stop_cooldown > 0 and self._last_stop_time > 0:
+            elapsed_since_stop = _time_import.monotonic() - self._last_stop_time
+            if elapsed_since_stop < stop_cooldown:
+                return []
 
         now       = datetime.now()
         today     = now.date()
@@ -496,7 +507,7 @@ class ScalpAdvisor:
                     continue
                 # PINNED score ceiling
                 if not kwargs.get("gex_negative", True):
-                    pinned_max = self._cfg.get("pinned_max_score", 62)
+                    pinned_max = self._cfg.get("pinned_max_score", 60)
                     if pinned_max < 100 and smoothed_score > pinned_max:
                         continue
                 self._displayed.add(sym)
@@ -536,7 +547,13 @@ class ScalpAdvisor:
             if sym not in top_syms and sym not in all_syms:
                 self._displayed.discard(sym)
 
-        return [c for _, c in smoothed[:top_n]]
+        max_cands = self._cfg.get("max_surface_candidates", top_n)
+        return [c for _, c in smoothed[:max_cands]]
+
+    def record_stop(self):
+        """Call when a paper trade exits at STOP to trigger post-stop cooldown."""
+        import time as _t
+        self._last_stop_time = _t.monotonic()
 
     # ------------------------------------------------------------------
     # Change #2 helpers — per-option relative volume surge

@@ -37,6 +37,7 @@ from pydantic import BaseModel
 # ── Paths ─────────────────────────────────────────────────────────────────────
 THIS_DIR    = Path(__file__).parent
 WRITER_SCRIPT = THIS_DIR / "spy_writer.py"
+TICK_RECORDER_SCRIPT = THIS_DIR / "tick_recorder.py"
 CONFIG_FILE = THIS_DIR / "config.json"
 PRICE_FILE  = THIS_DIR / "spy_price.json"
 CHAIN_FILE  = THIS_DIR / "option_chain.json"
@@ -78,15 +79,12 @@ _vix_history:  deque = deque(maxlen=21)
 _vix_open:     float = 0.0
 _vix_open_set: bool  = False
 
-
 def _compute_vix_signals(vix: float) -> dict:
     """Compute VIX EMA(9)/SMA(21), cross signals, and vs open."""
     global _vix_open, _vix_open_set
     if vix is None:
         return {}
     _vix_history.append(vix)
-    # Wait for 3+ ticks before locking in open — first tick is often
-    # a stale RTD cache value from the previous session
     if not _vix_open_set and len(_vix_history) >= 3:
         _vix_open     = sorted(list(_vix_history)[:3])[1]  # median of first 3
         _vix_open_set = True
@@ -182,7 +180,7 @@ DEFAULT_CONFIG = {
     "score_decay_threshold": 45,
     "score_decay_ticks":     10,
     "confirm_score":         55,    # change #5: lowered from 65
-    "confirm_ticks":         10,
+    "confirm_ticks":         13,
     "confirm_ticks_surge":   5,
     # Change #1
     "idea_cooldown_min":     15,
@@ -206,9 +204,11 @@ DEFAULT_CONFIG = {
     "briefing_delta_min":    0.35,
     "briefing_delta_max":    0.50,
     "pinned_allowed_trends":  ["Downtrend"],
-    "pinned_max_score":       62,
-    "max_surface_score":      100,
+    "pinned_max_score":       60,
+    "max_surface_score":      66,
     "paper_stop_pct_pinned":  0.20,
+    "paper_starting_balance": 10000.0,
+    "paper_risk_pct":         2.0,
     "momentum_short_ticks":   120,
     "momentum_medium_ticks":  360,
     "structure_gate_scanner": False,
@@ -217,6 +217,11 @@ DEFAULT_CONFIG = {
     "briefing_eod_hour":      14,   # 2:30 PM ET = hour 14, minute 30
     "iv_floor":              0.0,
     "iv_ceiling":            60.0,
+    "commission_per_contract": 0.65,
+    "max_surface_candidates":  3,
+    "post_stop_cooldown_sec":  30,
+    "tick_history_enabled":    True,
+    "replay_db_path":          "D:/tos-dash-v2-replay/",
 }
 
 def load_config() -> dict:
@@ -271,6 +276,47 @@ def stop_writer():
 
 def writer_alive() -> bool:
     return writer_proc is not None and writer_proc.poll() is None
+
+# ── Tick recorder process manager ─────────────────────────────────────────────
+tick_recorder_proc: Optional[subprocess.Popen] = None
+tick_recorder_lock = threading.Lock()
+
+def start_tick_recorder():
+    global tick_recorder_proc
+    if not TICK_RECORDER_SCRIPT.exists():
+        return
+    with tick_recorder_lock:
+        if tick_recorder_proc and tick_recorder_proc.poll() is None:
+            return  # already running
+        try:
+            tick_recorder_proc = subprocess.Popen(
+                [sys.executable, str(TICK_RECORDER_SCRIPT)],
+                stderr=None,
+                stdout=subprocess.DEVNULL,
+                cwd=str(THIS_DIR),
+            )
+            logger.info(f"Tick recorder started (PID {tick_recorder_proc.pid})")
+        except Exception as e:
+            logger.warning(f"Tick recorder start failed: {e}")
+
+def stop_tick_recorder():
+    global tick_recorder_proc
+    with tick_recorder_lock:
+        if tick_recorder_proc and tick_recorder_proc.poll() is None:
+            # Write stop file for clean shutdown
+            try:
+                (THIS_DIR / "tick_recorder.stop").write_text("stop")
+            except Exception:
+                pass
+            try:
+                tick_recorder_proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                tick_recorder_proc.kill()
+        tick_recorder_proc = None
+        try:
+            (THIS_DIR / "tick_recorder.stop").unlink(missing_ok=True)
+        except Exception:
+            pass
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def read_json(path: Path) -> dict:
@@ -492,10 +538,20 @@ def build_snapshot() -> dict:
             spy_vol_ratio = spy_vol_ratio,
             ms            = ms,
             surge_syms    = surge_syms,
+            vix_signals   = vix_signals,
+            ntick         = ntick,
         )
         # Position auto-linking
         if positions:
             idea_logger.process_positions(positions)
+
+        # Write active_ideas.json for external tools
+        try:
+            (THIS_DIR / "active_ideas.json").write_text(
+                json.dumps(idea_logger.get_active_ideas(), indent=2)
+            )
+        except Exception:
+            pass
 
         candidates_list = [
             {
@@ -708,6 +764,7 @@ def build_snapshot() -> dict:
         "next_1dte":        get_next_1dte(),
         "vix":              vix_signals,
         "ntick":            ntick,
+        "paper_stats":      idea_logger.get_paper_stats(),
         "active_ideas":     idea_logger.get_active_ideas(),
         "positions":        positions,
         "chain":            {sym: {"LAST": chain_data.get("chain", {}).get(sym, {}).get("LAST")}
@@ -774,6 +831,13 @@ class ConfigUpdate(BaseModel):
     pinned_max_score:        Optional[float] = None
     max_surface_score:       Optional[float] = None
     paper_stop_pct_pinned:   Optional[float] = None
+    paper_starting_balance:  Optional[float] = None
+    paper_risk_pct:          Optional[float] = None
+    commission_per_contract: Optional[float] = None
+    max_surface_candidates:  Optional[int]   = None
+    post_stop_cooldown_sec:  Optional[int]   = None
+    tick_history_enabled:    Optional[bool]  = None
+    replay_db_path:          Optional[str]   = None
     momentum_short_ticks:    Optional[int]   = None
     momentum_medium_ticks:   Optional[int]   = None
     structure_gate_scanner:  Optional[bool]  = None
@@ -842,6 +906,9 @@ async def _watchdog():
 async def startup():
     get_next_1dte()   # warm 1DTE cache on boot
     start_writer()
+    cfg = load_config()
+    if cfg.get("tick_history_enabled", True):
+        start_tick_recorder()
     asyncio.create_task(tick_loop())
     asyncio.create_task(_watchdog())
     news_fetcher.start(load_config)
@@ -849,6 +916,7 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     stop_writer()
+    stop_tick_recorder()
     news_fetcher.stop()
 
 # ── REST endpoints ────────────────────────────────────────────────────────────
@@ -889,10 +957,41 @@ def update_config(update: ConfigUpdate):
     threading.Thread(target=start_writer, daemon=True).start()
     return {"status": "ok", "config": cfg}
 
+@app.get("/paper/stats")
+def get_paper_stats():
+    """Return paper trading balance and daily P&L."""
+    try:
+        return idea_logger.get_paper_stats()
+    except Exception as e:
+        logger.error("Paper stats error: %s", e)
+        return {"balance": 0, "daily_pnl": 0, "daily_count": 0}
+
 @app.get("/writer/restart")
 def restart_writer():
     threading.Thread(target=start_writer, daemon=True).start()
     return {"status": "restarting"}
+
+@app.post("/tick-recorder/pause")
+def tick_recorder_pause():
+    try:
+        (THIS_DIR / "tick_recorder.pause").write_text("pause")
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+    return {"status": "paused"}
+
+@app.post("/tick-recorder/resume")
+def tick_recorder_resume():
+    try:
+        (THIS_DIR / "tick_recorder.pause").unlink(missing_ok=True)
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+    return {"status": "resumed"}
+
+@app.get("/tick-recorder/status")
+def tick_recorder_status():
+    alive  = tick_recorder_proc is not None and tick_recorder_proc.poll() is None
+    paused = (THIS_DIR / "tick_recorder.pause").exists()
+    return {"running": alive, "paused": paused}
 
 @app.get("/dte/next")
 def dte_next():
@@ -904,7 +1003,13 @@ def dte_set(mode: str):
     if mode not in ("0DTE", "1DTE"):
         return {"error": f"Invalid mode '{mode}' — use '0DTE' or '1DTE'"}
     _dte_mode = mode
-    return {"dte_mode": _dte_mode, "next_1dte": get_next_1dte()}
+    new_expiry = get_next_1dte() if mode == "1DTE" else None
+    _cfg = load_config()
+    _cfg["expiry_date"] = new_expiry
+    save_config(_cfg)
+    threading.Thread(target=start_writer, daemon=True).start()
+    logger.info("DTE switched to %s — expiry_date=%s, writer restarting", mode, new_expiry)
+    return {"dte_mode": _dte_mode, "next_1dte": get_next_1dte(), "expiry_date": new_expiry}
 
 @app.get("/status")
 def get_status():
