@@ -155,6 +155,7 @@ class IdeaLogger:
         self._recently_invalidated: dict[str, tuple] = {}
         self._known_positions: dict[str, float] = {}  # symbol -> qty
         self._ensure_storage()
+        self.backfill_paper_net_pnl()
         self._log.info("IdeaLogger %s initialised — %s", MODEL_VERSION, DB_PATH)
 
         # Latest VIX/TICK snapshot for use in surfacing
@@ -458,6 +459,31 @@ class IdeaLogger:
             spy_vol_ratio,
         )
 
+    def backfill_paper_net_pnl(self):
+        """One-time backfill: compute paper_net_dollar_pnl for rows where it is NULL."""
+        cfg = self._cfg
+        commission_per = cfg.get("commission_per_contract", 0.65)
+        with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute("""
+                SELECT id, paper_contracts, paper_dollar_pnl, paper_commission
+                FROM ideas
+                WHERE paper_exit_reason IS NOT NULL
+                  AND paper_net_dollar_pnl IS NULL
+                  AND paper_dollar_pnl IS NOT NULL
+                  AND paper_contracts IS NOT NULL
+            """).fetchall()
+            for row in rows:
+                contracts = row["paper_contracts"] or 1
+                gross     = row["paper_dollar_pnl"]
+                total_com = commission_per * contracts * 2
+                net       = gross - total_com
+                conn.execute(
+                    "UPDATE ideas SET paper_net_dollar_pnl=?, paper_commission=?, commission_per_contract=? WHERE id=?",
+                    (net, total_com, commission_per, row["id"])
+                )
+        self._log.info("backfill_paper_net_pnl complete: %d rows", len(rows))
+
     def _build_entry_notes(self, candidate, ms, spy_vol_ratio: float) -> str:
         """Auto-generate a human-readable entry note from surface conditions."""
         parts = []
@@ -715,6 +741,7 @@ class IdeaLogger:
             pending = conn.execute("""
                 SELECT id, symbol, surfaced_at, entry_mark,
                        paper_entry_ask, paper_exit_reason,
+                       paper_contracts,
                        invalidated_at, invalidation_mark,
                        out_marks_json, entry_regime
                 FROM ideas
@@ -785,6 +812,12 @@ class IdeaLogger:
 
     def _run_paper_sim(self, row, marks: dict, elapsed_min: float):
         """Evaluate paper trade exit against captured marks. Writes once when exit triggers."""
+        try:
+            self._run_paper_sim_inner(row, marks, elapsed_min)
+        except Exception as e:
+            self._log.error("_run_paper_sim error id=%s: %s", row["id"], e, exc_info=True)
+
+    def _run_paper_sim_inner(self, row, marks: dict, elapsed_min: float):
         entry_ask = row["paper_entry_ask"]
         if not entry_ask or entry_ask <= 0:
             return
