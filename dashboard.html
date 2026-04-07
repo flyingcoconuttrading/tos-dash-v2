@@ -1529,6 +1529,10 @@ header {
           <div id="ntickBar" style="height:100%;width:50%;background:var(--muted);border-radius:2px;transition:width .3s,background .3s"></div>
         </div>
       </div>
+      <div class="level-row">
+        <span class="level-name">TRIN/Q</span>
+        <span class="level-val sm" id="trinqVal">--</span>
+      </div>
 
       <div class="panel-title section-gap">Net GEX</div>
       <div class="gex-row">
@@ -2908,6 +2912,14 @@ function updateTickVix(snap) {
     ntickBar.style.width      = Math.abs(clamped / 1500 * 50) + '%';
     ntickBar.style.marginLeft = clamped >= 0 ? '50%' : (50 + clamped / 1500 * 50) + '%';
     ntickBar.style.background = clamped > 0 ? 'var(--bull)' : 'var(--bear)';
+  }
+
+  // TRIN/Q: >1.5 = bearish selling pressure, <0.7 = bullish buying pressure
+  const trinqEl = document.getElementById('trinqVal');
+  if (trinqEl) {
+    const trinq = snap.trinq;
+    trinqEl.textContent = trinq != null ? trinq.toFixed(2) : '--';
+    trinqEl.style.color = trinq == null ? '' : trinq > 1.5 ? 'var(--bear)' : trinq < 0.7 ? 'var(--bull)' : 'var(--text)';
   }
 }
 

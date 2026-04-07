@@ -353,6 +353,7 @@ def build_snapshot() -> dict:
     vix_raw   = price_data.get("vix_last")
     ntick_raw = price_data.get("ntick_val")
     trin_val  = price_data.get("trin_val")
+    trinq_val = price_data.get("trinq_val")
     add_val   = price_data.get("add_val")
     qqq_last  = price_data.get("qqq_last")
     iwm_last  = price_data.get("iwm_last")
@@ -770,6 +771,7 @@ def build_snapshot() -> dict:
         "vix":              vix_signals,
         "ntick":            ntick,
         "trin":             trin_val,
+        "trinq":            trinq_val,
         "add":              add_val,
         "qqq":              qqq_last,
         "iwm":              iwm_last,

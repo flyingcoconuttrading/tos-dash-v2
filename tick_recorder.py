@@ -89,6 +89,7 @@ def _ensure_tables(conn: sqlite3.Connection):
             rtd_stale INTEGER,
             frozen_ticks INTEGER,
             trin REAL,
+            trinq REAL,
             add_val REAL,
             qqq_last REAL,
             iwm_last REAL,
@@ -99,6 +100,7 @@ def _ensure_tables(conn: sqlite3.Connection):
     existing = {row[1] for row in conn.execute("PRAGMA table_info(spy_ticks)")}
     for col, typedef in [
         ("trin",     "REAL"),
+        ("trinq",    "REAL"),
         ("add_val",  "REAL"),
         ("qqq_last", "REAL"),
         ("iwm_last", "REAL"),
@@ -182,8 +184,8 @@ try:
         db_conn.execute("""
             INSERT INTO spy_ticks
             (tick_time, tick, last, bid, ask, mark, volume, vix, ntick, es_last, spx_last, rtd_stale, frozen_ticks,
-             trin, add_val, qqq_last, iwm_last, nq_last)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+             trin, trinq, add_val, qqq_last, iwm_last, nq_last)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             tick_time, tick,
             price_data.get("last"), price_data.get("bid"),
@@ -193,7 +195,8 @@ try:
             price_data.get("es_last"),  price_data.get("spx_last"),
             1 if price_data.get("rtd_stale") else 0,
             price_data.get("frozen_ticks", 0),
-            price_data.get("trin_val"),  price_data.get("add_val"),
+            price_data.get("trin_val"),  price_data.get("trinq_val"),
+            price_data.get("add_val"),
             price_data.get("qqq_last"),  price_data.get("iwm_last"),
             price_data.get("nq_last"),
         ))
