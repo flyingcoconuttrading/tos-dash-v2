@@ -4344,7 +4344,7 @@ async function renderJournal() {
     const resp = await fetch('/ideas?limit=200');
     if (!resp.ok) throw new Error(resp.statusText);
     const data = await resp.json();
-    const ideas = data.ideas || [];
+    const ideas = data.rows || [];
     const closed = ideas.filter(r => r.paper_exit_reason);
     if (!closed.length) {
       container.innerHTML = '<div class="trades-empty">No closed paper trades yet.</div>';
@@ -4393,7 +4393,7 @@ function exportJournal() {
   fetch('/ideas?limit=200')
     .then(r => r.json())
     .then(data => {
-      const ideas = (data.ideas || []).filter(r => r.paper_exit_reason);
+      const ideas = (data.rows || []).filter(r => r.paper_exit_reason);
       if (!ideas.length) { alert('No closed trades to export.'); return; }
       const cols = ['surfaced_at','symbol','option_type','entry_score','entry_spy',
                     'paper_entry_ask','paper_exit_bid','paper_exit_reason',

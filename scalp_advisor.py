@@ -511,12 +511,12 @@ class ScalpAdvisor:
                     continue
                 # Global score ceiling (default 100 = disabled)
                 max_score = self._cfg.get("max_surface_score", 100)
-                if max_score < 100 and smoothed_score > max_score:
+                if max_score < 100 and smoothed_score >= max_score:
                     continue
                 # PINNED score ceiling
                 if not kwargs.get("gex_negative", True):
                     pinned_max = self._cfg.get("pinned_max_score", 60)
-                    if pinned_max < 100 and smoothed_score > pinned_max:
+                    if pinned_max < 100 and smoothed_score >= pinned_max:
                         continue
                 self._displayed.add(sym)
             else:

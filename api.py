@@ -74,6 +74,10 @@ _dte_mode: str         = "0DTE" # "0DTE" or "1DTE"
 _spy_vol_history: deque = deque(maxlen=50)
 _spy_last_volume: float = 0.0
 
+# SPY price history for surge move detection (last 3 prices)
+_spy_price_recent: deque = deque(maxlen=3)
+_surge_suppress_until: float = 0.0   # monotonic time — suppress surfaces until this time
+
 # VIX EMA/SMA tracking
 _vix_history:  deque = deque(maxlen=21)
 _vix_open:     float = 0.0
@@ -219,7 +223,11 @@ DEFAULT_CONFIG = {
     "iv_ceiling":            60.0,
     "commission_per_contract": 0.65,
     "max_surface_candidates":  3,
-    "post_stop_cooldown_sec":  30,
+    "post_stop_cooldown_sec":       30,
+    "surge_price_move_threshold":   0.40,
+    "surge_vol_ratio_threshold":    3.0,
+    "surge_suppress_sec":           60,
+    "tick_extreme_threshold":       500,
     "tick_history_enabled":    True,
     "replay_db_path":          "D:/tos-dash-v2-replay/",
 }
@@ -326,6 +334,7 @@ def read_json(path: Path) -> dict:
         return {"error": str(e)}
 
 def build_snapshot() -> dict:
+    global _surge_suppress_until
     cfg          = load_config()
     price_data   = read_json(PRICE_FILE)
     chain_data   = read_json(CHAIN_FILE)
@@ -518,21 +527,54 @@ def build_snapshot() -> dict:
     except Exception as e:
         ms_dict = {"error": str(e)}
 
+    # Track SPY price for surge detection
+    import time as _t
+    if price:
+        _spy_price_recent.append(float(price))
+
+    # Surge protection — suppress all surfaces if SPY moved > $0.40 in 2 ticks AND vol spike
+    _surge_suppressed = False
+    if len(_spy_price_recent) >= 2:
+        _price_move = abs(_spy_price_recent[-1] - _spy_price_recent[-2])
+        if _price_move > cfg.get("surge_price_move_threshold", 0.40) and spy_vol_ratio > cfg.get("surge_vol_ratio_threshold", 3.0):
+            _surge_suppress_until = _t.monotonic() + cfg.get("surge_suppress_sec", 60)
+            logger.info("Surge protection triggered: price_move=%.2f vol_ratio=%.1f suppress=60s",
+                        _price_move, spy_vol_ratio)
+    if _t.monotonic() < _surge_suppress_until:
+        _surge_suppressed = True
+
     candidates = []
     try:
-        candidates = scalp_advisor.get_recommendations(
-            data           = data,
-            strikes        = strikes,
-            option_symbols = option_symbols,
-            symbol         = cfg.get("symbol", "SPY"),
-            max_pain       = max_pain,
-            call_wall      = call_wall,
-            put_wall       = put_wall,
-            surge_symbols  = surge_syms,
-            risk_cap       = cfg.get("risk_cap", 5.00),
-            cfg            = cfg,
-            ms             = ms,
-        )
+        if _surge_suppressed:
+            candidates = []
+        else:
+            candidates = scalp_advisor.get_recommendations(
+                data           = data,
+                strikes        = strikes,
+                option_symbols = option_symbols,
+                symbol         = cfg.get("symbol", "SPY"),
+                max_pain       = max_pain,
+                call_wall      = call_wall,
+                put_wall       = put_wall,
+                surge_symbols  = surge_syms,
+                risk_cap       = cfg.get("risk_cap", 5.00),
+                cfg            = cfg,
+                ms             = ms,
+            )
+
+        # TICK directional filter — remove candidates that chase TICK extremes
+        _tick_extreme = cfg.get("tick_extreme_threshold", 500)
+        if ntick is not None and abs(ntick) > _tick_extreme and candidates:
+            filtered = []
+            for _c in candidates:
+                if _c.option_type == "Call" and ntick < -_tick_extreme:
+                    logger.debug("TICK filter: blocked Call %s (TICK=%d)", _c.symbol, ntick)
+                    continue
+                if _c.option_type == "Put" and ntick > _tick_extreme:
+                    logger.debug("TICK filter: blocked Put %s (TICK=%d)", _c.symbol, ntick)
+                    continue
+                filtered.append(_c)
+            candidates = filtered
 
         # Full lifecycle tracking — process_tick handles all idea logic
         idea_logger.update_cfg(cfg)
