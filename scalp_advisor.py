@@ -199,7 +199,15 @@ class ScalpAdvisor:
                 return []
 
         now       = datetime.now()
-        today     = now.date()
+        _test_date_str = self._cfg.get("test_date") if self._cfg.get("test_mode") else None
+        if _test_date_str:
+            try:
+                from datetime import date as _date_cls
+                today = _date_cls.fromisoformat(_test_date_str)
+            except Exception:
+                today = now.date()
+        else:
+            today = now.date()
         import re as _re
         _EXPIRY_RE = _re.compile(r'(\d{6})[CP]')
 

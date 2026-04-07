@@ -778,7 +778,12 @@ header {
   border-bottom-color: var(--accent);
 }
 .spane { display: none; }
-.spane.spane-active { display: contents; }
+.spane.spane-active {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+}
 
 .field-row {
   display: flex;
@@ -1434,6 +1439,7 @@ header {
     <button class="nav-tab" onclick="showPage('trades')">HISTORY</button>
     <button class="nav-tab" onclick="showPage('chain')">CHAIN</button>
     <button class="nav-tab" onclick="showPage('ideas')">IDEA LOG</button>
+    <button class="nav-tab" onclick="showPage('journal')">JOURNAL</button>
     <button class="nav-tab" onclick="showPage('settings')">SETTINGS</button>
   </nav>
   <button class="ai-nav-btn" id="aiToggleBtn" onclick="toggleAIChat()">AI CHAT</button>
@@ -1940,6 +1946,19 @@ header {
   </div>
 </div>
 
+<!-- ══ JOURNAL PAGE ══ -->
+<div class="page" id="pageJournal">
+  <div class="trades-page">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+      <span style="font-size:11px;color:var(--dim);font-family:var(--mono);font-weight:700;letter-spacing:.08em">TRADE JOURNAL</span>
+      <button class="btn-small" onclick="exportJournal()" style="margin-left:auto">EXPORT CSV</button>
+    </div>
+    <div class="trades-list" id="journalContainer">
+      <div class="trades-empty">Loading journal...</div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ SETTINGS PAGE ══ -->
 <div class="page" id="pageSettings">
   <div class="settings-page">
@@ -1959,9 +1978,9 @@ header {
       <button class="stab-btn stab-active" id="stab-trading" onclick="showSettingsTab('trading')">Trading</button>
       <button class="stab-btn" id="stab-system" onclick="showSettingsTab('system')">System</button>
     </div>
-    <div class="settings-grid" style="grid-template-columns:1fr 1fr;max-width:1100px">
-      <!-- ══ TRADING PANE ══ -->
-      <div class="spane spane-active" id="spane-trading">
+
+    <!-- ══ TRADING PANE ══ -->
+    <div class="spane spane-active" id="spane-trading">
 
       <!-- ── CANDIDATE FILTERS ── -->
       <div class="settings-card">
@@ -1972,6 +1991,86 @@ header {
             <input class="field-input" id="cfg_drop_threshold" type="number" min="50" max="75" step="1">
             <span class="field-desc">Min smoothed score to surface and keep candidates. Data shows 55+ is optimal. Raise to reduce noise.</span>
           </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">MIN DELTA</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_min_delta" type="number" min="0.10" max="0.60" step="0.05">
+            <span class="field-desc">Exclude options with abs(delta) below this. 0.25 filters far OTM.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">MIN MARK ($)</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_min_mark" type="number" min="0.10" max="2.00" step="0.05">
+            <span class="field-desc">Exclude options cheaper than this. Reduces penny-option noise.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">MAX MARK ($)</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_max_mark" type="number" min="0.50" max="10.00" step="0.25">
+            <span class="field-desc">Exclude options more expensive than this. Caps cost per contract.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">BRIEFING &#916; MIN</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_briefing_delta_min" type="number" min="0.20" max="0.60" step="0.05">
+            <span class="field-desc">Briefing contract: minimum delta (abs). Targets near-ATM options.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">BRIEFING &#916; MAX</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_briefing_delta_max" type="number" min="0.30" max="0.70" step="0.05">
+            <span class="field-desc">Briefing contract: maximum delta (abs).</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">MAX SCORE</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_max_surface_score" type="number" min="60" max="100" step="1">
+            <span class="field-desc">Suppress ideas with smoothed score above this. Data: 66+ band averages -2.9%.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">NO-TRADE GATE</span>
+          <div class="field-toggle">
+            <label class="toggle-switch">
+              <input type="checkbox" id="cfg_no_trade_gate" onchange="applyNoTradeGate()">
+              <div class="toggle-track"></div>
+              <div class="toggle-knob"></div>
+            </label>
+            <span class="toggle-label" id="noTradeGateLabel">ON</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label" style="visibility:hidden">—</span>
+          <span class="field-desc">When ON, scanner silences unless TRENDING + directional + structural conviction.</span>
+        </div>
+        <div class="field-row">
+          <span class="field-label">EOD HOUR</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_briefing_eod_hour" type="number" min="12" max="15" step="1">
+            <span class="field-desc">Hour (ET) after which theta warning activates. 14 = 2:30 PM ET.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">PINNED TRENDS</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_pinned_allowed_trends" type="text" placeholder="Downtrend">
+            <span class="field-desc">Comma-separated trends allowed in PINNED regime. Usually: Downtrend</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">PINNED MAX SCORE</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_pinned_max_score" type="number" min="50" max="80" step="1">
+            <span class="field-desc">Max score allowed in PINNED regime. Lower = stricter. Data: 60 recommended.</span>
+          </div>
+        </div>
+      </div>
 
       <!-- ── SCORING ── -->
       <div class="settings-card">
@@ -1982,6 +2081,50 @@ header {
             <input class="field-input" id="cfg_confirm_score" type="number" min="50" max="90" step="5">
             <span class="field-desc">Idea must reach this score to be marked CONFIRMED</span>
           </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">CONFIRM TICKS</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_confirm_ticks" type="number" min="3" max="30" step="1">
+            <span class="field-desc">Ticks at confirm score before CONFIRMED. Data: 13 optimal.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">CONFIRM TICKS (surge)</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_confirm_ticks_surge" type="number" min="1" max="15" step="1">
+            <span class="field-desc">Confirm ticks when volume surge detected (faster entry on breakouts)</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">DECAY SCORE</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_score_decay_threshold" type="number" min="30" max="70" step="5">
+            <span class="field-desc">Score below this triggers decay counter</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">DECAY TICKS</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_score_decay_ticks" type="number" min="3" max="30" step="1">
+            <span class="field-desc">Ticks below decay score before idea is invalidated</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">EMA SPAN ticks</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_ema_ticks" type="number" min="3" max="30" step="1">
+            <span class="field-desc">EMA window for price direction detection (ticks)</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">SMA SPAN ticks</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_sma_ticks" type="number" min="5" max="50" step="1">
+            <span class="field-desc">SMA window for score smoothing (ticks)</span>
+          </div>
+        </div>
+      </div>
 
       <!-- ── PAPER TRADE ── -->
       <div class="settings-card">
@@ -1992,6 +2135,71 @@ header {
             <input class="field-input" id="cfg_paper_stop_pct" type="number" min="0.05" max="0.90" step="0.05">
             <span class="field-desc">Exit paper trade if bid falls this % below entry ask</span>
           </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">PINNED STOP %</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_paper_stop_pct_pinned" type="number" min="0.05" max="0.90" step="0.05">
+            <span class="field-desc">Paper stop for PINNED-regime ideas only. Data: 0.20 recommended.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">TARGET 1 %</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_paper_target_1_pct" type="number" min="0.05" max="2.00" step="0.05">
+            <span class="field-desc">Take-profit level 1 (e.g. 0.30 = +30%)</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">TARGET 2 %</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_paper_target_2_pct" type="number" min="0.05" max="2.00" step="0.05">
+            <span class="field-desc">Take-profit level 2 (e.g. 0.50 = +50%)</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">TARGET 3 %</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_paper_target_3_pct" type="number" min="0.05" max="3.00" step="0.05">
+            <span class="field-desc">Take-profit level 3 (e.g. 0.75 = +75%)</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">STARTING BAL $</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_paper_starting_balance" type="number" min="1000" max="100000" step="500" style="max-width:100px">
+            <span class="field-desc">Virtual starting balance. Default $10,000.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">RISK PER TRADE %</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_paper_risk_pct" type="number" min="0.5" max="10" step="0.5" style="max-width:90px">
+            <span class="field-desc">% of balance risked per trade. 2% = $200 on $10k.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">COMMISSION $/CONTRACT</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_commission_per_contract" type="number" min="0" max="5" step="0.05" style="max-width:90px">
+            <span class="field-desc">Commission per contract. Schwab default $0.65.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">MAX SURFACE CANDIDATES</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_max_surface_candidates" type="number" min="1" max="10" step="1" style="max-width:70px">
+            <span class="field-desc">Max ideas surfaced at once. Default 3.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">POST-STOP COOLDOWN sec</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_post_stop_cooldown_sec" type="number" min="0" max="300" step="10" style="max-width:70px">
+            <span class="field-desc">Seconds to pause after a stop-out. Default 30.</span>
+          </div>
+        </div>
+      </div>
 
       <!-- ── IDEA LIFECYCLE ── -->
       <div class="settings-card">
@@ -2002,6 +2210,29 @@ header {
             <input class="field-input" id="cfg_idea_cooldown_min" type="number" min="1" max="60" step="1">
             <span class="field-desc">Same strike can't re-surface for this many minutes after invalidation</span>
           </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">REENTRY WINDOW min</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_reentry_window_min" type="number" min="1" max="30" step="1">
+            <span class="field-desc">Window for re-entry on same idea (extends existing idea)</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">OPEN GATE min</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_open_gate_minutes" type="number" min="0" max="60" step="5">
+            <span class="field-desc">Minutes after market open to suppress all ideas (0 = disabled)</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">IV CAP %</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_iv_cap" type="number" min="0" max="200" step="5">
+            <span class="field-desc">Exclude options with IV above this %. 0 = disabled.</span>
+          </div>
+        </div>
+      </div>
 
       <!-- ── DIRECTIONAL ── -->
       <div class="settings-card">
@@ -2012,11 +2243,35 @@ header {
             <input class="field-input" id="cfg_momentum_short_ticks" type="number" min="20" max="240" step="10">
             <span class="field-desc">Ticks for 1-min momentum window. 120 = 60s at 500ms poll.</span>
           </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">MOMENTUM MEDIUM ticks</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_momentum_medium_ticks" type="number" min="60" max="720" step="30">
+            <span class="field-desc">Ticks for 3-min momentum window. 360 = 3min at 500ms poll.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">STRUCTURE GATE</span>
+          <div class="field-toggle">
+            <label class="toggle-switch">
+              <input type="checkbox" id="cfg_structure_gate_scanner">
+              <div class="toggle-track"></div>
+              <div class="toggle-knob"></div>
+            </label>
+            <span class="toggle-label" id="structureGateLabel">OFF</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label" style="visibility:hidden">—</span>
+          <span class="field-desc">When ON, suppresses calls/puts when structure strongly disagrees</span>
+        </div>
+      </div>
 
-      </div><!-- end spane-trading -->
+    </div><!-- end spane-trading -->
 
-      <!-- ══ SYSTEM PANE ══ -->
-      <div class="spane" id="spane-system">
+    <!-- ══ SYSTEM PANE ══ -->
+    <div class="spane" id="spane-system">
 
       <!-- ── DATA ── -->
       <div class="settings-card">
@@ -2027,26 +2282,129 @@ header {
             <input class="field-input" id="cfg_symbol" type="text" value="SPY" placeholder="SPY, /ES, /CL">
             <span class="field-desc">Ticker to track. Futures: /ES /NQ /CL /GC</span>
           </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">STRIKE RANGE</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_strike_range" type="number" min="5" max="50" step="1">
+            <span class="field-desc">±strikes around current price to subscribe. SPY: 10–20.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">STRIKE SPACING</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_strike_spacing" type="number" min="0.5" max="10" step="0.5">
+            <span class="field-desc">Strike interval. SPY=1.0, stocks typically 5.0.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">EXPIRY DATE</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_expiry_date" type="text" placeholder="YYYY-MM-DD or blank for today">
+            <span class="field-desc" id="expiryHint">Leave blank for 0DTE (today). Set for 1DTE or specific expiry.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">WALL RANGE ±$</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_wall_range" type="number" min="5" max="100" step="5">
+            <span class="field-desc">Strike range used for call/put wall and max pain calculation.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">POLL INTERVAL ms</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_poll_ms" type="number" min="100" max="5000" step="100">
+            <span class="field-desc">How often spy_writer reads TOS data (500 = 2× per sec)</span>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);margin:10px 0 8px"></div>
+        <div class="settings-card-title" style="margin-bottom:8px">Alpaca News API (Optional)</div>
+        <div class="field-row">
+          <span class="field-label">ALPACA API KEY</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_alpaca_api_key" type="password" placeholder="PKXXX..." autocomplete="off">
+            <span class="field-desc">Optional — requires Alpaca paid plan</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">ALPACA SECRET</span>
+          <input class="field-input" id="cfg_alpaca_secret_key" type="password" placeholder="secret..." autocomplete="off">
+        </div>
+      </div>
 
-      <!-- ── VOLUME / SURGE ── -->
+      <!-- ── VOLUME ── -->
       <div class="settings-card">
         <div class="settings-card-title">Volume · Surge Detection</div>
         <div class="field-row">
           <span class="field-label">SURGE WINDOW</span>
           <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_surge_window" type="number" min="3" max="100" step="1">
-            <span class="field-desc">Ticks to look back when computing average SPY volume</span>
+            <input class="field-input" id="cfg_surge_window" type="number" min="3" max="30" step="1">
+            <span class="field-desc">Ticks to measure volume surge over</span>
           </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">SURGE THRESHOLD</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_surge_threshold" type="number" min="10" max="200" step="10">
+            <span class="field-desc">% above average volume to trigger surge flag</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">VOL SURGE RATIO</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_vol_surge_ratio" type="number" min="1.0" max="5.0" step="0.1">
+            <span class="field-desc">SPY volume ratio vs rolling avg to trigger surge confirm ticks</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">VOL LOOKBACK ticks</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_vol_lookback" type="number" min="5" max="50" step="5">
+            <span class="field-desc">Rolling window for SPY volume baseline</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">REL VOL SURGE ×</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_vol_surge_mult" type="number" min="1.0" max="5.0" step="0.1">
+            <span class="field-desc">Per-option relative volume multiplier to flag as surging</span>
+          </div>
+        </div>
+      </div>
 
-      <!-- ── RISK / ALERTS ── -->
+      <!-- ── RISK ── -->
       <div class="settings-card">
         <div class="settings-card-title">Risk · Alerts</div>
         <div class="field-row">
           <span class="field-label">STOP PCT</span>
           <div style="display:flex;flex-direction:column;gap:2px;flex:1">
             <input class="field-input" id="cfg_stop_pct" type="number" min="0.10" max="1.00" step="0.05">
-            <span class="field-desc">Auto-stop idea if option drops this % from entry mark</span>
+            <span class="field-desc">Alert if mark drops this % from entry (live trade warning)</span>
           </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">RISK CAP $</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_risk_cap" type="number" min="0.50" max="20.00" step="0.50">
+            <span class="field-desc">Max mark price to consider as a candidate ($)</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">WARN DISTANCE $</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_warn_distance" type="number" min="0.50" max="10.00" step="0.25">
+            <span class="field-desc">SPY distance to key level that triggers WARNING alert</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">CRITICAL DIST $</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_critical_distance" type="number" min="0.10" max="5.00" step="0.25">
+            <span class="field-desc">SPY distance to key level that triggers CRITICAL alert</span>
+          </div>
+        </div>
+      </div>
 
       <!-- ── TRADING CONTROLS ── -->
       <div class="settings-card">
@@ -2061,8 +2419,14 @@ header {
             </label>
             <span class="toggle-label" id="atEnabledLabel">OFF</span>
           </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label" style="visibility:hidden">—</span>
+          <span class="field-desc">When OFF, candidate ideas are hidden and no trades are signaled</span>
+        </div>
+      </div>
 
-      <!-- ── AI + TEST MODE ── -->
+      <!-- ── AI ── -->
       <div class="settings-card">
         <div class="settings-card-title">AI Assistant · Test Mode</div>
         <div class="field-row">
@@ -2075,6 +2439,54 @@ header {
             </label>
             <span class="toggle-label" id="aiEnabledLabel">OFF</span>
           </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">ANTHROPIC API KEY</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_ai_api_key" type="password" placeholder="sk-ant-..." autocomplete="off">
+            <span class="field-desc">Required for AI commentary and settings advisor</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">AUTO INTERVAL min</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_ai_interval" type="number" min="1" max="60" step="1">
+            <span class="field-desc">Minutes between automatic AI commentary updates</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">ADVISOR INTERVAL min</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_advisor_interval" type="number" min="5" max="120" step="5">
+            <span class="field-desc">Minutes between automatic settings advisor refreshes</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">API CALLS</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <span id="apiCallCounter" style="font-family:var(--mono);font-size:10px;color:var(--dim)">—</span>
+            <button class="btn btn-secondary" style="margin-top:4px;font-size:9px;padding:3px 10px;width:fit-content"
+                    onclick="resetApiCallCounter()">RESET TOTAL</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">ENABLE TEST MODE</span>
+          <div class="field-toggle">
+            <label class="toggle-switch">
+              <input type="checkbox" id="cfg_test_mode" onchange="toggleTestDate()">
+              <div class="toggle-track"></div>
+              <div class="toggle-knob"></div>
+            </label>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">OVERRIDE DATE</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_test_date" type="text" placeholder="YYYY-MM-DD">
+            <span class="field-desc">OnDemand replay date. Only active when Test Mode is ON.</span>
+          </div>
+        </div>
+      </div>
 
       <!-- ── DATA COLLECTION ── -->
       <div class="settings-card">
@@ -2089,6 +2501,24 @@ header {
             </label>
             <span class="toggle-label" id="tickHistoryLabel">ON</span>
           </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">REPLAY DB PATH</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_replay_db_path" type="text" style="max-width:200px" placeholder="D:/tos-dash-v2-replay/">
+            <span class="field-desc">Path for replay DB files. Drive D: recommended.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">RECORDER</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
+                    onclick="pauseTickRecorder()">PAUSE REC</button>
+            <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
+                    onclick="resumeTickRecorder()">RESUME REC</button>
+          </div>
+        </div>
+      </div>
 
       <!-- ── NEWS FEEDS ── -->
       <div class="settings-card" style="grid-column:1/-1">
@@ -2105,10 +2535,44 @@ header {
               <span class="field-desc">Name</span>
               <input class="field-input" id="news_new_name" type="text" placeholder="e.g. Bloomberg" style="max-width:160px">
             </div>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:200px">
+              <span class="field-desc">RSS URL</span>
+              <input class="field-input" id="news_new_url" type="text" placeholder="https://feeds.example.com/rss">
+            </div>
+            <button class="btn btn-secondary" style="font-size:9px;padding:5px 14px;align-self:flex-end" onclick="addNewsFeed()">+ ADD</button>
+          </div>
+        </div>
 
-      </div><!-- end spane-system -->
+        <!-- Filter & limits -->
+        <div style="border-top:1px solid var(--border);margin:10px 0 8px;padding-top:10px">
+          <div class="settings-card-title" style="font-size:10px;margin-bottom:8px">Filter &amp; Limits</div>
+          <div class="field-row" style="align-items:flex-start">
+            <span class="field-label" style="padding-top:4px">KEYWORDS</span>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <textarea class="field-input" id="news_keywords" rows="3"
+                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
+              <span class="field-desc">Pipe-separated (|) regex keywords. Headlines must match at least one.</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:4px">
+            <div class="field-row" style="flex:0 0 auto">
+              <span class="field-label">MAX AGE hrs</span>
+              <input class="field-input" id="news_max_age_hours" type="number" min="1" max="24" step="1" style="max-width:60px">
+            </div>
+            <div class="field-row" style="flex:0 0 auto">
+              <span class="field-label">MAX HEADLINES</span>
+              <input class="field-input" id="news_max_headlines" type="number" min="5" max="50" step="5" style="max-width:60px">
+            </div>
+          </div>
+        </div>
 
-    </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+          <button class="btn btn-primary" style="font-size:10px" onclick="saveNewsConfig()">SAVE NEWS SETTINGS</button>
+          <span class="save-status" id="newsSaveStatus"></span>
+        </div>
+      </div>
+
+    </div><!-- end spane-system -->
 
     <div class="settings-footer">
       <button class="btn btn-primary" onclick="saveSettings()">APPLY &amp; RESTART</button>
@@ -2202,6 +2666,7 @@ function showPage(name) {
   }
   if (name === 'trades') { renderTrades(); renderTradeHistory(); }
   if (name === 'ideas')  loadIdeas();
+  if (name === 'journal') renderJournal();
   if (name === 'charts') {
     loadCharts();
     if (!chartInterval) chartInterval = setInterval(loadCharts, 5000);
@@ -3810,7 +4275,7 @@ async function loadIdeas() {
     container.innerHTML = `
       <table class="trades-table" style="font-size:10px">
         <thead><tr>
-          <th>TIME</th><th>VER</th><th>SYMBOL</th><th>TYPE</th><th>SCORE</th>
+          <th>TIME</th><th>DATE</th><th>SYMBOL</th><th>TYPE</th><th>SCORE</th>
           <th>MARK</th><th>DELTA</th><th>TREND</th><th>SPY</th>
           <th>1m ✓</th><th>2m ✓</th><th>3m ✓</th><th>4m ✓</th>
           <th>5m P&L</th><th>10m P&L</th><th>15m P&L</th><th>30m P&L</th>
@@ -3825,7 +4290,7 @@ async function loadIdeas() {
             : `<td style="color:${v ? 'var(--bull)' : 'var(--bear)'}">${v ? '✓' : '✗'}</td>`;
           return `<tr>
             <td style="font-size:9px;color:var(--muted)">${t}</td>
-            <td style="font-size:9px;color:var(--muted)">${r.model_version||'--'}</td>
+            <td style="font-size:9px;color:var(--muted)">${r.surfaced_at ? r.surfaced_at.substring(0,10) : '--'}</td>
             <td style="font-size:9px">${r.symbol||'--'}</td>
             <td><span class="side-c ${r.option_type}" style="font-size:8px">${r.option_type||'--'}</span></td>
             <td style="color:${scoreColor(r.entry_score)};font-weight:700">${r.entry_score!=null?r.entry_score.toFixed(1):'--'}</td>
@@ -3856,6 +4321,88 @@ async function loadIdeas() {
   } catch(e) {
     container.innerHTML = `<div class="trades-empty">Error loading ideas: ${e}</div>`;
   }
+}
+
+// ── Journal ───────────────────────────────────────────────────────────────────
+
+async function renderJournal() {
+  const container = document.getElementById('journalContainer');
+  container.innerHTML = '<div class="trades-empty">Loading...</div>';
+  try {
+    const resp = await fetch('/ideas?limit=200');
+    if (!resp.ok) throw new Error(resp.statusText);
+    const data = await resp.json();
+    const ideas = data.ideas || [];
+    const closed = ideas.filter(r => r.paper_exit_reason);
+    if (!closed.length) {
+      container.innerHTML = '<div class="trades-empty">No closed paper trades yet.</div>';
+      return;
+    }
+    const exitColor = {STOP:'var(--bear)',TARGET_1:'var(--bull)',TARGET_2:'var(--bull)',TARGET_3:'var(--bull)',INVALIDATED:'var(--muted)',TIME_EXPIRED:'var(--dim)'};
+    const exitLabel = {STOP:'STOP',TARGET_1:'T1',TARGET_2:'T2',TARGET_3:'T3',INVALIDATED:'INV',TIME_EXPIRED:'EXP'};
+    container.innerHTML = `
+      <table class="trades-table" style="font-size:10px">
+        <thead><tr>
+          <th>DATE</th><th>TIME</th><th>SYMBOL</th><th>TYPE</th>
+          <th>SCORE</th><th>ENTRY</th><th>EXIT</th><th>RESULT</th>
+          <th>P&L%</th><th>NET$</th><th>MIN</th>
+          <th>ENTRY NOTES</th><th>EXIT NOTES</th>
+        </tr></thead>
+        <tbody>${closed.map(r => {
+          const dt   = r.surfaced_at ? r.surfaced_at.substring(0,10) : '--';
+          const tm   = r.surfaced_at ? r.surfaced_at.substring(11,19) : '--';
+          const pnl  = r.paper_pnl_pct;
+          const net  = r.paper_net_dollar_pnl;
+          const res  = r.paper_exit_reason;
+          return `<tr>
+            <td style="color:var(--muted)">${dt}</td>
+            <td style="color:var(--muted)">${tm}</td>
+            <td style="font-size:9px">${r.symbol||'--'}</td>
+            <td><span class="side-c ${r.option_type}" style="font-size:8px">${r.option_type||'--'}</span></td>
+            <td style="color:${scoreColor(r.entry_score)};font-weight:700">${r.entry_score!=null?r.entry_score.toFixed(1):'--'}</td>
+            <td>${r.paper_entry_ask!=null?r.paper_entry_ask.toFixed(2):'--'}</td>
+            <td>${r.paper_exit_bid!=null?r.paper_exit_bid.toFixed(2):'--'}</td>
+            <td><span style="font-size:8px;color:${exitColor[res]||'var(--dim)'};font-weight:700">${exitLabel[res]||res||'--'}</span></td>
+            <td class="${pnl!=null?(pnl>=0?'pnl-pos':'pnl-neg'):''}">${pnl!=null?(pnl>=0?'+':'')+pnl.toFixed(1)+'%':'--'}</td>
+            <td class="${net!=null?(net>=0?'pnl-pos':'pnl-neg'):''}">${net!=null?(net>=0?'+':'')+net.toFixed(2):'--'}</td>
+            <td style="color:var(--dim)">${r.paper_exit_minute!=null?r.paper_exit_minute+'m':'--'}</td>
+            <td style="font-size:8px;color:var(--dim);max-width:200px;white-space:normal">${r.entry_notes||''}</td>
+            <td style="font-size:8px;color:var(--dim);max-width:200px;white-space:normal">${r.exit_notes||''}</td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    container.innerHTML = `<div class="trades-empty">Error loading journal: ${e}</div>`;
+  }
+}
+
+function exportJournal() {
+  fetch('/ideas?limit=200')
+    .then(r => r.json())
+    .then(data => {
+      const ideas = (data.ideas || []).filter(r => r.paper_exit_reason);
+      if (!ideas.length) { alert('No closed trades to export.'); return; }
+      const cols = ['surfaced_at','symbol','option_type','entry_score','entry_spy',
+                    'paper_entry_ask','paper_exit_bid','paper_exit_reason',
+                    'paper_exit_minute','paper_pnl_pct','paper_net_dollar_pnl',
+                    'entry_notes','exit_notes'];
+      const header = cols.join(',');
+      const rows = ideas.map(r => cols.map(c => {
+        const v = r[c];
+        if (v == null) return '';
+        const s = String(v);
+        return s.includes(',') || s.includes('"') || s.includes('\n')
+          ? `"${s.replace(/"/g,'""')}"` : s;
+      }).join(','));
+      const csv = [header, ...rows].join('\n');
+      const blob = new Blob([csv], {type:'text/csv'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `journal_${new Date().toISOString().substring(0,10)}.csv`;
+      a.click();
+    })
+    .catch(e => alert('Export failed: ' + e));
 }
 
 // ── AI Features ───────────────────────────────────────────────────────────────

@@ -52,12 +52,18 @@ ES_SYMBOL     = "/ES:XCME"
 SPX_SYMBOL    = "$SPX"
 VIX_SYMBOL    = "VIX"
 NTICK_SYMBOL  = "$TICK"
+TRIN_SYMBOL   = "$TRIN"
+ADD_SYMBOL    = "$ADD"
+QQQ_SYMBOL    = "QQQ"
+IWM_SYMBOL    = "IWM"
+NQ_SYMBOL     = "/NQ:XCME"
 COMPANION_QTS = [QuoteType.LAST]   # only need LAST for ratio tracking
 
 OPTION_QTS = [
     QuoteType.LAST, QuoteType.BID, QuoteType.ASK, QuoteType.MARK,
     QuoteType.VOLUME, QuoteType.OPEN_INT,
     QuoteType.DELTA, QuoteType.GAMMA, QuoteType.THETA, QuoteType.IMPL_VOL,
+    QuoteType.VEGA,
     QuoteType.POSITION_QTY, QuoteType.AV_TRADE_PRICE,
 ]
 
@@ -150,15 +156,15 @@ for sym in (ES_SYMBOL, SPX_SYMBOL):
 print(f"[writer] Subscribed to {ES_SYMBOL} and {SPX_SYMBOL} (LAST only)",
       file=sys.stderr)
 
-# ── Subscribe to VIX and NYSE TICK ───────────────────────────────────────────
-for sym in (VIX_SYMBOL, NTICK_SYMBOL):
+# ── Subscribe to VIX, NYSE TICK, breadth, and ETF symbols ────────────────────
+for sym in (VIX_SYMBOL, NTICK_SYMBOL, TRIN_SYMBOL, ADD_SYMBOL, QQQ_SYMBOL, IWM_SYMBOL, NQ_SYMBOL):
     for qt in COMPANION_QTS:
         try:
             client.subscribe(qt, sym)
         except Exception as e:
             print(f"[writer] Warning: could not subscribe {sym}: {e}",
                   file=sys.stderr)
-print(f"[writer] Subscribed to {VIX_SYMBOL} and {NTICK_SYMBOL} (LAST only)",
+print(f"[writer] Subscribed to VIX, TICK, TRIN, ADD, QQQ, IWM, NQ (LAST only)",
       file=sys.stderr)
 
 # ── Wait for initial price ────────────────────────────────────────────────────
@@ -229,6 +235,11 @@ while True:
         spx_last  = safe_float(getattr(raw.get((SPX_SYMBOL,  "LAST")), "value", None))
         vix_last  = safe_float(getattr(raw.get((VIX_SYMBOL,  "LAST")), "value", None))
         ntick_val = safe_float(getattr(raw.get((NTICK_SYMBOL,"LAST")), "value", None))
+        trin_val  = safe_float(getattr(raw.get((TRIN_SYMBOL, "LAST")), "value", None))
+        add_val   = safe_float(getattr(raw.get((ADD_SYMBOL,  "LAST")), "value", None))
+        qqq_last  = safe_float(getattr(raw.get((QQQ_SYMBOL,  "LAST")), "value", None))
+        iwm_last  = safe_float(getattr(raw.get((IWM_SYMBOL,  "LAST")), "value", None))
+        nq_last   = safe_float(getattr(raw.get((NQ_SYMBOL,   "LAST")), "value", None))
 
         price_payload = {
             "symbol":    SYMBOL,
@@ -247,6 +258,11 @@ while True:
             "spx_last":  spx_last,
             "vix_last":  vix_last,
             "ntick_val": ntick_val,
+            "trin_val":  trin_val,
+            "add_val":   add_val,
+            "qqq_last":  qqq_last,
+            "iwm_last":  iwm_last,
+            "nq_last":   nq_last,
         }
         chain = {}
         positions = {}

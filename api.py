@@ -352,6 +352,11 @@ def build_snapshot() -> dict:
     spx_last  = price_data.get("spx_last")
     vix_raw   = price_data.get("vix_last")
     ntick_raw = price_data.get("ntick_val")
+    trin_val  = price_data.get("trin_val")
+    add_val   = price_data.get("add_val")
+    qqq_last  = price_data.get("qqq_last")
+    iwm_last  = price_data.get("iwm_last")
+    nq_last   = price_data.get("nq_last")
     vix_signals = _compute_vix_signals(vix_raw)
     ntick = int(ntick_raw) if ntick_raw is not None else None
 
@@ -764,6 +769,11 @@ def build_snapshot() -> dict:
         "next_1dte":        get_next_1dte(),
         "vix":              vix_signals,
         "ntick":            ntick,
+        "trin":             trin_val,
+        "add":              add_val,
+        "qqq":              qqq_last,
+        "iwm":              iwm_last,
+        "nq":               nq_last,
         "paper_stats":      idea_logger.get_paper_stats(),
         "active_ideas":     idea_logger.get_active_ideas(),
         "positions":        positions,

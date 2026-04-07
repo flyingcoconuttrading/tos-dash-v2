@@ -76,6 +76,7 @@ IDEA_HEADERS = [
     "paper_exit_minute", "paper_pnl_pct",
     "paper_contracts", "paper_dollar_pnl",
     "commission_per_contract", "paper_commission", "paper_net_dollar_pnl",
+    "entry_notes", "exit_notes",
 ]
 EVENT_HEADERS = ["id","idea_id","event_time","event_type","score","mark","spy","spy_move","vol_ratio","detail"]
 ALERT_HEADERS = ["id","logged_at","alert_zone","alert_message","spy_price","snap_level","snap_distance","snap_direction","regime","bias","net_gex","net_dex"]
@@ -411,6 +412,7 @@ class IdeaLogger:
             "entry_vix":           self._last_vix_signals.get("last"),
             "entry_tick":          self._last_ntick,
             "entry_vix_trend":     self._last_vix_signals.get("cross"),
+            "entry_notes":         self._build_entry_notes(candidate, ms, spy_vol_ratio),
             "status":              STATUS_ACTIVE,
             "reentry_count":       0,
             "traded":              0,
@@ -455,6 +457,43 @@ class IdeaLogger:
             "surge" if _surge_at_surface else "normal",
             spy_vol_ratio,
         )
+
+    def _build_entry_notes(self, candidate, ms, spy_vol_ratio: float) -> str:
+        """Auto-generate a human-readable entry note from surface conditions."""
+        parts = []
+        opt_type = getattr(candidate, "option_type", "")
+        direction = getattr(candidate, "direction", "")
+        parts.append(f"{'CALL' if opt_type == 'C' else 'PUT'} surface: score={candidate.score:.1f} mark={candidate.mark:.2f}")
+        if ms:
+            trend   = getattr(ms, "trend",  "?")
+            regime  = getattr(ms, "regime", "?")
+            parts.append(f"regime={regime} trend={trend}")
+            lean = getattr(getattr(ms, "checklist", None), "structural_lean", None)
+            if lean:
+                parts.append(f"structure={lean}")
+        vix = self._last_vix_signals.get("last")
+        if vix is not None:
+            parts.append(f"VIX={vix:.2f}")
+        if self._last_ntick is not None:
+            parts.append(f"TICK={self._last_ntick}")
+        if spy_vol_ratio >= self._cfg.get("vol_surge_ratio", 1.8):
+            parts.append("VOL_SURGE")
+        return "; ".join(parts)
+
+    def _build_exit_notes(self, row, exit_reason: str, exit_bid, entry_ask, pnl_pct: float) -> str:
+        """Auto-generate a human-readable exit note."""
+        parts = [f"Exit: {exit_reason}"]
+        parts.append(f"entry={entry_ask:.2f} exit={exit_bid:.2f} pnl={pnl_pct:+.1f}%")
+        if exit_reason == "STOP":
+            parts.append("stopped out")
+        elif exit_reason.startswith("TARGET"):
+            level = exit_reason.split("_")[-1]
+            parts.append(f"target {level} hit")
+        elif exit_reason == "INVALIDATED":
+            parts.append(f"reason={row.get('invalidation_reason','?')}")
+        elif exit_reason == "TIME_EXPIRED":
+            parts.append("60-min expiry")
+        return "; ".join(parts)
 
     def _handle_reentry(self, idea_id, key, candidate, spy_price, now, spy_vol_ratio=0.0):
         with self._connect() as conn:
@@ -823,16 +862,19 @@ class IdeaLogger:
         gross_pnl      = (exit_bid - entry_ask) * 100 * contracts
         total_commission = commission_per * contracts * 2   # entry + exit legs
         net_pnl        = gross_pnl - total_commission
+        exit_notes = self._build_exit_notes(row, exit_reason, exit_bid, entry_ask, pnl_pct)
         with self._connect() as conn:
             conn.execute("""
                 UPDATE ideas
                 SET paper_exit_bid=?, paper_exit_reason=?,
                     paper_exit_minute=?, paper_pnl_pct=?,
                     paper_dollar_pnl=?,
-                    commission_per_contract=?, paper_commission=?, paper_net_dollar_pnl=?
+                    commission_per_contract=?, paper_commission=?, paper_net_dollar_pnl=?,
+                    exit_notes=?
                 WHERE id=?
             """, (exit_bid, exit_reason, exit_minute, pnl_pct,
-                  gross_pnl, commission_per, total_commission, net_pnl, row["id"]))
+                  gross_pnl, commission_per, total_commission, net_pnl,
+                  exit_notes, row["id"]))
 
     # ── Public read API ───────────────────────────────────────────────────────
 
@@ -1045,6 +1087,8 @@ class IdeaLogger:
             "commission_per_contract REAL",
             "paper_commission REAL",
             "paper_net_dollar_pnl REAL",
+            "entry_notes TEXT",
+            "exit_notes TEXT",
         ]:
             try:
                 with self._connect() as conn:

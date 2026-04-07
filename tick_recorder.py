@@ -87,9 +87,25 @@ def _ensure_tables(conn: sqlite3.Connection):
             es_last REAL,
             spx_last REAL,
             rtd_stale INTEGER,
-            frozen_ticks INTEGER
+            frozen_ticks INTEGER,
+            trin REAL,
+            add_val REAL,
+            qqq_last REAL,
+            iwm_last REAL,
+            nq_last REAL
         )
     """)
+    # Migration guard — add new breadth/ETF columns to existing DBs
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(spy_ticks)")}
+    for col, typedef in [
+        ("trin",     "REAL"),
+        ("add_val",  "REAL"),
+        ("qqq_last", "REAL"),
+        ("iwm_last", "REAL"),
+        ("nq_last",  "REAL"),
+    ]:
+        if col not in existing:
+            conn.execute(f"ALTER TABLE spy_ticks ADD COLUMN {col} {typedef}")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS chain_ticks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -165,8 +181,9 @@ try:
         # Write spy row
         db_conn.execute("""
             INSERT INTO spy_ticks
-            (tick_time, tick, last, bid, ask, mark, volume, vix, ntick, es_last, spx_last, rtd_stale, frozen_ticks)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+            (tick_time, tick, last, bid, ask, mark, volume, vix, ntick, es_last, spx_last, rtd_stale, frozen_ticks,
+             trin, add_val, qqq_last, iwm_last, nq_last)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             tick_time, tick,
             price_data.get("last"), price_data.get("bid"),
@@ -176,6 +193,9 @@ try:
             price_data.get("es_last"),  price_data.get("spx_last"),
             1 if price_data.get("rtd_stale") else 0,
             price_data.get("frozen_ticks", 0),
+            price_data.get("trin_val"),  price_data.get("add_val"),
+            price_data.get("qqq_last"),  price_data.get("iwm_last"),
+            price_data.get("nq_last"),
         ))
 
         # Write chain rows (only symbols with actual data)

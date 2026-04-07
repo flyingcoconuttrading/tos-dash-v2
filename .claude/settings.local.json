@@ -29,7 +29,8 @@
       "Bash(python3:*)",
       "Bash(chmod +x /c/Users/randy/tos-dash-v2/testing/run_tests.sh /c/Users/randy/tos-dash-v2/testing/stop_tests.sh)",
       "Bash(sqlite3 data/ideas.db \"SELECT name FROM pragma_table_info\\(''ideas''\\) WHERE name LIKE ''out_1%'' OR name LIKE ''out_2%'' OR name LIKE ''out_3m%'' OR name LIKE ''out_4%'';\")",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }
