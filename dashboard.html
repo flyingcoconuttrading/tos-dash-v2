@@ -750,6 +750,35 @@ header {
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
 }
+/* ── Settings tabs ── */
+.settings-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.stab-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  padding: 7px 18px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+.stab-btn:hover { color: var(--fg); }
+.stab-btn.stab-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.spane { display: none; }
+.spane.spane-active { display: contents; }
 
 .field-row {
   display: flex;
@@ -1926,161 +1955,13 @@ header {
         <span class="advisor-no-key">Open Settings to load analysis…</span>
       </div>
     </div>
+    <div class="settings-tabs">
+      <button class="stab-btn stab-active" id="stab-trading" onclick="showSettingsTab('trading')">Trading</button>
+      <button class="stab-btn" id="stab-system" onclick="showSettingsTab('system')">System</button>
+    </div>
     <div class="settings-grid" style="grid-template-columns:1fr 1fr;max-width:1100px">
-
-      <!-- ── DATA ── -->
-      <div class="settings-card">
-        <div class="settings-card-title">Data · Subscription</div>
-        <div class="field-row">
-          <span class="field-label">SYMBOL</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_symbol" type="text" value="SPY" placeholder="SPY, /ES, /CL">
-            <span class="field-desc">Ticker to track. Futures: /ES /NQ /CL /GC</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">STRIKE RANGE</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_strike_range" type="number" min="5" max="100" step="5">
-            <span class="field-desc">Strikes shown in the chain table (±N from price)</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">STRIKE SPACING</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_strike_spacing" type="number" min="0.5" max="100" step="0.5">
-            <span class="field-desc">Gap between strikes. SPY=1, SPX=5, /ES=25, /NQ=25</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">EXPIRY DATE</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_expiry_date" type="date" style="max-width:160px">
-            <span class="field-desc" id="expiryHint">Leave blank = today (0DTE)</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">WALL RANGE ±$</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_wall_range" type="number" min="5" max="50" step="1">
-            <span class="field-desc">Strikes scanned for Call/Put Wall and Max Pain (±N from price). Default 10.</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">POLL INTERVAL ms</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_poll_ms" type="number" min="100" max="5000" step="100">
-            <span class="field-desc">How often spy_writer reads TOS data (500 = 2× per sec)</span>
-          </div>
-        </div>
-        <div style="border-top:1px solid var(--border);margin:10px 0 8px"></div>
-        <div class="settings-card-title" style="margin-bottom:8px">Alpaca News API (Optional)</div>
-        <div class="field-row">
-          <span class="field-label">ALPACA API KEY</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_alpaca_api_key" type="password" placeholder="PKXXX..." autocomplete="off">
-            <span class="field-desc">Optional — requires Alpaca paid plan</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">ALPACA SECRET</span>
-          <input class="field-input" id="cfg_alpaca_secret_key" type="password" placeholder="secret..." autocomplete="off">
-        </div>
-      </div>
-
-      <!-- ── SCORING ── -->
-      <div class="settings-card">
-        <div class="settings-card-title">Scoring · Confirmation</div>
-        <div class="field-row">
-          <span class="field-label">CONFIRM SCORE</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_confirm_score" type="number" min="50" max="90" step="5">
-            <span class="field-desc">Idea must reach this score to be marked CONFIRMED</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">CONFIRM TICKS</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_confirm_ticks" type="number" min="3" max="30" step="1">
-            <span class="field-desc">Ticks score must stay above confirm threshold to confirm</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">CONFIRM TICKS (surge)</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_confirm_ticks_surge" type="number" min="2" max="20" step="1">
-            <span class="field-desc">Faster confirmation when volume surge is detected</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">DECAY SCORE</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_score_decay_threshold" type="number" min="20" max="70" step="5">
-            <span class="field-desc">If score drops below this, start decay timer</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">DECAY TICKS</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_score_decay_ticks" type="number" min="3" max="30" step="1">
-            <span class="field-desc">Ticks below decay score before idea is killed</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">EMA SPAN ticks</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_ema_ticks" type="number" min="3" max="100" step="1">
-            <span class="field-desc">EMA period for price momentum signal</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">SMA SPAN ticks</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_sma_ticks" type="number" min="5" max="200" step="1">
-            <span class="field-desc">SMA baseline period for trend detection</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── VOLUME / SURGE ── -->
-      <div class="settings-card">
-        <div class="settings-card-title">Volume · Surge Detection</div>
-        <div class="field-row">
-          <span class="field-label">SURGE WINDOW</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_surge_window" type="number" min="3" max="100" step="1">
-            <span class="field-desc">Ticks to look back when computing average SPY volume</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">SURGE THRESHOLD</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_surge_threshold" type="number" min="1.0" max="10" step="0.5">
-            <span class="field-desc">SPY vol must be this × rolling avg to flag a surge</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">VOL SURGE RATIO</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_vol_surge_ratio" type="number" min="1.0" max="5.0" step="0.1">
-            <span class="field-desc">Option vol ratio required to credit vol surge in scoring</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">VOL LOOKBACK ticks</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_vol_lookback" type="number" min="5" max="100" step="5">
-            <span class="field-desc">Rolling window for option volume baseline comparison</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">REL VOL SURGE ×</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_vol_surge_mult" type="number" min="1.0" max="5.0" step="0.5">
-            <span class="field-desc">Option vol must be this × its own 3-tick avg to count as surging</span>
-          </div>
-        </div>
-      </div>
+      <!-- ══ TRADING PANE ══ -->
+      <div class="spane spane-active" id="spane-trading">
 
       <!-- ── CANDIDATE FILTERS ── -->
       <div class="settings-card">
@@ -2091,198 +1972,16 @@ header {
             <input class="field-input" id="cfg_drop_threshold" type="number" min="50" max="75" step="1">
             <span class="field-desc">Min smoothed score to surface and keep candidates. Data shows 55+ is optimal. Raise to reduce noise.</span>
           </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">MIN DELTA</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_min_delta" type="number" min="0" max="0.80" step="0.05">
-            <span class="field-desc">Skip options with |delta| below this. 0.25 filters low-probability OTM lottery tickets.</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">MIN MARK ($)</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_min_mark" type="number" min="0" max="5.00" step="0.05">
-            <span class="field-desc">Skip options with mark price below this. 0.50 recommended to avoid untradeable wide-spread contracts.</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">MAX MARK ($)</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_max_mark" type="number"
-                   min="0.50" max="10.00" step="0.25" style="max-width:90px">
-            <span class="field-desc">
-              Upper mark filter for briefing contract. $2.00 default.
-              Raise to $3.00+ on high-IV days.
-            </span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">BRIEFING Δ MIN</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_briefing_delta_min" type="number"
-                   min="0.10" max="0.70" step="0.05" style="max-width:90px">
-            <span class="field-desc">
-              Min delta for recommended contract. 0.35 default.
-              Lower = cheaper, needs bigger move.
-            </span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">BRIEFING Δ MAX</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_briefing_delta_max" type="number"
-                   min="0.10" max="0.70" step="0.05" style="max-width:90px">
-            <span class="field-desc">
-              Max delta for recommended contract. 0.50 default.
-              Higher = deeper ITM, less time-decay risk.
-            </span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">MAX SCORE</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_max_surface_score" type="number" min="55" max="100" step="1">
-            <span class="field-desc">Hard ceiling on surface score. 100 = disabled. Data: 65-70 band is -1.5% avg PnL vs +13.5% for 55-60.</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">NO-TRADE GATE</span>
-          <div class="field-toggle">
-            <label class="toggle-switch">
-              <input type="checkbox" id="cfg_no_trade_gate" onchange="applyNoTradeGate()">
-              <div class="toggle-track"></div>
-              <div class="toggle-knob"></div>
-            </label>
-            <span id="noTradeGateLabel" style="font-size:10px;color:var(--dim)">ON</span>
-          </div>
-          <span class="field-desc" style="font-size:9px;color:var(--muted);margin-top:2px">
-            Require TRENDING + directional + Strong/Moderate structure to surface ideas.
-            Data: silences losing days, preserves winning ones.
-          </span>
-        </div>
-        <div class="field-row">
-          <span class="field-label">EOD HOUR</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_briefing_eod_hour" type="number" min="12" max="15" step="1">
-            <span class="field-desc">Hour (ET) when EOD DTE warning activates. 14 = 2:30pm.</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">PINNED TRENDS</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_pinned_allowed_trends" type="text" placeholder="Downtrend">
-            <span class="field-desc">Comma-separated trends allowed in PINNED (pos GEX) regime. Data: Downtrend=44% hit, Uptrend=16%, Choppy=36%.</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">PINNED MAX SCORE</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_pinned_max_score" type="number" min="50" max="100" step="1">
-            <span class="field-desc">Score ceiling for PINNED-regime candidates only. 100 = disabled. High PINNED scores tend to be overextended.</span>
-          </div>
-        </div>
-      </div>
 
-      <!-- ── DIRECTIONAL ── -->
+      <!-- ── SCORING ── -->
       <div class="settings-card">
-        <div class="settings-card-title">Directional · Momentum</div>
+        <div class="settings-card-title">Scoring · Confirmation</div>
         <div class="field-row">
-          <span class="field-label">MOMENTUM SHORT ticks</span>
+          <span class="field-label">CONFIRM SCORE</span>
           <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_momentum_short_ticks" type="number" min="20" max="240" step="10">
-            <span class="field-desc">Ticks for 1-min momentum window. 120 = 60s at 500ms poll.</span>
+            <input class="field-input" id="cfg_confirm_score" type="number" min="50" max="90" step="5">
+            <span class="field-desc">Idea must reach this score to be marked CONFIRMED</span>
           </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">MOMENTUM MEDIUM ticks</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_momentum_medium_ticks" type="number" min="60" max="720" step="30">
-            <span class="field-desc">Ticks for 3-min momentum window. 360 = 180s at 500ms poll.</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">STRUCTURE GATE</span>
-          <div class="field-toggle">
-            <label class="toggle-switch">
-              <input type="checkbox" id="cfg_structure_gate_scanner">
-              <div class="toggle-track"></div>
-              <div class="toggle-knob"></div>
-            </label>
-            <span id="structureGateLabel" style="font-size:10px;color:var(--dim)">OFF</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label" style="visibility:hidden">—</span>
-          <span class="field-desc">Suppress calls when structure is Bear·Strong/Moderate, puts when Bull·Strong/Moderate.</span>
-        </div>
-      </div>
-
-      <!-- ── IDEA LIFECYCLE ── -->
-      <div class="settings-card">
-        <div class="settings-card-title">Idea Lifecycle · Filters</div>
-        <div class="field-row">
-          <span class="field-label">IDEA COOLDOWN min</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_idea_cooldown_min" type="number" min="1" max="60" step="1">
-            <span class="field-desc">Same strike can't re-surface for this many minutes after invalidation</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">REENTRY WINDOW min</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_reentry_window_min" type="number" min="1" max="30" step="1">
-            <span class="field-desc">After a stop, how long before the same idea can re-enter</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">OPEN GATE min</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_open_gate_minutes" type="number" min="0" max="60" step="5">
-            <span class="field-desc">Minutes after 9:30 ET before candidates surface. 5 = catch morning momentum. 30 = skip open volatility.</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">IV CAP %</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_iv_cap" type="number" min="0" max="100" step="5">
-            <span class="field-desc">Skip options with implied volatility above this %. 0 = disabled</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── RISK / ALERTS ── -->
-      <div class="settings-card">
-        <div class="settings-card-title">Risk · Alerts</div>
-        <div class="field-row">
-          <span class="field-label">STOP PCT</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_stop_pct" type="number" min="0.10" max="1.00" step="0.05">
-            <span class="field-desc">Auto-stop idea if option drops this % from entry mark</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">RISK CAP $</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_risk_cap" type="number" min="0.50" max="20" step="0.50">
-            <span class="field-desc">Max dollar risk per idea (used for position sizing guidance)</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">WARN DISTANCE $</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_warn_distance" type="number" min="0.5" max="20" step="0.5">
-            <span class="field-desc">Alert when SPY is within $N of a key wall level</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">CRITICAL DIST $</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_critical_distance" type="number" min="0.25" max="10" step="0.25">
-            <span class="field-desc">Critical alert threshold — price is very close to wall</span>
-          </div>
-        </div>
-      </div>
 
       <!-- ── PAPER TRADE ── -->
       <div class="settings-card">
@@ -2293,81 +1992,61 @@ header {
             <input class="field-input" id="cfg_paper_stop_pct" type="number" min="0.05" max="0.90" step="0.05">
             <span class="field-desc">Exit paper trade if bid falls this % below entry ask</span>
           </div>
-        </div>
+
+      <!-- ── IDEA LIFECYCLE ── -->
+      <div class="settings-card">
+        <div class="settings-card-title">Idea Lifecycle · Filters</div>
         <div class="field-row">
-          <span class="field-label">PINNED STOP %</span>
+          <span class="field-label">IDEA COOLDOWN min</span>
           <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_paper_stop_pct_pinned" type="number" min="0.05" max="0.90" step="0.05">
-            <span class="field-desc">Paper stop for PINNED-regime ideas only. Overrides STOP %. Data: PINNED stops averaged -37% loss at 30%. 0.20 recommended.</span>
+            <input class="field-input" id="cfg_idea_cooldown_min" type="number" min="1" max="60" step="1">
+            <span class="field-desc">Same strike can't re-surface for this many minutes after invalidation</span>
           </div>
-        </div>
+
+      <!-- ── DIRECTIONAL ── -->
+      <div class="settings-card">
+        <div class="settings-card-title">Directional · Momentum</div>
         <div class="field-row">
-          <span class="field-label">TARGET 1 %</span>
+          <span class="field-label">MOMENTUM SHORT ticks</span>
           <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_paper_target_1_pct" type="number" min="0.05" max="2.00" step="0.05">
-            <span class="field-desc">Take-profit level 1 (e.g. 0.30 = +30%)</span>
+            <input class="field-input" id="cfg_momentum_short_ticks" type="number" min="20" max="240" step="10">
+            <span class="field-desc">Ticks for 1-min momentum window. 120 = 60s at 500ms poll.</span>
           </div>
-        </div>
+
+      </div><!-- end spane-trading -->
+
+      <!-- ══ SYSTEM PANE ══ -->
+      <div class="spane" id="spane-system">
+
+      <!-- ── DATA ── -->
+      <div class="settings-card">
+        <div class="settings-card-title">Data · Subscription</div>
         <div class="field-row">
-          <span class="field-label">TARGET 2 %</span>
+          <span class="field-label">SYMBOL</span>
           <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_paper_target_2_pct" type="number" min="0.05" max="2.00" step="0.05">
-            <span class="field-desc">Take-profit level 2 (e.g. 0.50 = +50%)</span>
+            <input class="field-input" id="cfg_symbol" type="text" value="SPY" placeholder="SPY, /ES, /CL">
+            <span class="field-desc">Ticker to track. Futures: /ES /NQ /CL /GC</span>
           </div>
-        </div>
+
+      <!-- ── VOLUME / SURGE ── -->
+      <div class="settings-card">
+        <div class="settings-card-title">Volume · Surge Detection</div>
         <div class="field-row">
-          <span class="field-label">TARGET 3 %</span>
+          <span class="field-label">SURGE WINDOW</span>
           <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_paper_target_3_pct" type="number" min="0.05" max="3.00" step="0.05">
-            <span class="field-desc">Take-profit level 3 (e.g. 0.75 = +75%)</span>
+            <input class="field-input" id="cfg_surge_window" type="number" min="3" max="100" step="1">
+            <span class="field-desc">Ticks to look back when computing average SPY volume</span>
           </div>
-        </div>
+
+      <!-- ── RISK / ALERTS ── -->
+      <div class="settings-card">
+        <div class="settings-card-title">Risk · Alerts</div>
         <div class="field-row">
-          <span class="field-label">STARTING BAL $</span>
+          <span class="field-label">STOP PCT</span>
           <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_paper_starting_balance"
-                   type="number" min="1000" max="100000" step="500"
-                   style="max-width:100px">
-            <span class="field-desc">Virtual starting balance. Default $10,000.</span>
+            <input class="field-input" id="cfg_stop_pct" type="number" min="0.10" max="1.00" step="0.05">
+            <span class="field-desc">Auto-stop idea if option drops this % from entry mark</span>
           </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">RISK PER TRADE %</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_paper_risk_pct"
-                   type="number" min="0.5" max="10" step="0.5"
-                   style="max-width:90px">
-            <span class="field-desc">% of current balance risked per trade. 2% = $200 on $10k. Contracts = risk$ ÷ (mark × 100 × stop%).</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">COMMISSION $/CONTRACT</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_commission_per_contract"
-                   type="number" min="0" max="5" step="0.05"
-                   style="max-width:90px">
-            <span class="field-desc">Commission per contract per leg. Default $0.65 (tastytrade). Applied to entry + exit.</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">MAX SURFACE CANDIDATES</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_max_surface_candidates"
-                   type="number" min="1" max="10" step="1"
-                   style="max-width:90px">
-            <span class="field-desc">Max simultaneous ideas surfaced. Caps cognitive load and position sizing exposure. Default 3.</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">POST-STOP COOLDOWN sec</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_post_stop_cooldown_sec"
-                   type="number" min="0" max="300" step="5"
-                   style="max-width:90px">
-            <span class="field-desc">Suppress new surfaces for N seconds after a stop. 0 = disabled. Default 30.</span>
-          </div>
-        </div>
-      </div>
 
       <!-- ── TRADING CONTROLS ── -->
       <div class="settings-card">
@@ -2382,12 +2061,6 @@ header {
             </label>
             <span class="toggle-label" id="atEnabledLabel">OFF</span>
           </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label" style="visibility:hidden">—</span>
-          <span class="field-desc">When OFF, candidate ideas are hidden and no trades are signaled</span>
-        </div>
-      </div>
 
       <!-- ── AI + TEST MODE ── -->
       <div class="settings-card">
@@ -2402,69 +2075,6 @@ header {
             </label>
             <span class="toggle-label" id="aiEnabledLabel">OFF</span>
           </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">ANTHROPIC API KEY</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_ai_api_key" type="password" placeholder="sk-ant-..." autocomplete="off">
-            <span class="field-desc">Enables AI chat panel and auto-commentary. Stored in browser only.</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">AUTO INTERVAL min</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_ai_interval" type="number" min="1" max="120" step="1" style="max-width:90px">
-            <span class="field-desc">Minutes between auto-refreshes. Fires sooner on bias flip, alert escalation, or $2+ price move. Set to 60+ to effectively disable auto.</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">ADVISOR INTERVAL min</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_advisor_interval" type="number"
-                   min="1" max="120" step="1" style="max-width:90px"
-                   onchange="localStorage.setItem('advisor_interval', this.value)">
-            <span class="field-desc">
-              Min minutes between advisor auto-runs when Settings opens.
-              Same API key as AT Chat. Set high to call manually only.
-            </span>
-          </div>
-        </div>
-        <div class="field-row" style="align-items:flex-start">
-          <span class="field-label">API CALLS</span>
-          <div style="display:flex;flex-direction:column;gap:5px;flex:1">
-            <span id="apiCallCounter"
-                  style="font-family:var(--mono);font-size:10px;color:var(--dim)">
-              Today: 0  ·  Session: 0  ·  Total: 0
-            </span>
-            <button class="btn btn-secondary"
-                    style="font-size:9px;padding:3px 10px;width:fit-content"
-                    onclick="resetApiCallTotal()">
-              RESET TOTAL
-            </button>
-            <span style="font-family:var(--mono);font-size:9px;color:var(--muted)">
-              Used by: Advisor · AT Commentary · AI Chat — all use same API key
-            </span>
-          </div>
-        </div>
-        <div class="field-row" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-          <span class="field-label">ENABLE TEST MODE</span>
-          <div class="field-toggle">
-            <label class="toggle-switch">
-              <input type="checkbox" id="cfg_test_mode" onchange="toggleTestDate()">
-              <div class="toggle-track"></div>
-              <div class="toggle-knob"></div>
-            </label>
-            <span class="toggle-label" id="testModeLabel">OFF</span>
-          </div>
-        </div>
-        <div class="field-row" style="margin-left:0" id="testDateRow">
-          <span class="field-label">OVERRIDE DATE</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_test_date" type="date">
-            <span class="field-desc">Replay a past expiry date for backtesting</span>
-          </div>
-        </div>
-      </div>
 
       <!-- ── DATA COLLECTION ── -->
       <div class="settings-card">
@@ -2479,27 +2089,6 @@ header {
             </label>
             <span class="toggle-label" id="tickHistoryLabel">ON</span>
           </div>
-        </div>
-        <div class="field-row">
-          <span class="field-label">REPLAY DB PATH</span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_replay_db_path"
-                   type="text" placeholder="D:/tos-dash-v2-replay/"
-                   style="max-width:240px">
-            <span class="field-desc">Directory for daily replay SQLite files. One DB per trading day.</span>
-          </div>
-        </div>
-        <div class="field-row" style="margin-top:8px">
-          <span class="field-label">RECORDER</span>
-          <div style="display:flex;gap:8px;flex:1">
-            <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
-                    onclick="pauseTickRecorder()">PAUSE REC</button>
-            <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
-                    onclick="resumeTickRecorder()">RESUME REC</button>
-            <span id="tickRecorderStatus" style="font-size:9px;color:var(--dim);align-self:center">—</span>
-          </div>
-        </div>
-      </div>
 
       <!-- ── NEWS FEEDS ── -->
       <div class="settings-card" style="grid-column:1/-1">
@@ -2516,42 +2105,8 @@ header {
               <span class="field-desc">Name</span>
               <input class="field-input" id="news_new_name" type="text" placeholder="e.g. Bloomberg" style="max-width:160px">
             </div>
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:240px">
-              <span class="field-desc">RSS URL</span>
-              <input class="field-input" id="news_new_url" type="text" placeholder="https://feeds.example.com/rss">
-            </div>
-            <button class="btn btn-secondary" style="font-size:9px;padding:5px 14px;align-self:flex-end" onclick="addNewsFeed()">+ ADD</button>
-          </div>
-        </div>
 
-        <!-- Filter & limits -->
-        <div style="border-top:1px solid var(--border);margin:10px 0 8px;padding-top:10px">
-          <div class="settings-card-title" style="font-size:10px;margin-bottom:8px">Filter &amp; Limits</div>
-          <div class="field-row" style="align-items:flex-start">
-            <span class="field-label" style="padding-top:4px">KEYWORDS</span>
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
-              <textarea class="field-input" id="news_keywords" rows="3"
-                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px;line-height:1.5"></textarea>
-              <span class="field-desc">Pipe-separated (|) regex keywords. Headlines not matching any are filtered out.</span>
-            </div>
-          </div>
-          <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:4px">
-            <div class="field-row" style="flex:0 0 auto">
-              <span class="field-label">MAX AGE hrs</span>
-              <input class="field-input" id="news_max_age_hours" type="number" min="1" max="24" step="1" style="max-width:80px">
-            </div>
-            <div class="field-row" style="flex:0 0 auto">
-              <span class="field-label">MAX HEADLINES</span>
-              <input class="field-input" id="news_max_headlines" type="number" min="5" max="100" step="5" style="max-width:80px">
-            </div>
-          </div>
-        </div>
-
-        <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
-          <button class="btn btn-primary" style="font-size:10px" onclick="saveNewsConfig()">SAVE NEWS SETTINGS</button>
-          <span class="save-status" id="newsSaveStatus"></span>
-        </div>
-      </div>
+      </div><!-- end spane-system -->
 
     </div>
 
@@ -3671,6 +3226,15 @@ function saveSettings() {
   .catch(() => {
     status.textContent = '✗ Save failed';
     status.className = 'save-status show err';
+  });
+}
+
+function showSettingsTab(tab) {
+  ['trading', 'system'].forEach(t => {
+    const pane = document.getElementById('spane-' + t);
+    const btn  = document.getElementById('stab-' + t);
+    if (pane) pane.className = 'spane' + (t === tab ? ' spane-active' : '');
+    if (btn)  btn.className  = 'stab-btn' + (t === tab ? ' stab-active' : '');
   });
 }
 
