@@ -228,6 +228,13 @@ DEFAULT_CONFIG = {
     "surge_vol_ratio_threshold":    3.0,
     "surge_suppress_sec":           60,
     "tick_extreme_threshold":       500,
+    "wall_touch_distance":          0.30,
+    "wall_touch_cooldown_sec":      120,
+    "wall_touch_stop_pct":          0.15,
+    "wall_touch_target_pct":        0.15,
+    "wall_touch_max_mark":          1.50,
+    "breakout_watch_distance":      0.50,
+    "breakout_vol_ratio_min":       2.0,
     "tick_history_enabled":    True,
     "replay_db_path":          "D:/tos-dash-v2-replay/",
 }
@@ -548,6 +555,7 @@ def build_snapshot() -> dict:
         if _surge_suppressed:
             candidates = []
         else:
+            _cfg_with_ratio = {**cfg, "_spy_vol_ratio": spy_vol_ratio}
             candidates = scalp_advisor.get_recommendations(
                 data           = data,
                 strikes        = strikes,
@@ -558,7 +566,7 @@ def build_snapshot() -> dict:
                 put_wall       = put_wall,
                 surge_symbols  = surge_syms,
                 risk_cap       = cfg.get("risk_cap", 5.00),
-                cfg            = cfg,
+                cfg            = _cfg_with_ratio,
                 ms             = ms,
             )
 

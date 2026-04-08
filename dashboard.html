@@ -4304,7 +4304,11 @@ async function loadIdeas() {
             <td style="font-size:9px;color:var(--muted)">${t}</td>
             <td style="font-size:9px;color:var(--muted)">${r.surfaced_at ? r.surfaced_at.substring(0,10) : '--'}</td>
             <td style="font-size:9px">${r.symbol||'--'}</td>
-            <td><span class="side-c ${r.option_type}" style="font-size:8px">${r.option_type||'--'}</span></td>
+            <td>
+              <span class="side-c ${r.option_type}" style="font-size:8px">${r.option_type||'--'}</span>
+              ${(r.reason||'').includes('WALL TOUCH') ? '<span style="font-size:7px;color:#ff9800;margin-left:2px">WT</span>' : ''}
+              ${(r.reason||'').includes('BREAKOUT') ? '<span style="font-size:7px;color:#00e5ff;margin-left:2px">BO</span>' : ''}
+            </td>
             <td style="color:${scoreColor(r.entry_score)};font-weight:700">${r.entry_score!=null?r.entry_score.toFixed(1):'--'}</td>
             <td>${r.entry_mark!=null?r.entry_mark.toFixed(2):'--'}</td>
             <td style="font-size:9px">${r.entry_delta!=null?r.entry_delta.toFixed(2):'--'}</td>
@@ -4370,7 +4374,11 @@ async function renderJournal() {
             <td style="color:var(--muted)">${dt}</td>
             <td style="color:var(--muted)">${tm}</td>
             <td style="font-size:9px">${r.symbol||'--'}</td>
-            <td><span class="side-c ${r.option_type}" style="font-size:8px">${r.option_type||'--'}</span></td>
+            <td>
+              <span class="side-c ${r.option_type}" style="font-size:8px">${r.option_type||'--'}</span>
+              ${(r.reason||'').includes('WALL TOUCH') ? '<span style="font-size:7px;color:#ff9800;margin-left:2px">WT</span>' : ''}
+              ${(r.reason||'').includes('BREAKOUT') ? '<span style="font-size:7px;color:#00e5ff;margin-left:2px">BO</span>' : ''}
+            </td>
             <td style="color:${scoreColor(r.entry_score)};font-weight:700">${r.entry_score!=null?r.entry_score.toFixed(1):'--'}</td>
             <td>${r.paper_entry_ask!=null?r.paper_entry_ask.toFixed(2):'--'}</td>
             <td>${r.paper_exit_bid!=null?r.paper_exit_bid.toFixed(2):'--'}</td>

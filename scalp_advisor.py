@@ -142,6 +142,10 @@ class ScalpAdvisor:
         # post-stop cooldown — suppress new surfaces briefly after a stop
         self._last_stop_time: float = 0.0
 
+        # PINNED regime special modes
+        self._wall_touch_cooldown: dict[str, float] = {}  # sym -> monotonic time last surfaced
+        self._breakout_watch_active: bool = False          # True when price near wall + surge
+
     def reset(self):
         self._score_history.clear()
         self._tick_count.clear()
@@ -158,6 +162,8 @@ class ScalpAdvisor:
         self._gate_fail_ticks = 0
         self._gate_open       = False
         self._last_stop_time  = 0.0
+        self._wall_touch_cooldown.clear()
+        self._breakout_watch_active = False
 
     def get_recommendations(
         self,
@@ -226,6 +232,9 @@ class ScalpAdvisor:
         current_price = self._sf(data, f"{symbol}:LAST")
         if current_price == 0:
             return []
+
+        # Store vol ratio for breakout detection
+        self._last_spy_vol_ratio = float(self._cfg.get("_spy_vol_ratio", 1.0))
 
         # Track price history for direction
         self._price_history.append(current_price)
@@ -305,7 +314,18 @@ class ScalpAdvisor:
                         self._gate_open = False
                 # gate_open=False and gate_pass=False → still closed, no change needed
             if not self._gate_open:
-                return []
+                # PINNED regime — try wall touch and breakout instead
+                pinned_candidates = []
+                if call_wall is not None and put_wall is not None:
+                    pinned_candidates += self._get_wall_touch_candidates(
+                        data, strikes, option_symbols, current_price,
+                        call_wall, put_wall, ms, self._cfg, now
+                    )
+                    pinned_candidates += self._get_breakout_candidates(
+                        data, strikes, option_symbols, current_price,
+                        call_wall, put_wall, ms, self._cfg, surge_syms, now
+                    )
+                return pinned_candidates
 
         for strike in strikes:
             for opt_type in ("Call", "Put"):
@@ -562,6 +582,173 @@ class ScalpAdvisor:
         """Call when a paper trade exits at STOP to trigger post-stop cooldown."""
         import time as _t
         self._last_stop_time = _t.monotonic()
+
+    def _get_wall_touch_candidates(
+        self, data, strikes, option_symbols, current_price,
+        call_wall, put_wall, ms, cfg, now
+    ) -> list:
+        """
+        Wall Touch Scalp — mean reversion plays at walls in PINNED regime.
+        Call wall tag → put. Put wall tag → call.
+        """
+        import time as _t
+        candidates = []
+        if call_wall is None or put_wall is None:
+            return candidates
+
+        wall_touch_dist  = cfg.get("wall_touch_distance", 0.30)
+        wall_touch_cool  = cfg.get("wall_touch_cooldown_sec", 120)
+
+        at_call_wall = abs(current_price - call_wall) <= wall_touch_dist
+        at_put_wall  = abs(current_price - put_wall)  <= wall_touch_dist
+
+        if not at_call_wall and not at_put_wall:
+            return candidates
+
+        if at_call_wall:
+            opt_type   = "Put"
+            wall_price = call_wall
+        else:
+            opt_type   = "Call"
+            wall_price = put_wall
+
+        cool_key = f"wall_{opt_type}_{wall_price:.0f}"
+        if cool_key in self._wall_touch_cooldown:
+            if _t.monotonic() - self._wall_touch_cooldown[cool_key] < wall_touch_cool:
+                return candidates
+
+        for strike in sorted(strikes, key=lambda s: abs(s - current_price)):
+            marker = "C" if opt_type == "Call" else "P"
+            try:
+                sym = next(s for s in option_symbols if s.endswith(f'{marker}{strike}'))
+            except StopIteration:
+                continue
+
+            bid   = self._sf(data, f"{sym}:BID")
+            ask   = self._sf(data, f"{sym}:ASK")
+            mark  = self._sf(data, f"{sym}:MARK")
+            delta = abs(self._sf(data, f"{sym}:DELTA"))
+            theta = self._sf(data, f"{sym}:THETA")
+            iv    = self._sf(data, f"{sym}:IMPL_VOL")
+
+            min_mark = cfg.get("min_mark", 0.50)
+            max_mark = cfg.get("wall_touch_max_mark", 1.50)
+            if mark < min_mark or mark > max_mark:
+                continue
+            if delta < 0.20 or delta > 0.55:
+                continue
+
+            self._wall_touch_cooldown[cool_key] = _t.monotonic()
+            candidates.append(ScalpCandidate(
+                symbol           = sym,
+                strike           = float(strike),
+                option_type      = opt_type,
+                direction        = "Bullish" if opt_type == "Call" else "Bearish",
+                underlying_trend = "Choppy",
+                mark             = mark,
+                bid              = bid,
+                ask              = ask,
+                spread_pct       = ((ask - bid) / mark * 100) if mark > 0 else 0,
+                delta            = delta,
+                theta            = theta,
+                iv               = iv,
+                volume           = 0,
+                gex_negative     = False,
+                dex_bias         = "Bearish" if opt_type == "Put" else "Bullish",
+                score            = 55.0,
+                reasons          = [f"WALL TOUCH: {'call' if opt_type=='Put' else 'put'} wall ${wall_price:.0f} tagged — mean reversion"],
+            ))
+            break
+
+        return candidates
+
+    def _get_breakout_candidates(
+        self, data, strikes, option_symbols, current_price,
+        call_wall, put_wall, ms, cfg, surge_syms, now
+    ) -> list:
+        """
+        Breakout Watch — surfaces when price breaks through wall with vol surge.
+        """
+        candidates = []
+        if call_wall is None or put_wall is None:
+            return candidates
+
+        broke_call = current_price > call_wall + 0.10
+        broke_put  = current_price < put_wall  - 0.10
+
+        near_call = abs(current_price - call_wall) <= cfg.get("breakout_watch_distance", 0.50) and current_price < call_wall
+        near_put  = abs(current_price - put_wall)  <= cfg.get("breakout_watch_distance", 0.50) and current_price > put_wall
+
+        if not (broke_call or broke_put or near_call or near_put):
+            return candidates
+
+        if broke_call:
+            opt_type   = "Call"
+            direction  = "Bullish"
+            wall_price = call_wall
+            candle_ok  = self._candle_confirms(current_price, "Call")
+        elif broke_put:
+            opt_type   = "Put"
+            direction  = "Bearish"
+            wall_price = put_wall
+            candle_ok  = self._candle_confirms(current_price, "Put")
+        else:
+            return candidates
+
+        if not candle_ok:
+            return candidates
+
+        spy_vol_ratio = float(cfg.get("_spy_vol_ratio", 1.0))
+        if spy_vol_ratio < cfg.get("breakout_vol_ratio_min", 2.0):
+            return candidates
+
+        for strike in sorted(strikes, key=lambda s: abs(s - current_price)):
+            marker = "C" if opt_type == "Call" else "P"
+            if opt_type == "Call" and strike < current_price - 1:
+                continue
+            if opt_type == "Put"  and strike > current_price + 1:
+                continue
+            try:
+                sym = next(s for s in option_symbols if s.endswith(f'{marker}{strike}'))
+            except StopIteration:
+                continue
+
+            bid   = self._sf(data, f"{sym}:BID")
+            ask   = self._sf(data, f"{sym}:ASK")
+            mark  = self._sf(data, f"{sym}:MARK")
+            delta = abs(self._sf(data, f"{sym}:DELTA"))
+            theta = self._sf(data, f"{sym}:THETA")
+            iv    = self._sf(data, f"{sym}:IMPL_VOL")
+
+            min_mark = cfg.get("min_mark", 0.50)
+            max_mark = cfg.get("max_mark", 2.00)
+            if mark < min_mark or mark > max_mark:
+                continue
+            if delta < 0.25 or delta > 0.65:
+                continue
+
+            candidates.append(ScalpCandidate(
+                symbol           = sym,
+                strike           = float(strike),
+                option_type      = opt_type,
+                direction        = direction,
+                underlying_trend = "Uptrend" if opt_type == "Call" else "Downtrend",
+                mark             = mark,
+                bid              = bid,
+                ask              = ask,
+                spread_pct       = ((ask - bid) / mark * 100) if mark > 0 else 0,
+                delta            = delta,
+                theta            = theta,
+                iv               = iv,
+                volume           = 0,
+                gex_negative     = False,
+                dex_bias         = "Bullish" if opt_type == "Call" else "Bearish",
+                score            = 58.0,
+                reasons          = [f"BREAKOUT: price ${current_price:.2f} broke {'call' if opt_type=='Call' else 'put'} wall ${wall_price:.0f}"],
+            ))
+            break
+
+        return candidates
 
     # ------------------------------------------------------------------
     # Change #2 helpers — per-option relative volume surge
