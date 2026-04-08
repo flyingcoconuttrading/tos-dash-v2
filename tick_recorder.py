@@ -2,7 +2,7 @@
 tick_recorder.py — Independent tick history recorder for tos-dash-v2.
 
 Reads spy_price.json and option_chain.json on each poll cycle and appends
-rows to a SQLite replay database. Designed to be managed as a subprocess by
+rows to a DuckDB replay database. Designed to be managed as a subprocess by
 api.py — do not run directly in production.
 
 Control files (written by api.py):
@@ -16,8 +16,8 @@ import json
 import os
 import sys
 import time
-import sqlite3
-from datetime import datetime, date
+import duckdb
+from datetime import datetime
 from pathlib import Path
 
 THIS_DIR = Path(__file__).parent
@@ -57,89 +57,58 @@ def load_config() -> dict:
 
 cfg = load_config()
 
-REPLAY_DB_PATH = Path(cfg.get("replay_db_path", "D:/tos-dash-v2-replay/"))
-POLL_MS        = cfg.get("poll_ms", 500)
-POLL_SEC       = POLL_MS / 1000.0
+REPLAY_DB_DIR = Path(cfg.get("replay_db_path", "D:/tos-dash-v2-replay/"))
+POLL_MS       = cfg.get("poll_ms", 500)
+POLL_SEC      = POLL_MS / 1000.0
 
-REPLAY_DB_PATH.mkdir(parents=True, exist_ok=True)
+REPLAY_DB_DIR.mkdir(parents=True, exist_ok=True)
 
-# One replay DB per calendar day
-def _db_path_for_today() -> Path:
-    return REPLAY_DB_PATH / f"ticks_{date.today().isoformat()}.db"
+DUCKDB_PATH = REPLAY_DB_DIR / "ticks.duckdb"
 
-def _connect(path: Path) -> sqlite3.Connection:
-    conn = sqlite3.connect(str(path), check_same_thread=False)
-    return conn
-
-def _ensure_tables(conn: sqlite3.Connection):
+# ── DuckDB connection and table creation ───────────────────────────────────────
+def _open_db() -> duckdb.DuckDBPyConnection:
+    conn = duckdb.connect(str(DUCKDB_PATH))
     conn.execute("""
         CREATE TABLE IF NOT EXISTS spy_ticks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tick_time TEXT NOT NULL,
-            tick INTEGER,
-            last REAL,
-            bid REAL,
-            ask REAL,
-            mark REAL,
-            volume REAL,
-            vix REAL,
-            ntick INTEGER,
-            es_last REAL,
-            spx_last REAL,
-            rtd_stale INTEGER,
-            frozen_ticks INTEGER,
-            trin REAL,
-            trinq REAL,
-            add_val REAL,
-            qqq_last REAL,
-            iwm_last REAL,
-            nq_last REAL
+            recorded_at  TIMESTAMP NOT NULL,
+            date         DATE NOT NULL,
+            spy_price    DOUBLE,
+            vix          DOUBLE,
+            tick_val     INTEGER,
+            trin_val     DOUBLE,
+            trinq_val    DOUBLE,
+            add_val      INTEGER,
+            qqq_price    DOUBLE,
+            iwm_price    DOUBLE,
+            nq_price     DOUBLE
         )
     """)
-    # Migration guard — add new breadth/ETF columns to existing DBs
-    existing = {row[1] for row in conn.execute("PRAGMA table_info(spy_ticks)")}
-    for col, typedef in [
-        ("trin",     "REAL"),
-        ("trinq",    "REAL"),
-        ("add_val",  "REAL"),
-        ("qqq_last", "REAL"),
-        ("iwm_last", "REAL"),
-        ("nq_last",  "REAL"),
-    ]:
-        if col not in existing:
-            conn.execute(f"ALTER TABLE spy_ticks ADD COLUMN {col} {typedef}")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS chain_ticks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tick_time TEXT NOT NULL,
-            tick INTEGER,
-            symbol TEXT NOT NULL,
-            last REAL,
-            bid REAL,
-            ask REAL,
-            mark REAL,
-            delta REAL,
-            gamma REAL,
-            theta REAL,
-            iv REAL,
-            volume REAL,
-            open_int REAL
+            recorded_at   TIMESTAMP NOT NULL,
+            date          DATE NOT NULL,
+            symbol        TEXT NOT NULL,
+            bid           DOUBLE,
+            ask           DOUBLE,
+            last          DOUBLE,
+            delta         DOUBLE,
+            gamma         DOUBLE,
+            theta         DOUBLE,
+            vega          DOUBLE,
+            iv            DOUBLE,
+            volume        INTEGER,
+            open_interest INTEGER
         )
     """)
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_spy_time  ON spy_ticks(tick_time)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_chain_sym ON chain_ticks(symbol)")
-    conn.commit()
+    return conn
 
 PRICE_FILE = THIS_DIR / "spy_price.json"
 CHAIN_FILE = THIS_DIR / "option_chain.json"
 
 # ── Main loop ──────────────────────────────────────────────────────────────────
-print(f"[tick_recorder] Starting — replay_db={REPLAY_DB_PATH}  poll={POLL_MS}ms", file=sys.stderr)
+print(f"[tick_recorder] Starting — db={DUCKDB_PATH}  poll={POLL_MS}ms", file=sys.stderr)
 
-current_db_date = date.today()
-db_conn = _connect(_db_path_for_today())
-_ensure_tables(db_conn)
-
+db_conn  = _open_db()
 last_tick = -1
 
 try:
@@ -156,15 +125,6 @@ try:
             time.sleep(max(0.0, POLL_SEC - (time.perf_counter() - t0)))
             continue
 
-        # Day rollover — open new DB
-        today = date.today()
-        if today != current_db_date:
-            db_conn.close()
-            current_db_date = today
-            db_conn = _connect(_db_path_for_today())
-            _ensure_tables(db_conn)
-            last_tick = -1
-
         try:
             price_data = json.loads(PRICE_FILE.read_text())
             chain_data = json.loads(CHAIN_FILE.read_text())
@@ -178,51 +138,60 @@ try:
             continue
         last_tick = tick
 
-        tick_time = datetime.now().isoformat(timespec="milliseconds")
+        now          = datetime.now()
+        recorded_at  = now.isoformat(timespec="milliseconds")
+        date_str     = now.date().isoformat()
 
-        # Write spy row
-        db_conn.execute("""
-            INSERT INTO spy_ticks
-            (tick_time, tick, last, bid, ask, mark, volume, vix, ntick, es_last, spx_last, rtd_stale, frozen_ticks,
-             trin, trinq, add_val, qqq_last, iwm_last, nq_last)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        """, (
-            tick_time, tick,
-            price_data.get("last"), price_data.get("bid"),
-            price_data.get("ask"),  price_data.get("mark"),
-            price_data.get("volume"),
-            price_data.get("vix_last"), price_data.get("ntick_val"),
-            price_data.get("es_last"),  price_data.get("spx_last"),
-            1 if price_data.get("rtd_stale") else 0,
-            price_data.get("frozen_ticks", 0),
-            price_data.get("trin_val"),  price_data.get("trinq_val"),
-            price_data.get("add_val"),
-            price_data.get("qqq_last"),  price_data.get("iwm_last"),
-            price_data.get("nq_last"),
-        ))
-
-        # Write chain rows (only symbols with actual data)
-        chain = chain_data.get("chain", {})
-        rows = []
-        for sym, fields in chain.items():
-            mark = fields.get("MARK")
-            if mark is None:
-                continue
-            rows.append((
-                tick_time, tick, sym,
-                fields.get("LAST"), fields.get("BID"), fields.get("ASK"), mark,
-                fields.get("DELTA"), fields.get("GAMMA"), fields.get("THETA"),
-                fields.get("IMPL_VOL"), fields.get("VOLUME"), fields.get("OPEN_INT"),
+        try:
+            # Write spy row
+            db_conn.execute("""
+                INSERT INTO spy_ticks
+                (recorded_at, date, spy_price, vix, tick_val, trin_val, trinq_val,
+                 add_val, qqq_price, iwm_price, nq_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                recorded_at, date_str,
+                price_data.get("last"),
+                price_data.get("vix_last"),
+                price_data.get("ntick_val"),
+                price_data.get("trin_val"),
+                price_data.get("trinq_val"),
+                price_data.get("add_val"),
+                price_data.get("qqq_last"),
+                price_data.get("iwm_last"),
+                price_data.get("nq_last"),
             ))
 
-        if rows:
-            db_conn.executemany("""
-                INSERT INTO chain_ticks
-                (tick_time, tick, symbol, last, bid, ask, mark, delta, gamma, theta, iv, volume, open_int)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """, rows)
+            # Write chain rows (only symbols with a bid or last price)
+            chain = chain_data.get("chain", {})
+            chain_rows = []
+            for sym, fields in chain.items():
+                if fields.get("BID") is None and fields.get("LAST") is None:
+                    continue
+                chain_rows.append((
+                    recorded_at, date_str, sym,
+                    fields.get("BID"),
+                    fields.get("ASK"),
+                    fields.get("LAST"),
+                    fields.get("DELTA"),
+                    fields.get("GAMMA"),
+                    fields.get("THETA"),
+                    fields.get("VEGA"),
+                    fields.get("IMPL_VOL"),
+                    fields.get("VOLUME"),
+                    fields.get("OPEN_INT"),
+                ))
 
-        db_conn.commit()
+            if chain_rows:
+                db_conn.executemany("""
+                    INSERT INTO chain_ticks
+                    (recorded_at, date, symbol, bid, ask, last, delta, gamma, theta,
+                     vega, iv, volume, open_interest)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, chain_rows)
+
+        except Exception as e:
+            print(f"[tick_recorder] Write error: {e}", file=sys.stderr)
 
         time.sleep(max(0.0, POLL_SEC - (time.perf_counter() - t0)))
 

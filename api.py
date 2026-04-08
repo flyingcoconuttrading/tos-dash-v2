@@ -1043,9 +1043,12 @@ def tick_recorder_resume():
 
 @app.get("/tick-recorder/status")
 def tick_recorder_status():
-    alive  = tick_recorder_proc is not None and tick_recorder_proc.poll() is None
-    paused = (THIS_DIR / "tick_recorder.pause").exists()
-    return {"running": alive, "paused": paused}
+    alive    = tick_recorder_proc is not None and tick_recorder_proc.poll() is None
+    paused   = (THIS_DIR / "tick_recorder.pause").exists()
+    cfg      = load_config()
+    db_dir   = cfg.get("replay_db_path", "D:/tos-dash-v2-replay/")
+    db_path  = str(Path(db_dir) / "ticks.duckdb")
+    return {"running": alive, "paused": paused, "db_path": db_path}
 
 @app.get("/dte/next")
 def dte_next():
