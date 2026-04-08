@@ -323,7 +323,7 @@ class ScalpAdvisor:
                     )
                     pinned_candidates += self._get_breakout_candidates(
                         data, strikes, option_symbols, current_price,
-                        call_wall, put_wall, ms, self._cfg, surge_syms, now
+                        call_wall, put_wall, ms, self._cfg, surge_symbols, now
                     )
                 return pinned_candidates
 
@@ -598,6 +598,14 @@ class ScalpAdvisor:
 
         wall_touch_dist  = cfg.get("wall_touch_distance", 0.30)
         wall_touch_cool  = cfg.get("wall_touch_cooldown_sec", 120)
+        stop_pct         = cfg.get("wall_touch_stop_pct", 0.10)
+        target_pct       = cfg.get("wall_touch_target_pct", 0.15)
+
+        # Require Strong or Moderate structural confidence — block Mixed
+        ms_cl  = getattr(ms, "checklist", None) if ms else None
+        s_conf = ms_cl.structural_confidence if ms_cl else "Insufficient"
+        if s_conf not in ("Strong", "Moderate"):
+            return candidates
 
         at_call_wall = abs(current_price - call_wall) <= wall_touch_dist
         at_put_wall  = abs(current_price - put_wall)  <= wall_touch_dist
@@ -655,7 +663,7 @@ class ScalpAdvisor:
                 volume           = 0,
                 gex_negative     = False,
                 dex_bias         = "Bearish" if opt_type == "Put" else "Bullish",
-                score            = 55.0,
+                score            = 60.0,
                 reasons          = [f"WALL TOUCH: {'call' if opt_type=='Put' else 'put'} wall ${wall_price:.0f} tagged — mean reversion"],
             ))
             break

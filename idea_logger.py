@@ -103,7 +103,7 @@ def setup_app_logging() -> logging.Logger:
     log = logging.getLogger("tos_dash")
     log.setLevel(logging.DEBUG)
     if not log.handlers:
-        fh = logging.handlers.RotatingFileHandler(APP_LOG, maxBytes=5*1024*1024, backupCount=5, encoding="utf-8")
+        fh = logging.handlers.RotatingFileHandler(APP_LOG, maxBytes=50*1024*1024, backupCount=3, encoding="utf-8")
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(fmt)
         log.addHandler(fh)

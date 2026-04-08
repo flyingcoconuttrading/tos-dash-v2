@@ -3589,7 +3589,9 @@ function loadSettings() {
       document.getElementById('cfg_test_date').value        = cfg.test_date || '';
       toggleTestDate();
       // AI key + enabled flag stored in localStorage only (never sent to server)
-      document.getElementById('cfg_ai_api_key').value = localStorage.getItem('ai_api_key') || '';
+      const _storedAiKey = localStorage.getItem('ai_api_key') || cfg.anthropic_api_key || '';
+      document.getElementById('cfg_ai_api_key').value = _storedAiKey;
+      if (_storedAiKey) localStorage.setItem('ai_api_key', _storedAiKey);
       const aiOn = localStorage.getItem('ai_enabled') !== 'false';
       document.getElementById('cfg_ai_enabled').checked = aiOn;
       document.getElementById('aiEnabledLabel').textContent = aiOn ? 'ON' : 'OFF';
@@ -3679,6 +3681,7 @@ function saveSettings() {
   const aiKey = get('cfg_ai_api_key').value.trim();
   if (aiKey) localStorage.setItem('ai_api_key', aiKey);
   else localStorage.removeItem('ai_api_key');
+  if (aiKey) cfg.anthropic_api_key = aiKey;
   localStorage.setItem('ai_enabled', get('cfg_ai_enabled').checked ? 'true' : 'false');
   const aiInterval = parseInt(get('cfg_ai_interval').value) || 5;
   localStorage.setItem('ai_commentary_interval', String(aiInterval));

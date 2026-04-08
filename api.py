@@ -183,7 +183,7 @@ DEFAULT_CONFIG = {
     "vol_lookback":          20,
     "score_decay_threshold": 45,
     "score_decay_ticks":     10,
-    "confirm_score":         55,    # change #5: lowered from 65
+    "confirm_score":         60,
     "confirm_ticks":         13,
     "confirm_ticks_surge":   5,
     # Change #1
@@ -197,6 +197,7 @@ DEFAULT_CONFIG = {
     "rtd_heartbeat_ms":      200,   # Step 2: replaces config.yaml timing.initial_heartbeat
     "alpaca_api_key":        "",
     "alpaca_secret_key":     "",
+    "anthropic_api_key":     "",
     "paper_stop_pct":        0.30,
     "paper_target_1_pct":    0.30,
     "paper_target_2_pct":    0.50,
@@ -230,7 +231,7 @@ DEFAULT_CONFIG = {
     "tick_extreme_threshold":       500,
     "wall_touch_distance":          0.30,
     "wall_touch_cooldown_sec":      120,
-    "wall_touch_stop_pct":          0.15,
+    "wall_touch_stop_pct":          0.10,
     "wall_touch_target_pct":        0.15,
     "wall_touch_max_mark":          1.50,
     "breakout_watch_distance":      0.50,
@@ -654,12 +655,15 @@ def build_snapshot() -> dict:
         )
 
         _no_trade_reason = ""
+        _call_wall_str = f"${ms.call_wall:.0f}" if ms and ms.call_wall else "--"
+        _put_wall_str  = f"${ms.put_wall:.0f}"  if ms and ms.put_wall  else "--"
+        _price_str     = f"${float(_trend_price):.2f}" if (_trend_price := (ms.spy_price if ms else None)) else "--"
         if not _gex_neg:
-            _no_trade_reason = f"Regime: {_regime} (need TRENDING)"
+            _no_trade_reason = f"Price pinned at {_price_str}. Need break above {_call_wall_str} or below {_put_wall_str} to trade."
         elif _trend in ("Choppy", "CHOPPY", "choppy"):
-            _no_trade_reason = f"Trend: Choppy (need directional)"
+            _no_trade_reason = f"Choppy price action. Wait for clear direction before trading."
         elif _s_conf not in ("Strong", "Moderate"):
-            _no_trade_reason = f"Structure: {_s_lean}({_s_conf}) — insufficient conviction"
+            _no_trade_reason = f"No clear market conviction ({_s_lean}). Wait for structure to develop."
 
         # Best contract selection from chain_full
         # Criteria: delta 0.38–0.52, mark $0.50–$2.00, pick highest-scored candidate
@@ -877,6 +881,7 @@ class ConfigUpdate(BaseModel):
     vol_surge_mult:          Optional[float] = None
     alpaca_api_key:          Optional[str]   = None
     alpaca_secret_key:       Optional[str]   = None
+    anthropic_api_key:       Optional[str]   = None
     paper_stop_pct:          Optional[float] = None
     paper_target_1_pct:      Optional[float] = None
     paper_target_2_pct:      Optional[float] = None
