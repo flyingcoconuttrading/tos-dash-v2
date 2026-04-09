@@ -56,10 +56,12 @@ from gamma_chart import calculate_max_pain, calculate_walls
 import market_structure as ms_mod
 from volume_tracker import VolumeTracker
 from scalp_advisor import ScalpAdvisor
+from channel_advisor import ChannelAdvisor
 import news_fetcher
 
 volume_tracker  = VolumeTracker()
 scalp_advisor   = ScalpAdvisor()
+channel_advisor = ChannelAdvisor()
 cfg_snapshot    = {}   # latest config, shared with idea_logger
 _last_snapshot: dict = {}   # cached by tick_loop; served by GET /snapshot
 _last_tick_seen: int   = -1
@@ -543,8 +545,20 @@ def build_snapshot() -> dict:
 
     # Track SPY price for surge detection
     import time as _t
+    from datetime import datetime as _dt_now
     if price:
         _spy_price_recent.append(float(price))
+
+    # Channel detection — update every tick
+    try:
+        _channel_state = channel_advisor.update(
+            price          = float(price) if price else 0.0,
+            spy_vol_ratio  = spy_vol_ratio,
+            now            = _dt_now.now(),
+        )
+    except Exception as _ce:
+        logger.debug("Channel advisor error: %s", _ce)
+        _channel_state = None
 
     # Surge protection — suppress all surfaces if SPY moved > $0.40 in 2 ticks AND vol spike
     _surge_suppressed = False
@@ -841,6 +855,7 @@ def build_snapshot() -> dict:
         "qqq":              qqq_last,
         "iwm":              iwm_last,
         "nq":               nq_last,
+        "channel":          channel_advisor.to_dict() if _channel_state else {},
         "paper_stats":      idea_logger.get_paper_stats(),
         "active_ideas":     idea_logger.get_active_ideas(),
         "positions":        positions,
