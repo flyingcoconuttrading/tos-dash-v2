@@ -829,7 +829,7 @@ class IdeaLogger:
                 SELECT COALESCE(SUM(paper_dollar_pnl), 0)
                 FROM ideas
                 WHERE paper_exit_reason IS NOT NULL
-                  AND strftime(surfaced_at, '%Y-%m-%d') = ?
+                  AND date(surfaced_at) = ?
                   AND paper_dollar_pnl IS NOT NULL
             """, [today])
             return float(cur.fetchone()[0])
@@ -968,7 +968,7 @@ class IdeaLogger:
                     SUM(CASE WHEN paper_exit_reason = 'STOP'       THEN 1 ELSE 0 END) AS stops
                 FROM ideas
                 WHERE paper_exit_reason IS NOT NULL
-                  AND strftime(surfaced_at, '%Y-%m-%d') = ?
+                  AND date(surfaced_at) = ?
                   AND paper_dollar_pnl  IS NOT NULL
             """, (today,))
             daily_count   = row["count"]

@@ -1,1 +1,44 @@
-[]
+[
+  {
+    "idea_id": 4,
+    "symbol": ".SPY260409C674",
+    "strike": 674.0,
+    "option_type": "Call",
+    "direction": "Bullish",
+    "status": "ACTIVE",
+    "surfaced_at": "2026-04-09T10:42:58",
+    "entry_mark": 1.365,
+    "entry_spy": 674.35,
+    "decay_ticks": 0,
+    "reentry_count": 0,
+    "age_min": 4.3
+  },
+  {
+    "idea_id": 5,
+    "symbol": ".SPY260409C675",
+    "strike": 675.0,
+    "option_type": "Call",
+    "direction": "Bullish",
+    "status": "ACTIVE",
+    "surfaced_at": "2026-04-09T10:42:58",
+    "entry_mark": 0.865,
+    "entry_spy": 674.35,
+    "decay_ticks": 0,
+    "reentry_count": 0,
+    "age_min": 4.3
+  },
+  {
+    "idea_id": 6,
+    "symbol": ".SPY260409C676",
+    "strike": 676.0,
+    "option_type": "Call",
+    "direction": "Bullish",
+    "status": "ACTIVE",
+    "surfaced_at": "2026-04-09T10:43:00",
+    "entry_mark": 0.505,
+    "entry_spy": 674.37,
+    "decay_ticks": 0,
+    "reentry_count": 0,
+    "age_min": 4.3
+  }
+]

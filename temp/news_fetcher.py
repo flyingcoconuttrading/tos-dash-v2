@@ -53,21 +53,9 @@ _DEFAULT_NEWS_CONFIG = {
         },
     ],
     "keywords": (
-        "SPY|SPX|QQQ|VIX|Fed|FOMC|inflation|CPI|jobs report|interest rate|"
-        "S&P|Nasdaq|ETF|options|index|indices|futures|yield|tariff|"
-        "crash|recession|selloff|plunge|GDP|Powell|Treasury|"
-        "crude oil|WTI|Brent|OPEC|oil price|oil supply|oil sanctions|"
-        "energy market|refinery|LNG|natural gas|"
-        "Iran|Strait of Hormuz|Iran sanctions|Iran nuclear|"
-        "Middle East conflict|Israel Iran|airstrike|oil embargo|Persian Gulf|geopolit"
-    ),
-    "negative_keywords": (
-        "enrollment|tuition|student|university|college|e-learning|eLearning|"
-        "real estate|mortgage|pharma|biotech|FDA|clinical trial|IPO lockup|"
-        "earnings call|housing market|retail sales|consumer spend|"
-        "job listing|hiring|layoff|workforce|supply chain|"
-        "crypto|bitcoin|blockchain|NFL|NBA|MLB|NHL|soccer|tournament|"
-        "box office|album|movie|TV show"
+        "SPY|SPX|QQQ|VIX|Fed|FOMC|inflation|CPI|jobs|rate\\b|market|stocks|equit|"
+        "S&P|Nasdaq|rally|sell|crash|tariff|recession|GDP|Powell|Treasury|ETF|"
+        "options|index|indices|futures|yield|interest"
     ),
     "max_age_hours": 4,
     "max_headlines": 25,
@@ -101,20 +89,6 @@ def _load_news_config() -> dict:
         return dict(_DEFAULT_NEWS_CONFIG)
 
 
-def _compile_filter(pattern: str, fallback: str) -> Optional[re.Pattern]:
-    """Compile a regex pattern, falling back to fallback on error. Returns None if blank."""
-    pattern = (pattern or "").strip()
-    if not pattern:
-        return None
-    try:
-        return re.compile(pattern, re.IGNORECASE)
-    except re.error:
-        try:
-            return re.compile(fallback, re.IGNORECASE)
-        except re.error:
-            return None
-
-
 def _sentiment(text: str) -> str:
     b = len(_BULLISH.findall(text))
     d = len(_BEARISH.findall(text))
@@ -138,21 +112,16 @@ def _parse_date(entry) -> datetime:
     return datetime.now(tz=timezone.utc)
 
 
-def _fetch_rss(name: str, url: str, neg_filt: Optional[re.Pattern]) -> list:
-    """Fetch headlines from an RSS feed, dropping any that match the negative filter."""
+def _fetch_rss(name: str, url: str) -> list:
+    """Fetch all headlines from an RSS feed — no keyword filtering (user filters visually)."""
     try:
         import feedparser
         feed  = feedparser.parse(url)
         total = len(feed.entries)
         items = []
-        blocked = 0
         for entry in feed.entries[:50]:
             title = getattr(entry, "title", "").strip()
             if not title:
-                continue
-            if neg_filt and neg_filt.search(title):
-                blocked += 1
-                logger.debug("RSS %s blocked: %s", name, title)
                 continue
             items.append({
                 "headline":     title,
@@ -162,9 +131,8 @@ def _fetch_rss(name: str, url: str, neg_filt: Optional[re.Pattern]) -> list:
                 "_dt":          _parse_date(entry),
                 "sentiment":    _sentiment(title),
             })
-        logger.debug("RSS %-14s  feed_entries=%d  parsed=%d  blocked=%d",
-                     name, total, len(items), blocked)
-        if total > 0 and len(items) == 0 and blocked == 0:
+        logger.debug("RSS %-14s  feed_entries=%d  parsed=%d", name, total, len(items))
+        if total > 0 and len(items) == 0:
             logger.warning("RSS %s: %d feed entries but 0 parsed (all titles empty?)", name, total)
         elif total == 0:
             logger.warning("RSS %s: feed returned 0 entries (unreachable or empty)", name)
@@ -174,8 +142,7 @@ def _fetch_rss(name: str, url: str, neg_filt: Optional[re.Pattern]) -> list:
         return []
 
 
-def _fetch_alpaca(api_key: str, api_secret: str, filt: re.Pattern,
-                  neg_filt: Optional[re.Pattern]) -> list:
+def _fetch_alpaca(api_key: str, api_secret: str, filt: re.Pattern) -> list:
     try:
         import requests
         r = requests.get(
@@ -194,9 +161,6 @@ def _fetch_alpaca(api_key: str, api_secret: str, filt: re.Pattern,
         for art in r.json().get("news", []):
             title = art.get("headline", "").strip()
             if not title or not filt.search(title):
-                continue
-            if neg_filt and neg_filt.search(title):
-                logger.debug("Alpaca blocked: %s", title)
                 continue
             raw_dt = art.get("created_at", "")
             try:
@@ -222,21 +186,19 @@ def _fetch_all(cfg: dict) -> list:
     max_age      = int(nc.get("max_age_hours", 4))
     max_count    = int(nc.get("max_headlines", 25))
     keywords     = nc.get("keywords", "") or ""
-    neg_keywords = nc.get("negative_keywords", "") or ""
     feeds        = nc.get("feeds", [])
 
-    # Compile positive filter (used for Alpaca only — RSS shows all, then neg-filters)
-    alpaca_filt = _compile_filter(keywords, _DEFAULT_NEWS_CONFIG["keywords"]) \
-                  or re.compile(r".", re.IGNORECASE)
-
-    # Compile negative filter — applied to both RSS and Alpaca
-    neg_filt = _compile_filter(neg_keywords, _DEFAULT_NEWS_CONFIG["negative_keywords"])
+    # Compile keyword filter — used only for Alpaca (RSS shows all headlines)
+    try:
+        alpaca_filt = re.compile(keywords, re.IGNORECASE) if keywords.strip() else re.compile(r".", re.IGNORECASE)
+    except re.error:
+        alpaca_filt = re.compile(_DEFAULT_NEWS_CONFIG["keywords"], re.IGNORECASE)
 
     cutoff          = datetime.now(tz=timezone.utc) - timedelta(hours=max_age)
     seen:  set      = set()
     items: list     = []
-    source_raw:dict = {}
-    source_kept:dict= {}
+    source_raw:dict = {}   # name -> raw count from feed
+    source_kept:dict= {}   # name -> kept after age dedup
 
     for feed in feeds:
         if not feed.get("enabled", True):
@@ -245,7 +207,7 @@ def _fetch_all(cfg: dict) -> list:
         url  = (feed.get("url") or "").strip()
         if not url:
             continue
-        raw = _fetch_rss(name, url, neg_filt)
+        raw = _fetch_rss(name, url)
         source_raw[name] = len(raw)
         kept = 0
         for it in raw:
@@ -263,7 +225,7 @@ def _fetch_all(cfg: dict) -> list:
     alpaca_key    = (cfg.get("alpaca_api_key")    or "").strip()
     alpaca_secret = (cfg.get("alpaca_secret_key") or "").strip()
     if alpaca_key and alpaca_secret:
-        raw_alpaca = _fetch_alpaca(alpaca_key, alpaca_secret, alpaca_filt, neg_filt)
+        raw_alpaca = _fetch_alpaca(alpaca_key, alpaca_secret, alpaca_filt)
         source_raw["Alpaca"]  = len(raw_alpaca)
         kept = 0
         for it in raw_alpaca:
@@ -309,6 +271,7 @@ def start(cfg_loader: Callable[[], dict]) -> None:
                 logger.debug("News: cached %d headlines", len(items))
             except Exception as e:
                 logger.warning("News fetch error: %s", e)
+            # sleep in 1s slices so stop() is responsive
             for _ in range(POLL_INTERVAL):
                 if not _running:
                     break
