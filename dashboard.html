@@ -2524,6 +2524,28 @@ header {
         </div>
       </div>
 
+      <!-- ── RTD SYMBOL TESTER ── -->
+      <div class="settings-card">
+        <div class="settings-card-title">RTD Symbol Tester</div>
+        <div class="field-row">
+          <span class="field-label">SYMBOL</span>
+          <div style="display:flex;gap:8px;align-items:center;flex:1">
+            <input class="field-input" id="rtdTestSymbol" type="text"
+                   placeholder="e.g. $TRIN/Q" style="max-width:120px"
+                   onkeydown="if(event.key==='Enter')testRTDSymbol()">
+            <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
+                    onclick="testRTDSymbol()">TEST</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">RESULT</span>
+          <span id="rtdTestResult" style="font-size:11px;color:var(--muted)">—</span>
+        </div>
+        <div style="font-size:9px;color:var(--dim);margin-top:4px">
+          Known: $TICK, $TRIN, $TRIN/Q, $ADD, VIX, QQQ, IWM, /NQ, SPY
+        </div>
+      </div>
+
       <!-- ── NEWS FEEDS ── -->
       <div class="settings-card" style="grid-column:1/-1">
         <div class="settings-card-title">News Feeds</div>
@@ -5128,6 +5150,34 @@ applyAIEnabled();
 _updateAIQuickToggle();
 fetch(`${API}/snapshot`).then(r=>r.json()).then(update).catch(()=>{}).finally(connect);
 renderTrades();
+
+async function testRTDSymbol() {
+  const sym = (document.getElementById('rtdTestSymbol').value || '').trim();
+  const el  = document.getElementById('rtdTestResult');
+  if (!sym) { el.textContent = 'Enter a symbol first'; return; }
+  el.textContent = 'Testing...';
+  el.style.color = 'var(--muted)';
+  try {
+    const resp = await fetch(`${API}/rtd/test?symbol=${encodeURIComponent(sym)}`);
+    const data = await resp.json();
+    if (data.status === 'live') {
+      el.textContent = `✓ ${sym} = ${data.value}`;
+      el.style.color = 'var(--bull)';
+    } else if (data.status === 'null') {
+      el.textContent = `⚠ ${sym} subscribed but returning NULL`;
+      el.style.color = 'var(--bear)';
+    } else if (data.status === 'unknown_symbol') {
+      el.textContent = `? Unknown symbol — check spy_writer.py`;
+      el.style.color = 'var(--bear)';
+    } else {
+      el.textContent = `✗ ${data.status}: ${data.detail || ''}`;
+      el.style.color = 'var(--bear)';
+    }
+  } catch(e) {
+    el.textContent = `Error: ${e.message}`;
+    el.style.color = 'var(--bear)';
+  }
+}
 </script>
 </body>
 </html>

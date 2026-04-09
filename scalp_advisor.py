@@ -241,6 +241,18 @@ class ScalpAdvisor:
         if not (vol_min <= spy_vol_ratio <= vol_max):
             return False
 
+        # Channel confirmation — if channel valid, direction must match trend
+        ch = cfg.get("_channel", {})
+        if ch.get("valid") and ch.get("confidence") in ("medium", "high"):
+            ch_dir = ch.get("direction", "none")
+            if trend == "Uptrend"   and ch_dir not in ("ascending", "flat"):
+                return False
+            if trend == "Downtrend" and ch_dir not in ("descending", "flat"):
+                return False
+            # Block entries in middle of channel
+            if ch.get("price_position") == "middle" and cfg.get("channel_block_middle", True):
+                return False
+
         return True
 
     def get_recommendations(
@@ -505,6 +517,15 @@ class ScalpAdvisor:
                         continue   # structure bearish — no calls
                     if s_lean == "Bull" and opt_type == "Put":
                         continue   # structure bullish — no puts
+                # Channel position filter — block middle and vol exhaustion entries
+                _ch = self._cfg.get("_channel", {})
+                if _ch.get("valid") and _ch.get("confidence") in ("medium", "high"):
+                    _pos = _ch.get("price_position", "none")
+                    if _pos == "middle" and self._cfg.get("channel_block_middle", True):
+                        continue
+                    if _ch.get("vol_exhaustion") and self._cfg.get("channel_block_exhaustion", True):
+                        continue
+
                 # PINNED regime trend gate — block disallowed trends in positive-GEX regime
                 if not gex_negative:  # False = PINNED (positive GEX)
                     allowed_raw = self._cfg.get("pinned_allowed_trends", ["Downtrend"])

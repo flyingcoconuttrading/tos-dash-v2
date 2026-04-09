@@ -141,7 +141,7 @@ class ChannelAdvisor:
 
         # Price position
         if channel_width > 0:
-            pos_pct = (price - lower_bound) / channel_width
+            pos_pct = max(0.0, min(2.0, (price - lower_bound) / channel_width))
             if price > upper_bound:
                 position = POS_ABOVE
             elif price < lower_bound:

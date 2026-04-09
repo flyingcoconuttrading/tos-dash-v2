@@ -244,6 +244,9 @@ DEFAULT_CONFIG = {
     "pinned_trend_vol_max":         3.0,
     "pinned_trend_max_score":       63,
     "pinned_trend_max_mark":        1.50,
+    "channel_block_middle":              True,
+    "channel_block_exhaustion":          True,
+    "channel_exhaustion_min_profit_pct": 10.0,
     "tick_history_enabled":    True,
     "replay_db_path":          "D:/tos-dash-v2-replay/",
 }
@@ -581,6 +584,7 @@ def build_snapshot() -> dict:
                 "_spy_vol_ratio": spy_vol_ratio,
                 "_ntick":         ntick or 0,
                 "_vix":           vix_raw or 0,
+                "_channel":       channel_advisor.to_dict(),
             }
             candidates = scalp_advisor.get_recommendations(
                 data           = data,
@@ -622,6 +626,7 @@ def build_snapshot() -> dict:
             surge_syms    = surge_syms,
             vix_signals   = vix_signals,
             ntick         = ntick,
+            channel       = channel_advisor.to_dict(),
         )
         # Position auto-linking
         if positions:
@@ -1123,6 +1128,47 @@ def get_status():
         "last_tick":     tick,
         "timestamp":     datetime.now().isoformat(),
     }
+
+@app.get("/rtd/test")
+def rtd_test(symbol: str):
+    """Test if a symbol is returning RTD data. Reads current spy_price.json for known symbols,
+    or returns the raw value from latest RTD data for unknown symbols."""
+    try:
+        price_data = read_json(PRICE_FILE)
+        if "error" in price_data:
+            return {"symbol": symbol, "value": None, "status": "no_data"}
+
+        # Map common symbols to their spy_price.json keys
+        symbol_map = {
+            "$TICK":    "ntick_val",
+            "TICK":     "ntick_val",
+            "$TRIN":    "trin_val",
+            "TRIN":     "trin_val",
+            "$TRIN/Q":  "trinq_val",
+            "TRIN/Q":   "trinq_val",
+            "$ADD":     "add_val",
+            "ADD":      "add_val",
+            "VIX":      "vix_last",
+            "$VIX":     "vix_last",
+            "QQQ":      "qqq_last",
+            "IWM":      "iwm_last",
+            "/NQ:XCME": "nq_last",
+            "/NQ":      "nq_last",
+            "SPY":      "last",
+        }
+        key = symbol_map.get(symbol.upper().strip())
+        if key:
+            val = price_data.get(key)
+            return {
+                "symbol": symbol,
+                "value":  val,
+                "status": "live" if val is not None else "null",
+                "key":    key,
+            }
+        return {"symbol": symbol, "value": None, "status": "unknown_symbol",
+                "hint": f"Known symbols: {list(symbol_map.keys())}"}
+    except Exception as e:
+        return {"symbol": symbol, "value": None, "status": "error", "detail": str(e)}
 
 # ── WebSocket ─────────────────────────────────────────────────────────────────
 subscribers: list[WebSocket] = []

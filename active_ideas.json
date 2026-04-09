@@ -1,16 +1,1 @@
-[
-  {
-    "idea_id": 16,
-    "symbol": ".SPY260410P677",
-    "strike": 677.0,
-    "option_type": "Put",
-    "direction": "Bearish",
-    "status": "ACTIVE",
-    "surfaced_at": "2026-04-09T16:21:34",
-    "entry_mark": 1.245,
-    "entry_spy": 679.86,
-    "decay_ticks": 0,
-    "reentry_count": 0,
-    "age_min": 28.9
-  }
-]
+[]

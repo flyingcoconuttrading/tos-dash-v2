@@ -177,6 +177,7 @@ class IdeaLogger:
         # Latest VIX/TICK snapshot for use in surfacing
         self._last_vix_signals: dict = {}
         self._last_ntick: Optional[int] = None
+        self._last_channel: dict = {}
 
         # Alert dedup — zone-level and per-snap-level cooldowns
         self._last_alert_zone: str   = "normal"
@@ -228,10 +229,11 @@ class IdeaLogger:
     # ── Main tick entry point ─────────────────────────────────────────────────
 
     def process_tick(self, candidates, data, spy_price, spy_vol_rate, spy_vol_ratio, ms, surge_syms,
-                     vix_signals=None, ntick=None):
+                     vix_signals=None, ntick=None, channel=None):
         now       = datetime.now()
         self._last_vix_signals = vix_signals or {}
         self._last_ntick       = ntick
+        self._last_channel     = channel or {}
         cand_map  = {c.symbol: c for c in (candidates or [])}
         call_wall = getattr(ms, "call_wall", None)
         put_wall  = getattr(ms, "put_wall", None)
@@ -565,6 +567,8 @@ class IdeaLogger:
             parts.append(f"reason={row.get('invalidation_reason','?')}")
         elif exit_reason == "TIME_EXPIRED":
             parts.append("60-min expiry")
+        elif exit_reason == "VOL_EXHAUSTION":
+            parts.append("vol exhaustion at channel boundary")
         return "; ".join(parts)
 
     def _handle_reentry(self, idea_id, key, candidate, spy_price, now, spy_vol_ratio=0.0):
@@ -852,7 +856,7 @@ class IdeaLogger:
         if not entry_ask or entry_ask <= 0:
             return
 
-        cfg = self._cfg
+        cfg = {**self._cfg, "_channel": self._last_channel}
         regime = (row["entry_regime"] or "").upper()
         if regime == "PINNED":
             stop_pct = cfg.get("paper_stop_pct_pinned", cfg.get("paper_stop_pct", 0.20))
@@ -870,6 +874,21 @@ class IdeaLogger:
         exit_bid    = None
         exit_reason = None
         exit_minute = None
+
+        # Dynamic exit — volume exhaustion at channel boundary while in profit
+        _ch       = cfg.get("_channel", {})
+        _ch_valid = _ch.get("valid", False)
+        _ch_conf  = _ch.get("confidence", "low")
+        _vol_exh  = _ch.get("vol_exhaustion", False)
+
+        if _ch_valid and _ch_conf in ("medium", "high") and _vol_exh and marks:
+            _latest_key = max(marks.keys(), key=int)
+            _latest_bid = marks[_latest_key]
+            _latest_pnl = (_latest_bid - entry_ask) / entry_ask * 100
+            if _latest_pnl > cfg.get("channel_exhaustion_min_profit_pct", 10.0):
+                exit_bid    = _latest_bid
+                exit_reason = "VOL_EXHAUSTION"
+                exit_minute = int(_latest_key)
 
         # Iterate windows in ascending minute order
         for w_str, bid in sorted(marks.items(), key=lambda x: int(x[0])):
