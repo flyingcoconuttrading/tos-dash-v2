@@ -19,6 +19,7 @@ import time
 import duckdb
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 THIS_DIR = Path(__file__).parent
 
@@ -105,6 +106,14 @@ def _open_db() -> duckdb.DuckDBPyConnection:
 PRICE_FILE = THIS_DIR / "spy_price.json"
 CHAIN_FILE = THIS_DIR / "option_chain.json"
 
+# ── Market hours check ─────────────────────────────────────────────────────────
+def _is_market_hours() -> bool:
+    """Return True if current ET time is within 9:30–16:00."""
+    now_et = datetime.now(ZoneInfo("America/New_York"))
+    market_open  = now_et.hour > 9 or (now_et.hour == 9 and now_et.minute >= 30)
+    market_close = now_et.hour < 16
+    return market_open and market_close
+
 # ── Main loop ──────────────────────────────────────────────────────────────────
 print(f"[tick_recorder] Starting — db={DUCKDB_PATH}  poll={POLL_MS}ms", file=sys.stderr)
 
@@ -122,6 +131,11 @@ try:
 
         # Paused
         if PAUSE_FILE.exists():
+            time.sleep(max(0.0, POLL_SEC - (time.perf_counter() - t0)))
+            continue
+
+        # Market hours gate: 9:30–16:00 ET only
+        if not _is_market_hours():
             time.sleep(max(0.0, POLL_SEC - (time.perf_counter() - t0)))
             continue
 

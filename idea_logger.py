@@ -5,7 +5,7 @@ ACTIVE -> WEAKENING -> CONFIRMED -> INVALIDATED / EXPIRED
 
 Invalidation rules (priority order):
   1. LEVEL_CROSS        - SPY crosses nearest wall (immediate)
-  2. VOL_CONFIRMED_MOVE - delta-adjusted SPY move WITH volume surge (immediate)  
+  2. VOL_CONFIRMED_MOVE - delta-adjusted SPY move WITH volume surge (immediate)
   3. UNCONFIRMED_MOVE   - same move, low volume -> WEAKENING first
   4. SCORE_DECAY        - score < threshold for N consecutive ticks
   5. TIME_EXPIRED       - idea > 30 min, not confirmed
@@ -13,8 +13,12 @@ Invalidation rules (priority order):
 Re-entry: same symbol within reentry_window_min -> same idea ID, new event logged
 Position auto-link: RTD POSITION_QTY/AV_TRADE_PRICE auto-linked to matching active idea
 
+Storage: DuckDB at D:/tos-dash-v2-data/ideas.duckdb
+  The app holds one read-write connection. DBeaver and other tools should
+  connect with read_only=True to allow concurrent access while the app runs.
+
 Files written:
-  data/ideas.db     - SQLite (ideas + idea_events tables)
+  D:/tos-dash-v2-data/ideas.duckdb - primary storage
   data/ideas.csv    - one row per idea, all columns
   data/events.csv   - full event audit trail
   data/alerts.csv   - snap/warning alerts
@@ -25,7 +29,7 @@ import csv
 import json
 import logging
 import logging.handlers
-import sqlite3
+import duckdb
 import threading
 from collections import deque
 from datetime import datetime
@@ -35,11 +39,13 @@ from typing import Optional
 THIS_DIR   = Path(__file__).parent
 DATA_DIR   = THIS_DIR / "data"
 LOG_DIR    = THIS_DIR / "logs"
-DB_PATH    = DATA_DIR / "ideas.db"
 IDEAS_CSV  = DATA_DIR / "ideas.csv"
 EVENTS_CSV = DATA_DIR / "events.csv"
 ALERTS_CSV = DATA_DIR / "alerts.csv"
 APP_LOG    = LOG_DIR  / "tos_dash.log"
+
+DUCKDB_DIR = Path("D:/tos-dash-v2-data")
+DB_PATH    = DUCKDB_DIR / "ideas.duckdb"
 
 MODEL_VERSION = "v2.1"
 
@@ -154,6 +160,12 @@ class IdeaLogger:
         self._active: dict[str, IdeaState] = {}
         self._recently_invalidated: dict[str, tuple] = {}
         self._known_positions: dict[str, float] = {}  # symbol -> qty
+
+        # Open DuckDB connection — one read-write connection for the app lifetime.
+        # DBeaver and other tools connect with read_only=True for concurrent access.
+        DUCKDB_DIR.mkdir(parents=True, exist_ok=True)
+        self._conn = duckdb.connect(str(DB_PATH))
+
         self._ensure_storage()
         self.backfill_paper_net_pnl()
         self._log.info("IdeaLogger %s initialised — %s", MODEL_VERSION, DB_PATH)
@@ -169,9 +181,45 @@ class IdeaLogger:
         self._alert_snap_times: dict = {}    # snap_level -> last fire monotonic time
         self._snap_alert_cooldown_s  = 300   # 5 min per snap level
 
+    def close(self):
+        """Close the DuckDB connection gracefully."""
+        if self._conn:
+            self._conn.close()
+            self._conn = None
+
     def update_cfg(self, cfg: dict):
         with self._lock:
             self._cfg = cfg
+
+    # ── DuckDB helpers ────────────────────────────────────────────────────────
+
+    def _fetchone(self, sql: str, params=()):
+        """Execute a SELECT and return the first row as a dict, or None."""
+        cur  = self._conn.execute(sql, list(params))
+        row  = cur.fetchone()
+        if row is None:
+            return None
+        cols = [d[0] for d in cur.description]
+        return dict(zip(cols, row))
+
+    def _fetchall(self, sql: str, params=()):
+        """Execute a SELECT and return all rows as a list of dicts."""
+        cur  = self._conn.execute(sql, list(params))
+        rows = cur.fetchall()
+        if not rows:
+            return []
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, r)) for r in rows]
+
+    def _exec(self, sql: str, params=()):
+        """Execute a write statement and commit."""
+        self._conn.execute(sql, list(params))
+        self._conn.commit()
+
+    def _execmany(self, sql: str, rows):
+        """Execute a bulk write and commit."""
+        self._conn.executemany(sql, rows)
+        self._conn.commit()
 
     # ── Main tick entry point ─────────────────────────────────────────────────
 
@@ -237,8 +285,8 @@ class IdeaLogger:
                             _vix_val,
                             self._last_ntick,
                         ))
-                    with self._connect() as conn:
-                        conn.executemany(
+                    if _rows:
+                        self._execmany(
                             "INSERT INTO idea_tick_history "
                             "(idea_id, tick_time, spy, mark, score, vix, ntick) "
                             "VALUES (?,?,?,?,?,?,?)",
@@ -309,11 +357,10 @@ class IdeaLogger:
     def _link_position(self, symbol: str, qty: float, fill_price: float):
         idea_id = self._find_idea_for_symbol(symbol)
         if idea_id:
-            with self._connect() as conn:
-                conn.execute(
-                    "UPDATE ideas SET traded=1, trade_fill_price=?, trade_qty=? WHERE id=?",
-                    (fill_price, qty, idea_id)
-                )
+            self._exec(
+                "UPDATE ideas SET traded=1, trade_fill_price=?, trade_qty=? WHERE id=?",
+                (fill_price, qty, idea_id)
+            )
             self._log_event(idea_id, "TRADE_LINKED", mark=fill_price,
                             detail=f"qty={qty}  fill={fill_price:.2f}")
             self._log.info("IDEA #%d TRADE_LINKED  %s  qty=%s  fill=%.2f",
@@ -327,13 +374,10 @@ class IdeaLogger:
         if not idea_id:
             self._log.info("POSITION_CLOSED (no idea)  %s  exit=%.2f", symbol, exit_price)
             return
-        with self._connect() as conn:
-            conn.row_factory = sqlite3.Row
-            row = conn.execute("SELECT trade_fill_price FROM ideas WHERE id=?",
-                               (idea_id,)).fetchone()
-            fill    = row["trade_fill_price"] if row else None
-            pnl_pct = ((exit_price - fill) / fill * 100) if fill and fill > 0 else None
-            conn.execute("UPDATE ideas SET trade_pnl_pct=? WHERE id=?", (pnl_pct, idea_id))
+        row     = self._fetchone("SELECT trade_fill_price FROM ideas WHERE id=?", (idea_id,))
+        fill    = row["trade_fill_price"] if row else None
+        pnl_pct = ((exit_price - fill) / fill * 100) if fill and fill > 0 else None
+        self._exec("UPDATE ideas SET trade_pnl_pct=? WHERE id=?", (pnl_pct, idea_id))
         # Remove from _active so it no longer shows as an open idea
         keys_to_remove = [k for k, s in self._active.items() if s.symbol == symbol]
         for k in keys_to_remove:
@@ -463,25 +507,23 @@ class IdeaLogger:
         """One-time backfill: compute paper_net_dollar_pnl for rows where it is NULL."""
         cfg = self._cfg
         commission_per = cfg.get("commission_per_contract", 0.65)
-        with self._connect() as conn:
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute("""
-                SELECT id, paper_contracts, paper_dollar_pnl, paper_commission
-                FROM ideas
-                WHERE paper_exit_reason IS NOT NULL
-                  AND paper_net_dollar_pnl IS NULL
-                  AND paper_dollar_pnl IS NOT NULL
-                  AND paper_contracts IS NOT NULL
-            """).fetchall()
-            for row in rows:
-                contracts = row["paper_contracts"] or 1
-                gross     = row["paper_dollar_pnl"]
-                total_com = commission_per * contracts * 2
-                net       = gross - total_com
-                conn.execute(
-                    "UPDATE ideas SET paper_net_dollar_pnl=?, paper_commission=?, commission_per_contract=? WHERE id=?",
-                    (net, total_com, commission_per, row["id"])
-                )
+        rows = self._fetchall("""
+            SELECT id, paper_contracts, paper_dollar_pnl, paper_commission
+            FROM ideas
+            WHERE paper_exit_reason IS NOT NULL
+              AND paper_net_dollar_pnl IS NULL
+              AND paper_dollar_pnl IS NOT NULL
+              AND paper_contracts IS NOT NULL
+        """)
+        for row in rows:
+            contracts = row["paper_contracts"] or 1
+            gross     = row["paper_dollar_pnl"]
+            total_com = commission_per * contracts * 2
+            net       = gross - total_com
+            self._exec(
+                "UPDATE ideas SET paper_net_dollar_pnl=?, paper_commission=?, commission_per_contract=? WHERE id=?",
+                (net, total_com, commission_per, row["id"])
+            )
         self._log.info("backfill_paper_net_pnl complete: %d rows", len(rows))
 
     def _build_entry_notes(self, candidate, ms, spy_vol_ratio: float) -> str:
@@ -522,16 +564,14 @@ class IdeaLogger:
         return "; ".join(parts)
 
     def _handle_reentry(self, idea_id, key, candidate, spy_price, now, spy_vol_ratio=0.0):
-        with self._connect() as conn:
-            conn.row_factory = sqlite3.Row
-            row = conn.execute("SELECT * FROM ideas WHERE id=?", (idea_id,)).fetchone()
-            if not row:
-                return
-            reentry_count = (row["reentry_count"] or 0) + 1
-            conn.execute(
-                "UPDATE ideas SET reentry_count=?, last_reentry_at=?, status=? WHERE id=?",
-                (reentry_count, now.isoformat(timespec="seconds"), STATUS_ACTIVE, idea_id)
-            )
+        row = self._fetchone("SELECT * FROM ideas WHERE id=?", (idea_id,))
+        if not row:
+            return
+        reentry_count = (row["reentry_count"] or 0) + 1
+        self._exec(
+            "UPDATE ideas SET reentry_count=?, last_reentry_at=?, status=? WHERE id=?",
+            (reentry_count, now.isoformat(timespec="seconds"), STATUS_ACTIVE, idea_id)
+        )
         state = IdeaState(idea_id, candidate, spy_price, row["entry_call_wall"], row["entry_put_wall"])
         state.reentry_count        = reentry_count
         state.entry_mark           = row["entry_mark"]
@@ -589,9 +629,6 @@ class IdeaLogger:
         stop_pct  = cfg.get("stop_pct", 0.50)
 
         # Use actual option mark vs entry mark for stop detection.
-        # entry_delta decays as trade moves against us — using it to estimate
-        # the SPY move needed causes stops to fire later than intended.
-        # Comparing option prices directly is more accurate and simpler.
         option_stop_price = state.entry_mark * (1.0 - stop_pct)
         current_mark = mark if mark and mark > 0 else None
         move_against_option = (
@@ -664,14 +701,13 @@ class IdeaLogger:
     def _invalidate(self, key, state, reason, spy_price, mark, vol_ratio, now, detail=""):
         spy_move = spy_price - state.entry_spy
         vol_conf = 1 if vol_ratio >= self._cfg.get("vol_surge_ratio", 1.8) else 0
-        with self._connect() as conn:
-            conn.execute("""
-                UPDATE ideas SET status=?, invalidated_at=?, invalidation_reason=?,
-                    invalidation_spy=?, invalidation_mark=?,
-                    spy_move_at_invalidation=?, vol_confirmed=?
-                WHERE id=?
-            """, (STATUS_INVALIDATED, now.isoformat(timespec="seconds"), reason,
-                  spy_price, mark, spy_move, vol_conf, state.idea_id))
+        self._exec("""
+            UPDATE ideas SET status=?, invalidated_at=?, invalidation_reason=?,
+                invalidation_spy=?, invalidation_mark=?,
+                spy_move_at_invalidation=?, vol_confirmed=?
+            WHERE id=?
+        """, (STATUS_INVALIDATED, now.isoformat(timespec="seconds"), reason,
+              spy_price, mark, spy_move, vol_conf, state.idea_id))
         self._log_event(state.idea_id, "INVALIDATED", mark=mark, spy=spy_price,
                         spy_move=spy_move, vol_ratio=vol_ratio, detail=f"{reason} - {detail}")
         self._log.info("IDEA #%d INVALIDATED  %s  reason=%s  spy_move=%.2f  vol=%d  %s",
@@ -682,17 +718,15 @@ class IdeaLogger:
     # ── Outcome filling ───────────────────────────────────────────────────────
 
     def _fill_outcomes(self, data: dict, now: datetime):
-        with self._connect() as conn:
-            conn.row_factory = sqlite3.Row
-            pending = conn.execute("""
-                SELECT id, symbol, surfaced_at, entry_mark, option_type
-                FROM ideas
-                WHERE surfaced_at >= datetime('now', '-35 minutes')
-                  AND (out_1m_mark IS NULL OR out_2m_mark IS NULL
-                    OR out_3m_mark IS NULL OR out_4m_mark IS NULL
-                    OR out_5m_mark IS NULL OR out_10m_mark IS NULL
-                    OR out_15m_mark IS NULL OR out_30m_mark IS NULL)
-            """).fetchall()
+        pending = self._fetchall("""
+            SELECT id, symbol, surfaced_at, entry_mark, option_type
+            FROM ideas
+            WHERE CAST(surfaced_at AS TIMESTAMP) >= CURRENT_TIMESTAMP - INTERVAL '35 minutes'
+              AND (out_1m_mark IS NULL OR out_2m_mark IS NULL
+                OR out_3m_mark IS NULL OR out_4m_mark IS NULL
+                OR out_5m_mark IS NULL OR out_10m_mark IS NULL
+                OR out_15m_mark IS NULL OR out_30m_mark IS NULL)
+        """)
 
         for row in pending:
             logged_at   = datetime.fromisoformat(row["surfaced_at"])
@@ -715,19 +749,15 @@ class IdeaLogger:
                 if elapsed_min < w:
                     break   # remaining windows not due yet — stop here
                 col = f"out_{w}m_mark"
-                with self._connect() as conn:
-                    conn.row_factory = sqlite3.Row
-                    existing = conn.execute(f"SELECT {col} FROM ideas WHERE id=?",
-                                            (row["id"],)).fetchone()
-                    if existing and existing[col] is None:
-                        conn.execute(f"""
-                            UPDATE ideas SET {col}=?, out_{w}m_pnl_pct=?, out_{w}m_correct=?
-                            WHERE id=?
-                        """, (current, pnl_pct, correct, row["id"]))
-                        self._log_event(row["id"], "OUTCOME_FILLED", mark=current,
-                                        detail=f"{w}m mark={current:.2f} pnl={pnl_pct:.1f}% correct={correct}",
-                                        conn=conn)
-                        break   # one new window per poll — next window waits for next poll
+                existing = self._fetchone(f"SELECT {col} FROM ideas WHERE id=?", (row["id"],))
+                if existing and existing[col] is None:
+                    self._exec(f"""
+                        UPDATE ideas SET {col}=?, out_{w}m_pnl_pct=?, out_{w}m_correct=?
+                        WHERE id=?
+                    """, (current, pnl_pct, correct, row["id"]))
+                    self._log_event(row["id"], "OUTCOME_FILLED", mark=current,
+                                    detail=f"{w}m mark={current:.2f} pnl={pnl_pct:.1f}% correct={correct}")
+                    break   # one new window per poll — next window waits for next poll
 
     # ── Minute mark capture ───────────────────────────────────────────────────
 
@@ -736,18 +766,16 @@ class IdeaLogger:
 
     def _fill_marks(self, data: dict, now: datetime):
         """Capture per-minute BID prices into out_marks_json, then run paper sim."""
-        with self._connect() as conn:
-            conn.row_factory = sqlite3.Row
-            pending = conn.execute("""
-                SELECT id, symbol, surfaced_at, entry_mark,
-                       paper_entry_ask, paper_exit_reason,
-                       paper_contracts,
-                       invalidated_at, invalidation_mark,
-                       out_marks_json, entry_regime
-                FROM ideas
-                WHERE surfaced_at >= datetime('now', '-65 minutes')
-                  AND paper_exit_reason IS NULL
-            """).fetchall()
+        pending = self._fetchall("""
+            SELECT id, symbol, surfaced_at, entry_mark,
+                   paper_entry_ask, paper_exit_reason,
+                   paper_contracts,
+                   invalidated_at, invalidation_mark,
+                   out_marks_json, entry_regime
+            FROM ideas
+            WHERE CAST(surfaced_at AS TIMESTAMP) >= CURRENT_TIMESTAMP - INTERVAL '65 minutes'
+              AND paper_exit_reason IS NULL
+        """)
 
         for row in pending:
             logged_at   = datetime.fromisoformat(row["surfaced_at"])
@@ -783,11 +811,10 @@ class IdeaLogger:
 
             existing[str(new_window)] = bid
             marks_json = json.dumps(existing)
-            with self._connect() as conn:
-                conn.execute(
-                    "UPDATE ideas SET out_marks_json=? WHERE id=?",
-                    (marks_json, row["id"])
-                )
+            self._exec(
+                "UPDATE ideas SET out_marks_json=? WHERE id=?",
+                (marks_json, row["id"])
+            )
 
             # Run paper sim after capturing a new mark
             if row["paper_entry_ask"]:
@@ -798,15 +825,14 @@ class IdeaLogger:
         from datetime import date
         today = date.today().isoformat()
         try:
-            with self._connect() as conn:
-                cur = conn.execute("""
-                    SELECT COALESCE(SUM(paper_dollar_pnl), 0)
-                    FROM ideas
-                    WHERE paper_exit_reason IS NOT NULL
-                      AND date(surfaced_at) = ?
-                      AND paper_dollar_pnl IS NOT NULL
-                """, (today,))
-                return float(cur.fetchone()[0])
+            cur = self._conn.execute("""
+                SELECT COALESCE(SUM(paper_dollar_pnl), 0)
+                FROM ideas
+                WHERE paper_exit_reason IS NOT NULL
+                  AND strftime(surfaced_at, '%Y-%m-%d') = ?
+                  AND paper_dollar_pnl IS NOT NULL
+            """, [today])
+            return float(cur.fetchone()[0])
         except Exception:
             return 0.0
 
@@ -896,18 +922,17 @@ class IdeaLogger:
         total_commission = commission_per * contracts * 2   # entry + exit legs
         net_pnl        = gross_pnl - total_commission
         exit_notes = self._build_exit_notes(row, exit_reason, exit_bid, entry_ask, pnl_pct)
-        with self._connect() as conn:
-            conn.execute("""
-                UPDATE ideas
-                SET paper_exit_bid=?, paper_exit_reason=?,
-                    paper_exit_minute=?, paper_pnl_pct=?,
-                    paper_dollar_pnl=?,
-                    commission_per_contract=?, paper_commission=?, paper_net_dollar_pnl=?,
-                    exit_notes=?
-                WHERE id=?
-            """, (exit_bid, exit_reason, exit_minute, pnl_pct,
-                  gross_pnl, commission_per, total_commission, net_pnl,
-                  exit_notes, row["id"]))
+        self._exec("""
+            UPDATE ideas
+            SET paper_exit_bid=?, paper_exit_reason=?,
+                paper_exit_minute=?, paper_pnl_pct=?,
+                paper_dollar_pnl=?,
+                commission_per_contract=?, paper_commission=?, paper_net_dollar_pnl=?,
+                exit_notes=?
+            WHERE id=?
+        """, (exit_bid, exit_reason, exit_minute, pnl_pct,
+              gross_pnl, commission_per, total_commission, net_pnl,
+              exit_notes, row["id"]))
 
     # ── Public read API ───────────────────────────────────────────────────────
 
@@ -935,31 +960,28 @@ class IdeaLogger:
         cfg          = self._cfg
         starting_bal = cfg.get("paper_starting_balance", 10000.0)
         try:
-            with self._connect() as conn:
-                conn.row_factory = sqlite3.Row
-                cur = conn.execute("""
-                    SELECT
-                        COUNT(*)                                                           AS count,
-                        COALESCE(SUM(paper_dollar_pnl), 0)                                AS daily_pnl,
-                        SUM(CASE WHEN paper_exit_reason LIKE 'TARGET%' THEN 1 ELSE 0 END) AS targets,
-                        SUM(CASE WHEN paper_exit_reason = 'STOP'       THEN 1 ELSE 0 END) AS stops
-                    FROM ideas
-                    WHERE paper_exit_reason IS NOT NULL
-                      AND date(surfaced_at) = ?
-                      AND paper_dollar_pnl  IS NOT NULL
-                """, (today,))
-                row           = cur.fetchone()
-                daily_count   = row["count"]
-                daily_pnl     = float(row["daily_pnl"])
-                daily_targets = row["targets"] or 0
-                daily_stops   = row["stops"]   or 0
-                cur2 = conn.execute("""
-                    SELECT COALESCE(SUM(paper_dollar_pnl), 0) AS total_pnl
-                    FROM ideas
-                    WHERE paper_exit_reason IS NOT NULL
-                      AND paper_dollar_pnl  IS NOT NULL
-                """)
-                total_pnl = float(cur2.fetchone()[0])
+            row = self._fetchone("""
+                SELECT
+                    COUNT(*)                                                           AS count,
+                    COALESCE(SUM(paper_dollar_pnl), 0)                                AS daily_pnl,
+                    SUM(CASE WHEN paper_exit_reason LIKE 'TARGET%' THEN 1 ELSE 0 END) AS targets,
+                    SUM(CASE WHEN paper_exit_reason = 'STOP'       THEN 1 ELSE 0 END) AS stops
+                FROM ideas
+                WHERE paper_exit_reason IS NOT NULL
+                  AND strftime(surfaced_at, '%Y-%m-%d') = ?
+                  AND paper_dollar_pnl  IS NOT NULL
+            """, (today,))
+            daily_count   = row["count"]
+            daily_pnl     = float(row["daily_pnl"])
+            daily_targets = row["targets"] or 0
+            daily_stops   = row["stops"]   or 0
+            row2 = self._fetchone("""
+                SELECT COALESCE(SUM(paper_dollar_pnl), 0) AS total_pnl
+                FROM ideas
+                WHERE paper_exit_reason IS NOT NULL
+                  AND paper_dollar_pnl  IS NOT NULL
+            """)
+            total_pnl = float(row2["total_pnl"])
             return {
                 "starting_balance": starting_bal,
                 "balance":          round(starting_bal + total_pnl, 2),
@@ -983,10 +1005,7 @@ class IdeaLogger:
             }
 
     def get_all_ideas(self) -> list:
-        with self._connect() as conn:
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute("SELECT * FROM ideas ORDER BY surfaced_at DESC LIMIT 500").fetchall()
-        return [dict(r) for r in rows]
+        return self._fetchall("SELECT * FROM ideas ORDER BY surfaced_at DESC LIMIT 500")
 
     def get_stats(self) -> dict:
         rows  = self.get_all_ideas()
@@ -1044,125 +1063,105 @@ class IdeaLogger:
 
     def _ensure_storage(self):
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        with self._connect() as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS ideas (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    model_version TEXT, symbol TEXT NOT NULL, strike REAL,
-                    option_type TEXT, direction TEXT, surfaced_at TEXT NOT NULL,
-                    entry_score REAL, entry_mark REAL, entry_bid REAL, entry_ask REAL,
-                    entry_delta REAL, entry_theta REAL, entry_iv REAL, entry_volume REAL,
-                    entry_spy REAL, entry_spy_vol_rate REAL, entry_spy_vol_ratio REAL,
-                    entry_trend TEXT, entry_regime TEXT, entry_bias TEXT,
-                    entry_net_gex REAL, entry_net_dex REAL,
-                    entry_call_wall REAL, entry_put_wall REAL,
-                    entry_max_pain REAL, entry_gex_anchor REAL, entry_surge INTEGER,
-                    status TEXT DEFAULT 'ACTIVE',
-                    confirmed_at TEXT, confirmed_score REAL, confirmed_spy REAL,
-                    invalidated_at TEXT, invalidation_reason TEXT,
-                    invalidation_spy REAL, invalidation_mark REAL,
-                    spy_move_at_invalidation REAL, vol_confirmed INTEGER,
-                    reentry_count INTEGER DEFAULT 0, last_reentry_at TEXT,
-                    out_5m_mark REAL, out_5m_pnl_pct REAL, out_5m_correct INTEGER,
-                    out_10m_mark REAL, out_10m_pnl_pct REAL, out_10m_correct INTEGER,
-                    out_15m_mark REAL, out_15m_pnl_pct REAL, out_15m_correct INTEGER,
-                    out_30m_mark REAL, out_30m_pnl_pct REAL, out_30m_correct INTEGER,
-                    traded INTEGER DEFAULT 0, trade_fill_price REAL,
-                    trade_qty REAL, trade_pnl_pct REAL
-                )
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS idea_events (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    idea_id INTEGER NOT NULL, event_time TEXT NOT NULL,
-                    event_type TEXT NOT NULL, score REAL, mark REAL,
-                    spy REAL, spy_move REAL, vol_ratio REAL, detail TEXT,
-                    FOREIGN KEY(idea_id) REFERENCES ideas(id)
-                )
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS idea_tick_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    idea_id INTEGER NOT NULL,
-                    tick_time TEXT NOT NULL,
-                    spy REAL,
-                    mark REAL,
-                    score REAL,
-                    vix REAL,
-                    ntick INTEGER,
-                    FOREIGN KEY(idea_id) REFERENCES ideas(id)
-                )
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_tick_history_idea_id
-                ON idea_tick_history(idea_id)
-            """)
-        # Migration guard — add new columns to existing DB without recreating table
-        for col_def in [
-            "out_1m_mark REAL", "out_1m_pnl_pct REAL", "out_1m_correct INTEGER",
-            "out_2m_mark REAL", "out_2m_pnl_pct REAL", "out_2m_correct INTEGER",
-            "out_3m_mark REAL", "out_3m_pnl_pct REAL", "out_3m_correct INTEGER",
-            "out_4m_mark REAL", "out_4m_pnl_pct REAL", "out_4m_correct INTEGER",
-            "out_marks_json TEXT",
-            "paper_entry_ask REAL",
-            "paper_exit_bid REAL",
-            "paper_exit_reason TEXT",
-            "paper_exit_minute INTEGER",
-            "paper_pnl_pct REAL",
-            "paper_contracts INTEGER",
-            "paper_dollar_pnl REAL",
-            "entry_dex_bias TEXT",
-            "entry_ms_trend TEXT",
-            "entry_structural_lean TEXT",
-            "entry_vix REAL",
-            "entry_tick INTEGER",
-            "entry_vix_trend TEXT",
-            "commission_per_contract REAL",
-            "paper_commission REAL",
-            "paper_net_dollar_pnl REAL",
-            "entry_notes TEXT",
-            "exit_notes TEXT",
-        ]:
-            try:
-                with self._connect() as conn:
-                    conn.execute(f"ALTER TABLE ideas ADD COLUMN {col_def}")
-            except Exception:
-                pass  # already exists
+        # DuckDB sequences for auto-increment primary keys
+        self._conn.execute("CREATE SEQUENCE IF NOT EXISTS ideas_id_seq")
+        self._conn.execute("CREATE SEQUENCE IF NOT EXISTS idea_events_id_seq")
+        self._conn.execute("CREATE SEQUENCE IF NOT EXISTS idea_tick_history_id_seq")
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS ideas (
+                id INTEGER DEFAULT nextval('ideas_id_seq') PRIMARY KEY,
+                model_version TEXT, symbol TEXT NOT NULL, strike REAL,
+                option_type TEXT, direction TEXT, surfaced_at TEXT NOT NULL,
+                entry_score REAL, entry_mark REAL, entry_bid REAL, entry_ask REAL,
+                entry_delta REAL, entry_theta REAL, entry_iv REAL, entry_volume REAL,
+                entry_spy REAL, entry_spy_vol_rate REAL, entry_spy_vol_ratio REAL,
+                entry_trend TEXT, entry_regime TEXT, entry_bias TEXT,
+                entry_net_gex REAL, entry_net_dex REAL,
+                entry_dex_bias TEXT, entry_ms_trend TEXT, entry_structural_lean TEXT,
+                entry_call_wall REAL, entry_put_wall REAL,
+                entry_max_pain REAL, entry_gex_anchor REAL, entry_surge INTEGER,
+                entry_vix REAL, entry_tick INTEGER, entry_vix_trend TEXT,
+                entry_notes TEXT, exit_notes TEXT,
+                status TEXT DEFAULT 'ACTIVE',
+                confirmed_at TEXT, confirmed_score REAL, confirmed_spy REAL,
+                invalidated_at TEXT, invalidation_reason TEXT,
+                invalidation_spy REAL, invalidation_mark REAL,
+                spy_move_at_invalidation REAL, vol_confirmed INTEGER,
+                reentry_count INTEGER DEFAULT 0, last_reentry_at TEXT,
+                out_1m_mark REAL, out_1m_pnl_pct REAL, out_1m_correct INTEGER,
+                out_2m_mark REAL, out_2m_pnl_pct REAL, out_2m_correct INTEGER,
+                out_3m_mark REAL, out_3m_pnl_pct REAL, out_3m_correct INTEGER,
+                out_4m_mark REAL, out_4m_pnl_pct REAL, out_4m_correct INTEGER,
+                out_5m_mark REAL, out_5m_pnl_pct REAL, out_5m_correct INTEGER,
+                out_10m_mark REAL, out_10m_pnl_pct REAL, out_10m_correct INTEGER,
+                out_15m_mark REAL, out_15m_pnl_pct REAL, out_15m_correct INTEGER,
+                out_30m_mark REAL, out_30m_pnl_pct REAL, out_30m_correct INTEGER,
+                traded INTEGER DEFAULT 0, trade_fill_price REAL,
+                trade_qty REAL, trade_pnl_pct REAL,
+                out_marks_json TEXT,
+                paper_entry_ask REAL, paper_exit_bid REAL, paper_exit_reason TEXT,
+                paper_exit_minute INTEGER, paper_pnl_pct REAL,
+                paper_contracts INTEGER, paper_dollar_pnl REAL,
+                commission_per_contract REAL, paper_commission REAL, paper_net_dollar_pnl REAL
+            )
+        """)
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS idea_events (
+                id INTEGER DEFAULT nextval('idea_events_id_seq') PRIMARY KEY,
+                idea_id INTEGER NOT NULL, event_time TEXT NOT NULL,
+                event_type TEXT NOT NULL, score REAL, mark REAL,
+                spy REAL, spy_move REAL, vol_ratio REAL, detail TEXT
+            )
+        """)
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS idea_tick_history (
+                id INTEGER DEFAULT nextval('idea_tick_history_id_seq') PRIMARY KEY,
+                idea_id INTEGER NOT NULL,
+                tick_time TEXT NOT NULL,
+                spy REAL,
+                mark REAL,
+                score REAL,
+                vix REAL,
+                ntick INTEGER
+            )
+        """)
+        self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ideas_surfaced
+            ON ideas(surfaced_at)
+        """)
+        self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_tick_history_idea_id
+            ON idea_tick_history(idea_id)
+        """)
+        self._conn.commit()
 
         for path, headers in [(IDEAS_CSV, IDEA_HEADERS), (EVENTS_CSV, EVENT_HEADERS), (ALERTS_CSV, ALERT_HEADERS)]:
             if not path.exists():
                 with open(path, "w", newline="", encoding="utf-8") as f:
                     csv.DictWriter(f, fieldnames=headers).writeheader()
 
-    def _connect(self):
-        conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        return conn
-
     def _db_insert_idea(self, row: dict) -> int:
         cols = [k for k in IDEA_HEADERS if k != "id" and k in row]
         with self._lock:
-            with self._connect() as conn:
-                cur = conn.execute(
-                    f"INSERT INTO ideas ({','.join(cols)}) VALUES ({','.join('?' for _ in cols)})",
-                    [row.get(c) for c in cols]
-                )
-                return cur.lastrowid
+            cur = self._conn.execute(
+                f"INSERT INTO ideas ({','.join(cols)}) VALUES ({','.join('?' for _ in cols)}) RETURNING id",
+                [row.get(c) for c in cols]
+            )
+            result = cur.fetchone()[0]
+            self._conn.commit()
+            return result
 
     def _db_update_status(self, idea_id, status):
-        with self._connect() as conn:
-            conn.execute("UPDATE ideas SET status=? WHERE id=?", (status, idea_id))
+        self._exec("UPDATE ideas SET status=? WHERE id=?", (status, idea_id))
 
     def _db_confirm(self, idea_id, score, spy, now):
-        with self._connect() as conn:
-            conn.execute(
-                "UPDATE ideas SET status=?, confirmed_at=?, confirmed_score=?, confirmed_spy=? WHERE id=?",
-                (STATUS_CONFIRMED, now.isoformat(timespec="seconds"), score, spy, idea_id)
-            )
+        self._exec(
+            "UPDATE ideas SET status=?, confirmed_at=?, confirmed_score=?, confirmed_spy=? WHERE id=?",
+            (STATUS_CONFIRMED, now.isoformat(timespec="seconds"), score, spy, idea_id)
+        )
 
     def _log_event(self, idea_id, event_type, score=None, mark=None,
-                   spy=None, spy_move=None, vol_ratio=None, detail="",
-                   conn=None):
+                   spy=None, spy_move=None, vol_ratio=None, detail=""):
         now = datetime.now().isoformat(timespec="seconds")
         with self._lock:
             self._event_id += 1
@@ -1171,15 +1170,11 @@ class IdeaLogger:
                "score": score, "mark": mark, "spy": spy, "spy_move": spy_move,
                "vol_ratio": vol_ratio, "detail": detail}
         vals = [row[k] for k in ["idea_id","event_time","event_type","score","mark","spy","spy_move","vol_ratio","detail"]]
-        sql  = """
-                INSERT INTO idea_events (idea_id,event_time,event_type,score,mark,spy,spy_move,vol_ratio,detail)
-                VALUES (?,?,?,?,?,?,?,?,?)
-            """
-        if conn is not None:
-            conn.execute(sql, vals)
-        else:
-            with self._connect() as _conn:
-                _conn.execute(sql, vals)
+        self._conn.execute("""
+            INSERT INTO idea_events (idea_id,event_time,event_type,score,mark,spy,spy_move,vol_ratio,detail)
+            VALUES (?,?,?,?,?,?,?,?,?)
+        """, vals)
+        self._conn.commit()
         with open(EVENTS_CSV, "a", newline="", encoding="utf-8") as f:
             csv.DictWriter(f, fieldnames=EVENT_HEADERS).writerow(row)
 
