@@ -236,6 +236,12 @@ DEFAULT_CONFIG = {
     "wall_touch_max_mark":          1.50,
     "breakout_watch_distance":      0.50,
     "breakout_vol_ratio_min":       2.0,
+    "pinned_trend_tick_threshold":  150,
+    "pinned_trend_tick_min_count":  5,
+    "pinned_trend_vol_min":         0.8,
+    "pinned_trend_vol_max":         3.0,
+    "pinned_trend_max_score":       63,
+    "pinned_trend_max_mark":        1.50,
     "tick_history_enabled":    True,
     "replay_db_path":          "D:/tos-dash-v2-replay/",
 }
@@ -556,7 +562,12 @@ def build_snapshot() -> dict:
         if _surge_suppressed:
             candidates = []
         else:
-            _cfg_with_ratio = {**cfg, "_spy_vol_ratio": spy_vol_ratio}
+            _cfg_with_ratio = {
+                **cfg,
+                "_spy_vol_ratio": spy_vol_ratio,
+                "_ntick":         ntick or 0,
+                "_vix":           vix_raw or 0,
+            }
             candidates = scalp_advisor.get_recommendations(
                 data           = data,
                 strikes        = strikes,

@@ -146,6 +146,12 @@ class ScalpAdvisor:
         self._wall_touch_cooldown: dict[str, float] = {}  # sym -> monotonic time last surfaced
         self._breakout_watch_active: bool = False          # True when price near wall + surge
 
+        # PINNED trending state — tracks sustained directional movement in PINNED regime
+        self._pinned_tick_history: deque = deque(maxlen=10)   # last 10 TICK values
+        self._pinned_vix_history:  deque = deque(maxlen=10)   # last 10 VIX values
+        self._pinned_trend_ticks:  int   = 0                  # consecutive ticks confirming trend
+        self._pinned_trend_dir:    str   = ""                 # "Bull" or "Bear" or ""
+
     def reset(self):
         self._score_history.clear()
         self._tick_count.clear()
@@ -164,6 +170,78 @@ class ScalpAdvisor:
         self._last_stop_time  = 0.0
         self._wall_touch_cooldown.clear()
         self._breakout_watch_active = False
+        self._pinned_tick_history.clear()
+        self._pinned_vix_history.clear()
+        self._pinned_trend_ticks  = 0
+        self._pinned_trend_dir    = ""
+
+    def _check_pinned_trending(self, ntick: int | None, vix: float | None,
+                                trend: str, s_conf: str, s_lean: str,
+                                spy_vol_ratio: float, cfg: dict) -> bool:
+        """
+        Returns True if PINNED regime has sustained directional movement
+        that justifies running the full scoring engine.
+
+        Conditions (all required):
+        - trend is Uptrend or Downtrend (not Choppy)
+        - structural confidence is Strong or Moderate
+        - structural lean matches trend direction
+        - TICK sustained: last 5 of 10 readings above +150 (bull) or below -150 (bear)
+        - VIX declining: latest VIX < average of last 5 VIX readings
+        - Volume: spy_vol_ratio between 0.8 and 3.0 (participating but not spiking)
+        """
+        if trend in ("Choppy", "CHOPPY", "choppy"):
+            self._pinned_trend_ticks = 0
+            self._pinned_trend_dir   = ""
+            return False
+
+        if s_conf not in ("Strong", "Moderate"):
+            return False
+
+        # Direction must match structure
+        if trend == "Uptrend" and s_lean != "Bull":
+            return False
+        if trend == "Downtrend" and s_lean != "Bear":
+            return False
+
+        # Update TICK history
+        if ntick is not None:
+            self._pinned_tick_history.append(ntick)
+
+        # Update VIX history
+        if vix is not None:
+            self._pinned_vix_history.append(vix)
+
+        # Need minimum history
+        if len(self._pinned_tick_history) < 5:
+            return False
+
+        # TICK sustained check — 5 of last 10 readings confirming direction
+        tick_threshold = cfg.get("pinned_trend_tick_threshold", 150)
+        tick_list = list(self._pinned_tick_history)
+        if trend == "Uptrend":
+            tick_confirming = sum(1 for t in tick_list if t > tick_threshold)
+        else:
+            tick_confirming = sum(1 for t in tick_list if t < -tick_threshold)
+
+        if tick_confirming < cfg.get("pinned_trend_tick_min_count", 5):
+            return False
+
+        # VIX declining check
+        if len(self._pinned_vix_history) >= 5:
+            vix_list = list(self._pinned_vix_history)
+            vix_avg_recent = sum(vix_list[-3:]) / 3
+            vix_avg_prior  = sum(vix_list[:5]) / 5
+            if trend == "Uptrend" and vix_avg_recent >= vix_avg_prior:
+                return False  # VIX not declining during uptrend = risk on not confirmed
+
+        # Volume participation check
+        vol_min = cfg.get("pinned_trend_vol_min", 0.8)
+        vol_max = cfg.get("pinned_trend_vol_max", 3.0)
+        if not (vol_min <= spy_vol_ratio <= vol_max):
+            return False
+
+        return True
 
     def get_recommendations(
         self,
@@ -314,18 +392,41 @@ class ScalpAdvisor:
                         self._gate_open = False
                 # gate_open=False and gate_pass=False → still closed, no change needed
             if not self._gate_open:
-                # PINNED regime — try wall touch and breakout instead
                 pinned_candidates = []
-                if call_wall is not None and put_wall is not None:
-                    pinned_candidates += self._get_wall_touch_candidates(
-                        data, strikes, option_symbols, current_price,
-                        call_wall, put_wall, ms, self._cfg, now
-                    )
-                    pinned_candidates += self._get_breakout_candidates(
-                        data, strikes, option_symbols, current_price,
-                        call_wall, put_wall, ms, self._cfg, surge_symbols, now
-                    )
-                return pinned_candidates
+
+                # Check if PINNED regime has sustained trending — if so run full engine
+                ntick_cfg      = int(self._cfg.get("_ntick", 0) or 0)
+                vix_cfg        = float(self._cfg.get("_vix", 0) or 0) or None
+                spy_vol_r      = float(self._cfg.get("_spy_vol_ratio", 1.0))
+
+                pinned_trending = self._check_pinned_trending(
+                    ntick=ntick_cfg, vix=vix_cfg,
+                    trend=trend, s_conf=s_conf, s_lean=s_lean,
+                    spy_vol_ratio=spy_vol_r, cfg=self._cfg
+                )
+
+                if pinned_trending:
+                    # Run full scoring engine with tighter settings
+                    _pinned_cfg = dict(self._cfg)
+                    _pinned_cfg["confirm_ticks"]     = self._cfg.get("confirm_ticks", 13) + 3
+                    _pinned_cfg["max_surface_score"] = min(self._cfg.get("max_surface_score", 66),
+                                                          self._cfg.get("pinned_trend_max_score", 63))
+                    _pinned_cfg["max_mark"]          = self._cfg.get("pinned_trend_max_mark", 1.50)
+                    self._cfg = _pinned_cfg
+                    # Fall through to full scoring engine below
+                    pass
+                else:
+                    # Standard PINNED — wall touch and breakout only
+                    if call_wall is not None and put_wall is not None:
+                        pinned_candidates += self._get_wall_touch_candidates(
+                            data, strikes, option_symbols, current_price,
+                            call_wall, put_wall, ms, self._cfg, now
+                        )
+                        pinned_candidates += self._get_breakout_candidates(
+                            data, strikes, option_symbols, current_price,
+                            call_wall, put_wall, ms, self._cfg, surge_symbols, now
+                        )
+                    return pinned_candidates
 
         for strike in strikes:
             for opt_type in ("Call", "Put"):
