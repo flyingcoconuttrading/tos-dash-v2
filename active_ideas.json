@@ -1,16 +1,16 @@
 [
   {
-    "idea_id": 15,
-    "symbol": ".SPY260410P678",
-    "strike": 678.0,
+    "idea_id": 16,
+    "symbol": ".SPY260410P677",
+    "strike": 677.0,
     "option_type": "Put",
     "direction": "Bearish",
     "status": "ACTIVE",
-    "surfaced_at": "2026-04-09T16:01:45",
-    "entry_mark": 1.3550000190734863,
-    "entry_spy": 679.989990234375,
+    "surfaced_at": "2026-04-09T16:21:34",
+    "entry_mark": 1.245,
+    "entry_spy": 679.86,
     "decay_ticks": 0,
-    "reentry_count": 1,
-    "age_min": 5.9
+    "reentry_count": 0,
+    "age_min": 16.9
   }
 ]
