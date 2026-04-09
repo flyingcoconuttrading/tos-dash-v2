@@ -125,6 +125,12 @@ class ChannelAdvisor:
         mid_bound    = round((upper_bound + lower_bound) / 2, 2)
         channel_width = round(upper_bound - lower_bound, 2)
 
+        # Ensure upper is always >= lower regardless of regression results
+        if upper_bound < lower_bound:
+            upper_bound, lower_bound = lower_bound, upper_bound
+        channel_width = round(upper_bound - lower_bound, 2)
+        mid_bound     = round((upper_bound + lower_bound) / 2, 2)
+
         # Direction
         if abs(avg_slope) < SLOPE_FLAT_THRESHOLD:
             direction = CHANNEL_FLAT

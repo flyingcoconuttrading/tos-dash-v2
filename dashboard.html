@@ -4364,7 +4364,7 @@ async function renderJournal() {
         <thead><tr>
           <th>DATE</th><th>TIME</th><th>SYMBOL</th><th>TYPE</th>
           <th>SCORE</th><th>ENTRY</th><th>EXIT</th><th>RESULT</th>
-          <th>P&L%</th><th>NET$</th><th>MIN</th>
+          <th>QTY</th><th>COST</th><th>P&L%</th><th>NET$</th><th>MIN</th>
           <th>ENTRY NOTES</th><th>EXIT NOTES</th>
         </tr></thead>
         <tbody>${closed.map(r => {
@@ -4386,6 +4386,8 @@ async function renderJournal() {
             <td>${r.paper_entry_ask!=null?r.paper_entry_ask.toFixed(2):'--'}</td>
             <td>${r.paper_exit_bid!=null?r.paper_exit_bid.toFixed(2):'--'}</td>
             <td><span style="font-size:8px;color:${exitColor[res]||'var(--dim)'};font-weight:700">${exitLabel[res]||res||'--'}</span></td>
+            <td style="color:var(--muted)">${r.paper_contracts!=null?r.paper_contracts:'--'}</td>
+            <td style="color:var(--muted)">${r.paper_entry_ask!=null&&r.paper_contracts!=null?'$'+(r.paper_entry_ask*r.paper_contracts*100).toFixed(0):'--'}</td>
             <td class="${pnl!=null?(pnl>=0?'pnl-pos':'pnl-neg'):''}">${pnl!=null?(pnl>=0?'+':'')+pnl.toFixed(1)+'%':'--'}</td>
             <td class="${net!=null?(net>=0?'pnl-pos':'pnl-neg'):''}">${net!=null?(net>=0?'+':'')+net.toFixed(2):'--'}</td>
             <td style="color:var(--dim)">${r.paper_exit_minute!=null?r.paper_exit_minute+'m':'--'}</td>

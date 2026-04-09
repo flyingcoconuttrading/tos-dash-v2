@@ -68,7 +68,13 @@ DUCKDB_PATH = REPLAY_DB_DIR / "ticks.duckdb"
 
 # ── DuckDB connection and table creation ───────────────────────────────────────
 def _open_db() -> duckdb.DuckDBPyConnection:
-    conn = duckdb.connect(str(DUCKDB_PATH))
+    conn = duckdb.connect(str(DUCKDB_PATH), read_only=False)
+    conn.execute("PRAGMA enable_progress_bar=false")
+    # Enable WAL mode for concurrent read access from DBeaver
+    try:
+        conn.execute("SET checkpoint_threshold='10MB'")
+    except Exception:
+        pass
     conn.execute("""
         CREATE TABLE IF NOT EXISTS spy_ticks (
             recorded_at  TIMESTAMP NOT NULL,

@@ -164,7 +164,11 @@ class IdeaLogger:
         # Open DuckDB connection — one read-write connection for the app lifetime.
         # DBeaver and other tools connect with read_only=True for concurrent access.
         DUCKDB_DIR.mkdir(parents=True, exist_ok=True)
-        self._conn = duckdb.connect(str(DB_PATH))
+        self._conn = duckdb.connect(str(DB_PATH), read_only=False)
+        try:
+            self._conn.execute("SET checkpoint_threshold='10MB'")
+        except Exception:
+            pass
 
         self._ensure_storage()
         self.backfill_paper_net_pnl()
@@ -770,7 +774,7 @@ class IdeaLogger:
             SELECT id, symbol, surfaced_at, entry_mark,
                    paper_entry_ask, paper_exit_reason,
                    paper_contracts,
-                   invalidated_at, invalidation_mark,
+                   invalidated_at, invalidation_mark, invalidation_reason,
                    out_marks_json, entry_regime
             FROM ideas
             WHERE CAST(surfaced_at AS TIMESTAMP) >= CURRENT_TIMESTAMP - INTERVAL '65 minutes'
