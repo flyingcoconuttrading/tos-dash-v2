@@ -53,6 +53,7 @@ SPX_SYMBOL    = "$SPX"
 VIX_SYMBOL    = "VIX"
 NTICK_SYMBOL  = "$TICK"
 TRIN_SYMBOL   = "$TRIN"
+TRINQ_SYMBOL  = "$TRIN/Q"
 ADD_SYMBOL    = "$ADD"
 QQQ_SYMBOL    = "QQQ"
 IWM_SYMBOL    = "IWM"
@@ -157,7 +158,7 @@ print(f"[writer] Subscribed to {ES_SYMBOL} and {SPX_SYMBOL} (LAST only)",
       file=sys.stderr)
 
 # ── Subscribe to VIX, NYSE TICK, breadth, and ETF symbols ────────────────────
-for sym in (VIX_SYMBOL, NTICK_SYMBOL, TRIN_SYMBOL, ADD_SYMBOL, QQQ_SYMBOL, IWM_SYMBOL, NQ_SYMBOL):
+for sym in (VIX_SYMBOL, NTICK_SYMBOL, TRIN_SYMBOL, TRINQ_SYMBOL, ADD_SYMBOL, QQQ_SYMBOL, IWM_SYMBOL, NQ_SYMBOL):
     for qt in COMPANION_QTS:
         try:
             client.subscribe(qt, sym)
@@ -236,6 +237,7 @@ while True:
         vix_last  = safe_float(getattr(raw.get((VIX_SYMBOL,  "LAST")), "value", None))
         ntick_val = safe_float(getattr(raw.get((NTICK_SYMBOL,"LAST")), "value", None))
         trin_val  = safe_float(getattr(raw.get((TRIN_SYMBOL, "LAST")), "value", None))
+        trinq_val = safe_float(getattr(raw.get((TRINQ_SYMBOL, "LAST")), "value", None))
         add_val   = safe_float(getattr(raw.get((ADD_SYMBOL,  "LAST")), "value", None))
         qqq_last  = safe_float(getattr(raw.get((QQQ_SYMBOL,  "LAST")), "value", None))
         iwm_last  = safe_float(getattr(raw.get((IWM_SYMBOL,  "LAST")), "value", None))
@@ -259,6 +261,7 @@ while True:
             "vix_last":  vix_last,
             "ntick_val": ntick_val,
             "trin_val":  trin_val,
+            "trinq_val": trinq_val,
             "add_val":   add_val,
             "qqq_last":  qqq_last,
             "iwm_last":  iwm_last,
