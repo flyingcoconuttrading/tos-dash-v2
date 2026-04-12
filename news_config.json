@@ -18,10 +18,20 @@
     {
       "name": "Seeking Alpha",
       "url": "https://seekingalpha.com/feed.xml",
+      "enabled": false
+    },
+    {
+      "name": "Truth",
+      "url": "https://trumpstruth.org/feed",
+      "enabled": true
+    },
+    {
+      "name": "Financial Juice",
+      "url": "https://rss.app/feeds/iFJ6KKbiVzjQkCnd.xml",
       "enabled": true
     }
   ],
-  "keywords": "SPY|SPX|QQQ|VIX|S&P|Nasdaq|ETF|options|index|indices|futures|Fed|FOMC|inflation|CPI|GDP|Powell|Treasury|yield|interest rate|tariff|jobs report|crash|recession|selloff|plunge|crude oil|WTI|Brent|OPEC|oil price|oil supply|oil sanctions|energy market|refinery|LNG|natural gas|Iran|Strait of Hormuz|Iran sanctions|Iran nuclear|Middle East conflict|Israel Iran|airstrike|oil embargo|Persian Gulf|geopolit|trump",
-  "max_age_hours": 2,
+  "keywords": "SPY|SPX|QQQ|VIX|S&P|Nasdaq|ETF|options|index|indices|futures|Fed|FOMC|inflation|CPI|GDP|Powell|Treasury|yield|interest rate|tariff|jobs report|crash|recession|selloff|plunge|crude oil|WTI|Brent|OPEC|oil price|oil supply|oil sanctions|energy market|refinery|LNG|natural gas|Iran|Strait of Hormuz|Iran sanctions|Iran nuclear|Middle East conflict|Israel Iran|airstrike|oil embargo|Persian Gulf|geopolit|trump|TRUMP",
+  "max_age_hours": 5,
   "max_headlines": 25
 }

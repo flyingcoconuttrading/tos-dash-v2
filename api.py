@@ -730,8 +730,11 @@ def build_snapshot() -> dict:
             _m_max = cfg.get("max_mark",  2.00)
             target_delta = (_d_min + _d_max) / 2
             for sym, fields in chain.items():
-                if (side == "Call" and "C" not in sym[1:]) or \
-                   (side == "Put"  and "P" not in sym[1:]):
+                is_call = bool(__import__('re').search(r'\d[C]\d', sym))
+                is_put  = bool(__import__('re').search(r'\d[P]\d', sym))
+                if side == "Call" and not is_call:
+                    continue
+                if side == "Put" and not is_put:
                     continue
                 d = fields.get("DELTA")
                 m = fields.get("MARK")
