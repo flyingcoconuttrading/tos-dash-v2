@@ -509,6 +509,34 @@ class IdeaLogger:
             spy_vol_ratio,
         )
 
+    def cleanup_outside_market_hours(self, dte_mode: str = "0DTE") -> int:
+        """
+        Delete ideas surfaced outside market hours.
+        0DTE: 09:30-16:00 ET
+        1DTE: 09:30-16:15 ET
+        Returns count of deleted rows.
+        """
+        close_time = "16:15" if dte_mode == "1DTE" else "16:00"
+        try:
+            # DuckDB: extract time from timestamp and compare
+            result = self._fetchone(f"""
+                SELECT COUNT(*) as cnt FROM ideas
+                WHERE CAST(strftime(CAST(surfaced_at AS TIMESTAMP), '%H:%M') AS VARCHAR) < '09:30'
+                   OR CAST(strftime(CAST(surfaced_at AS TIMESTAMP), '%H:%M') AS VARCHAR) > '{close_time}'
+            """)
+            count = result["cnt"] if result else 0
+            if count > 0:
+                self._exec(f"""
+                    DELETE FROM ideas
+                    WHERE CAST(strftime(CAST(surfaced_at AS TIMESTAMP), '%H:%M') AS VARCHAR) < '09:30'
+                       OR CAST(strftime(CAST(surfaced_at AS TIMESTAMP), '%H:%M') AS VARCHAR) > '{close_time}'
+                """)
+                self._log.info("cleanup_outside_market_hours: deleted %d ideas", count)
+            return count
+        except Exception as e:
+            self._log.error("cleanup_outside_market_hours error: %s", e)
+            return 0
+
     def backfill_paper_net_pnl(self):
         """One-time backfill: compute paper_net_dollar_pnl for rows where it is NULL."""
         cfg = self._cfg

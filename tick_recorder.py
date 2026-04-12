@@ -114,10 +114,17 @@ CHAIN_FILE = THIS_DIR / "option_chain.json"
 
 # ── Market hours check ─────────────────────────────────────────────────────────
 def _is_market_hours() -> bool:
-    """Return True if current ET time is within 9:30–16:00."""
+    """Return True if current ET time is within market hours.
+    0DTE: 9:30-16:00. 1DTE: 9:30-16:15."""
     now_et = datetime.now(ZoneInfo("America/New_York"))
-    market_open  = now_et.hour > 9 or (now_et.hour == 9 and now_et.minute >= 30)
-    market_close = now_et.hour < 16
+    market_open = now_et.hour > 9 or (now_et.hour == 9 and now_et.minute >= 30)
+    dte_mode = cfg.get("expiry_date")  # if expiry_date set = 1DTE mode
+    if dte_mode:
+        # 1DTE — close at 16:15
+        market_close = now_et.hour < 16 or (now_et.hour == 16 and now_et.minute <= 15)
+    else:
+        # 0DTE — close at 16:00
+        market_close = now_et.hour < 16
     return market_open and market_close
 
 # ── Main loop ──────────────────────────────────────────────────────────────────

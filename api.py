@@ -1309,6 +1309,18 @@ def get_ideas():
         return {"stats": {}, "rows": [], "active": []}
 
 
+@app.post("/ideas/cleanup-hours")
+def cleanup_outside_hours():
+    """Delete ideas surfaced outside market hours (useful after OnDemand testing)."""
+    cfg = load_config()
+    dte = _dte_mode
+    try:
+        count = idea_logger.cleanup_outside_market_hours(dte_mode=dte)
+        return {"status": "ok", "deleted": count, "dte_mode": dte}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+
 @app.get("/news")
 def get_news():
     """Return cached market news headlines. Updates every 60s in background."""

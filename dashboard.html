@@ -2522,6 +2522,14 @@ header {
                     onclick="resumeTickRecorder()">RESUME REC</button>
           </div>
         </div>
+        <div class="field-row">
+          <span class="field-label">ONDEMAND</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px;color:var(--bear)"
+                    onclick="cleanupOutsideHours()">CLEAR OOH IDEAS</button>
+            <span id="cleanupResult" style="font-size:9px;color:var(--muted)"></span>
+          </div>
+        </div>
       </div>
 
       <!-- ── RTD SYMBOL TESTER ── -->
@@ -3045,7 +3053,7 @@ function renderBriefing(snap) {
   if (active) {
     primaryDiv.style.display  = '';
     reversalDiv.style.display = '';
-    watchDiv.style.display    = 'none';
+    watchDiv.style.display    = '';
 
     const isPutFavored = sLean === 'Bear';
     const primary  = isPutFavored ? bf.best_put  : bf.best_call;
@@ -3077,7 +3085,7 @@ function renderBriefing(snap) {
     _wireContractCopy('bfReversalRow', reversal);
 
   } else {
-    // NO TRADE — show watch contracts
+    // NO TRADE — show watch contracts only
     primaryDiv.style.display  = 'none';
     reversalDiv.style.display = 'none';
     watchDiv.style.display    = '';
@@ -3246,6 +3254,7 @@ function togglePin(symbol) {
 }
 
 let lastCandidates  = [];
+let _knownCandSyms  = new Set();  // symbols currently displayed — for new surface detection
 let lastChainData   = {};
 let lastActiveIdeas = [];
 
@@ -3275,6 +3284,16 @@ function renderCandidates(candidates, chainData, activeIdeas) {
   for (const c of lastCandidates) {
     pinnedData.set(c.symbol, c);
   }
+
+  // Detect new candidates — beep and flash on first appearance
+  const currentSyms = new Set(lastCandidates.map(c => c.symbol));
+  const newSyms = [...currentSyms].filter(s => !_knownCandSyms.has(s));
+  if (newSyms.length > 0) {
+    _beepNewCandidate();
+    _flashCandidateAlert();
+  }
+  _knownCandSyms = currentSyms;
+
   const now = Date.now();
   if (now - lastRender < 2000 && lastRender > 0) return;
   _doRender();
@@ -3399,6 +3418,33 @@ function _beepDisconnect() {
   } catch(e) {
     // Web Audio not available — silent fail
   }
+}
+
+function _beepNewCandidate() {
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc  = _audioCtx.createOscillator();
+    const gain = _audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(_audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523, _audioCtx.currentTime);          // C5
+    osc.frequency.setValueAtTime(659, _audioCtx.currentTime + 0.1);   // E5
+    osc.frequency.setValueAtTime(784, _audioCtx.currentTime + 0.2);   // G5
+    gain.gain.setValueAtTime(0.3, _audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + 0.4);
+    osc.start(_audioCtx.currentTime);
+    osc.stop(_audioCtx.currentTime + 0.4);
+  } catch(e) {}
+}
+
+function _flashCandidateAlert() {
+  const header = document.querySelector('.cand-header') ||
+                 document.getElementById('candContainer');
+  if (!header) return;
+  header.style.transition = 'background 0.1s';
+  header.style.background = 'rgba(0,229,255,0.15)';
+  setTimeout(() => { header.style.background = ''; }, 600);
 }
 
 function showDisconnectBanner() {
@@ -3610,10 +3656,14 @@ function loadSettings() {
       document.getElementById('cfg_test_mode').checked      = cfg.test_mode || false;
       document.getElementById('cfg_test_date').value        = cfg.test_date || '';
       toggleTestDate();
-      // AI key + enabled flag stored in localStorage only (never sent to server)
-      const _storedAiKey = localStorage.getItem('ai_api_key') || cfg.anthropic_api_key || '';
+      // AI key — prefer localStorage, fall back to config.json, always sync both
+      const _lsKey  = localStorage.getItem('ai_api_key') || '';
+      const _cfgKey = cfg.anthropic_api_key || '';
+      const _storedAiKey = _lsKey || _cfgKey;
       document.getElementById('cfg_ai_api_key').value = _storedAiKey;
-      if (_storedAiKey) localStorage.setItem('ai_api_key', _storedAiKey);
+      if (_storedAiKey) {
+        localStorage.setItem('ai_api_key', _storedAiKey);
+      }
       const aiOn = localStorage.getItem('ai_enabled') !== 'false';
       document.getElementById('cfg_ai_enabled').checked = aiOn;
       document.getElementById('aiEnabledLabel').textContent = aiOn ? 'ON' : 'OFF';
@@ -5150,6 +5200,25 @@ applyAIEnabled();
 _updateAIQuickToggle();
 fetch(`${API}/snapshot`).then(r=>r.json()).then(update).catch(()=>{}).finally(connect);
 renderTrades();
+
+async function cleanupOutsideHours() {
+  const el = document.getElementById('cleanupResult');
+  el.textContent = 'Cleaning...';
+  try {
+    const resp = await fetch(`${API}/ideas/cleanup-hours`, {method: 'POST'});
+    const data = await resp.json();
+    if (data.status === 'ok') {
+      el.textContent = `Deleted ${data.deleted} ideas`;
+      el.style.color = data.deleted > 0 ? 'var(--bull)' : 'var(--muted)';
+    } else {
+      el.textContent = `Error: ${data.detail}`;
+      el.style.color = 'var(--bear)';
+    }
+  } catch(e) {
+    el.textContent = `Error: ${e.message}`;
+    el.style.color = 'var(--bear)';
+  }
+}
 
 async function testRTDSymbol() {
   const sym = (document.getElementById('rtdTestSymbol').value || '').trim();
