@@ -1427,6 +1427,7 @@ header {
 .news-row.bullish .news-headline { color: var(--bull); }
 .news-row.bearish .news-headline { color: var(--bear); }
 .news-row.neutral .news-headline { color: var(--dim);  }
+.news-row.news-alert              { background: rgba(255,179,0,0.06); border-left: 2px solid var(--neutral); }
 </style>
 </head>
 <body>
@@ -1564,6 +1565,18 @@ header {
         <div class="conv-row">
           <span class="conv-lbl">$SPX</span>
           <span><span class="conv-val" id="convSpxLast">--</span></span>
+        </div>
+        <div class="conv-row" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px">
+          <span class="conv-lbl" style="color:var(--muted)">QQQ</span>
+          <span><span class="conv-val" id="breadthQqq">--</span></span>
+        </div>
+        <div class="conv-row">
+          <span class="conv-lbl" style="color:var(--muted)">IWM</span>
+          <span><span class="conv-val" id="breadthIwm">--</span></span>
+        </div>
+        <div class="conv-row">
+          <span class="conv-lbl" style="color:var(--muted)">/NQ</span>
+          <span><span class="conv-val" id="breadthNq">--</span></span>
         </div>
 
         <!-- Converter inputs -->
@@ -2588,11 +2601,43 @@ header {
         <div style="border-top:1px solid var(--border);margin:10px 0 8px;padding-top:10px">
           <div class="settings-card-title" style="font-size:10px;margin-bottom:8px">Filter &amp; Limits</div>
           <div class="field-row" style="align-items:flex-start">
-            <span class="field-label" style="padding-top:4px">KEYWORDS</span>
+            <span class="field-label" style="padding-top:4px">SHOW ONLY</span>
             <div style="display:flex;flex-direction:column;gap:3px;flex:1">
-              <textarea class="field-input" id="news_keywords" rows="3"
+              <textarea class="field-input" id="news_keywords" rows="2"
                 style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
-              <span class="field-desc">Pipe-separated (|) regex keywords. Headlines must match at least one.</span>
+              <span class="field-desc">Pipe-separated keywords. Only show headlines matching at least one.</span>
+            </div>
+          </div>
+          <div class="field-row" style="align-items:flex-start;margin-top:6px">
+            <span class="field-label" style="padding-top:4px">BLOCKED</span>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <textarea class="field-input" id="news_blocked_keywords" rows="2"
+                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
+              <span class="field-desc">Pipe-separated keywords. Always hide headlines matching these.</span>
+            </div>
+          </div>
+          <div class="field-row" style="align-items:flex-start;margin-top:6px">
+            <span class="field-label" style="padding-top:4px">⚡ ALERTS</span>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <textarea class="field-input" id="news_alert_keywords" rows="2"
+                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
+              <span class="field-desc">Pipe-separated keywords. Triggers beep + flash (e.g. MOC|halt|FOMC).</span>
+            </div>
+          </div>
+          <div class="field-row" style="align-items:flex-start;margin-top:6px">
+            <span class="field-label" style="padding-top:4px">BULLISH WORDS</span>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <input class="field-input" id="news_bullish_words" type="text"
+                style="width:100%;font-family:var(--mono);font-size:10px">
+              <span class="field-desc">Pipe-separated words for green highlight.</span>
+            </div>
+          </div>
+          <div class="field-row" style="align-items:flex-start;margin-top:6px">
+            <span class="field-label" style="padding-top:4px">BEARISH WORDS</span>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <input class="field-input" id="news_bearish_words" type="text"
+                style="width:100%;font-family:var(--mono);font-size:10px">
+              <span class="field-desc">Pipe-separated words for red highlight.</span>
             </div>
           </div>
           <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:4px">
@@ -3205,6 +3250,11 @@ function updateConverter(snap) {
 
   document.getElementById('convSpyLast').textContent  = f2c(snap.price);
   document.getElementById('convEsLast').textContent   = f2c(snap.es_last);
+  if (document.getElementById('breadthQqq')) {
+    document.getElementById('breadthQqq').textContent = f2c(snap.qqq);
+    document.getElementById('breadthIwm').textContent = f2c(snap.iwm);
+    document.getElementById('breadthNq').textContent  = snap.nq ? snap.nq.toFixed(0) : '--';
+  }
   document.getElementById('convSpxLast').textContent  = f2c(snap.spx_last);
 
   _convEsSpyRatio  = snap.es_spy_ratio  ?? null;
@@ -3452,6 +3502,38 @@ function _flashCandidateAlert() {
   header.style.transition = 'background 0.1s';
   header.style.background = 'rgba(0,229,255,0.15)';
   setTimeout(() => { header.style.background = ''; }, 600);
+}
+
+function _beepNewsAlert() {
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc  = _audioCtx.createOscillator();
+    const gain = _audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(_audioCtx.destination);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(440, _audioCtx.currentTime);
+    osc.frequency.setValueAtTime(440, _audioCtx.currentTime + 0.1);
+    osc.frequency.setValueAtTime(440, _audioCtx.currentTime + 0.2);
+    gain.gain.setValueAtTime(0.2, _audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.2, _audioCtx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.0, _audioCtx.currentTime + 0.09);
+    gain.gain.setValueAtTime(0.2, _audioCtx.currentTime + 0.18);
+    gain.gain.setValueAtTime(0.0, _audioCtx.currentTime + 0.19);
+    gain.gain.setValueAtTime(0.2, _audioCtx.currentTime + 0.28);
+    gain.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + 0.5);
+    osc.start(_audioCtx.currentTime);
+    osc.stop(_audioCtx.currentTime + 0.5);
+  } catch(e) {}
+}
+
+function _flashNewsAlert() {
+  const newsBtn = document.querySelector('[onclick="toggleNews()"]') ||
+                  document.getElementById('newsToggleLabel');
+  if (!newsBtn) return;
+  newsBtn.style.transition = 'background 0.1s';
+  newsBtn.style.background = 'rgba(255,179,0,0.3)';
+  setTimeout(() => { newsBtn.style.background = ''; }, 1000);
 }
 
 function showDisconnectBanner() {
@@ -5068,9 +5150,13 @@ function loadNewsConfig() {
     .then(nc => {
       _newsConfigFeeds = (nc.feeds || []).map(f => Object.assign({}, f));
       _renderFeedsList();
-      document.getElementById('news_keywords').value       = nc.keywords       || '';
-      document.getElementById('news_max_age_hours').value  = nc.max_age_hours  ?? 4;
-      document.getElementById('news_max_headlines').value  = nc.max_headlines  ?? 25;
+      document.getElementById('news_keywords').value          = nc.keywords          || '';
+      document.getElementById('news_blocked_keywords').value  = nc.negative_keywords || '';
+      document.getElementById('news_alert_keywords').value    = nc.alert_keywords    || '';
+      document.getElementById('news_bullish_words').value     = nc.bullish_words     || '';
+      document.getElementById('news_bearish_words').value     = nc.bearish_words     || '';
+      document.getElementById('news_max_age_hours').value     = nc.max_age_hours     ?? 4;
+      document.getElementById('news_max_headlines').value     = nc.max_headlines     ?? 25;
     })
     .catch(() => {});
 }
@@ -5137,9 +5223,13 @@ function removeNewsFeed(idx) {
 
 function saveNewsConfig() {
   const feeds    = _collectFeedsFromDom();
-  const keywords = (document.getElementById('news_keywords').value || '').trim();
-  const maxAge   = parseInt(document.getElementById('news_max_age_hours').value)  || 4;
-  const maxH     = parseInt(document.getElementById('news_max_headlines').value)  || 25;
+  const keywords         = (document.getElementById('news_keywords').value         || '').trim();
+  const blockedKeywords  = (document.getElementById('news_blocked_keywords').value || '').trim();
+  const alertKeywords    = (document.getElementById('news_alert_keywords').value   || '').trim();
+  const bullishWords     = (document.getElementById('news_bullish_words').value    || '').trim();
+  const bearishWords     = (document.getElementById('news_bearish_words').value    || '').trim();
+  const maxAge           = parseInt(document.getElementById('news_max_age_hours').value)  || 4;
+  const maxH             = parseInt(document.getElementById('news_max_headlines').value)  || 25;
 
   const status = document.getElementById('newsSaveStatus');
   status.textContent = 'Saving…';
@@ -5148,7 +5238,15 @@ function saveNewsConfig() {
   fetch(`${API}/news/config`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ feeds, keywords, max_age_hours: maxAge, max_headlines: maxH }),
+    body:    JSON.stringify({
+      feeds, keywords,
+      negative_keywords: blockedKeywords,
+      alert_keywords:    alertKeywords,
+      bullish_words:     bullishWords,
+      bearish_words:     bearishWords,
+      max_age_hours: maxAge,
+      max_headlines: maxH,
+    }),
   })
   .then(r => r.json())
   .then(() => {
@@ -5163,8 +5261,9 @@ function saveNewsConfig() {
 }
 
 // ── News ──────────────────────────────────────────────────────────────────────
-let _newsOpen     = false;
-let _newsInterval = null;
+let _newsOpen          = false;
+let _newsInterval      = null;
+let _knownNewsHeadlines = new Set();  // track seen headlines for alert detection
 
 function toggleNews() {
   _newsOpen = !_newsOpen;
@@ -5195,18 +5294,33 @@ function loadNews() {
         body.innerHTML = '<div class="news-row neutral"><span class="news-headline" style="color:var(--muted);padding:4px 0">No recent market headlines</span></div>';
         return;
       }
+      // Check for new alert headlines
+      const newAlerts = headlines.filter(h => h.alert && !_knownNewsHeadlines.has(h.headline));
+      if (newAlerts.length > 0) {
+        _beepNewsAlert();
+        _flashNewsAlert();
+      }
+      // Update known headlines
+      headlines.forEach(h => _knownNewsHeadlines.add(h.headline));
+      // Keep set bounded
+      if (_knownNewsHeadlines.size > 200) {
+        const arr = [..._knownNewsHeadlines];
+        _knownNewsHeadlines = new Set(arr.slice(arr.length - 100));
+      }
+
       body.innerHTML = headlines.map(h => {
         const t   = h.published_at
           ? new Date(h.published_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
           : '--:--';
-        const src  = (h.source || '').toUpperCase().substring(0, 14);
-        const url  = (h.url || '#').replace(/"/g, '%22');
+        const src   = (h.source || '').toUpperCase().substring(0, 14);
+        const url   = (h.url || '#').replace(/"/g, '%22');
         const title = (h.headline || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const cls  = h.sentiment || 'neutral';
-        return `<a class="news-row ${cls}" href="${url}" target="_blank" rel="noopener noreferrer">` +
+        const cls   = h.sentiment || 'neutral';
+        const alertBadge = h.alert ? '<span style="font-size:8px;color:var(--neutral);font-weight:700;margin-right:4px">⚡ALERT</span>' : '';
+        return `<a class="news-row ${cls}${h.alert ? ' news-alert' : ''}" href="${url}" target="_blank" rel="noopener noreferrer">` +
           `<span class="news-time">${t}</span>` +
           `<span class="news-source">${src}</span>` +
-          `<span class="news-headline">${title}</span>` +
+          `<span class="news-headline">${alertBadge}${title}</span>` +
           `</a>`;
       }).join('');
     })

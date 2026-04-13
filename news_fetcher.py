@@ -71,14 +71,18 @@ _DEFAULT_NEWS_CONFIG = {
     ),
     "max_age_hours": 4,
     "max_headlines": 25,
+    "alert_keywords": "MOC|market on close|halted|circuit breaker|trading halt|Fed statement|FOMC|emergency",
+    "bullish_words":  "beat|surge|rally|rise|gain|strong|upgrade|buy|above|jumps|soars|record|high|positive|growth",
+    "bearish_words":  "miss|drop|fall|crash|weak|cut|below|downgrade|sell|recession|tumbles|slumps|negative|loss|decline",
 }
 
+# Defaults — overridden per-fetch from news_config.json
 _BULLISH = re.compile(
-    r"\b(beat|surge|rally|rise|gain|strong|upgrade|buy|above|jumps|soars)\b",
+    r"\b(beat|surge|rally|rise|gain|strong|upgrade|buy|above|jumps|soars|record|high|positive|growth)\b",
     re.IGNORECASE,
 )
 _BEARISH = re.compile(
-    r"\b(miss|drop|fall|crash|weak|cut|below|downgrade|sell|recession|tumbles|slumps)\b",
+    r"\b(miss|drop|fall|crash|weak|cut|below|downgrade|sell|recession|tumbles|slumps|negative|loss|decline)\b",
     re.IGNORECASE,
 )
 
@@ -115,9 +119,11 @@ def _compile_filter(pattern: str, fallback: str) -> Optional[re.Pattern]:
             return None
 
 
-def _sentiment(text: str) -> str:
-    b = len(_BULLISH.findall(text))
-    d = len(_BEARISH.findall(text))
+def _sentiment(text: str, bullish_re=None, bearish_re=None) -> str:
+    br = bullish_re or _BULLISH
+    be = bearish_re or _BEARISH
+    b = len(br.findall(text))
+    d = len(be.findall(text))
     if b > d:  return "bullish"
     if d > b:  return "bearish"
     return "neutral"
@@ -225,12 +231,23 @@ def _fetch_all(cfg: dict) -> list:
     neg_keywords = nc.get("negative_keywords", "") or ""
     feeds        = nc.get("feeds", [])
 
-    # Compile positive filter (used for Alpaca only — RSS shows all, then neg-filters)
-    alpaca_filt = _compile_filter(keywords, _DEFAULT_NEWS_CONFIG["keywords"]) \
-                  or re.compile(r".", re.IGNORECASE)
+    # Compile positive keyword filter — applied to ALL sources
+    pos_filt = _compile_filter(keywords, _DEFAULT_NEWS_CONFIG["keywords"]) \
+               or re.compile(r".", re.IGNORECASE)
+    alpaca_filt = pos_filt  # alias for Alpaca
 
-    # Compile negative filter — applied to both RSS and Alpaca
+    # Compile negative/blocked filter — applied to all sources
     neg_filt = _compile_filter(neg_keywords, _DEFAULT_NEWS_CONFIG["negative_keywords"])
+
+    # Alert keywords — headlines matching these get alert=True flag
+    alert_kw_str = nc.get("alert_keywords", _DEFAULT_NEWS_CONFIG.get("alert_keywords", ""))
+    alert_filt   = _compile_filter(alert_kw_str, "MOC|halted|circuit breaker")
+
+    # Compile configurable bullish/bearish word lists
+    bull_str = nc.get("bullish_words", "") or ""
+    bear_str = nc.get("bearish_words", "") or ""
+    bull_re  = _compile_filter(bull_str, "") or _BULLISH
+    bear_re  = _compile_filter(bear_str, "") or _BEARISH
 
     cutoff          = datetime.now(tz=timezone.utc) - timedelta(hours=max_age)
     seen:  set      = set()
@@ -252,7 +269,14 @@ def _fetch_all(cfg: dict) -> list:
             key = it["headline"].lower().strip()
             if key in seen or it["_dt"] < cutoff:
                 continue
+            # Apply positive keyword filter to RSS (show only matching)
+            if keywords and not pos_filt.search(it["headline"]):
+                continue
             seen.add(key)
+            # Re-compute sentiment with configurable word lists
+            it["sentiment"] = _sentiment(it["headline"], bull_re, bear_re)
+            # Flag alert headlines
+            it["alert"] = bool(alert_filt and alert_filt.search(it["headline"]))
             items.append(it)
             kept += 1
         source_kept[name] = kept
@@ -271,6 +295,8 @@ def _fetch_all(cfg: dict) -> list:
             if key in seen or it["_dt"] < cutoff:
                 continue
             seen.add(key)
+            it["sentiment"] = _sentiment(it["headline"], bull_re, bear_re)
+            it["alert"] = bool(alert_filt and alert_filt.search(it["headline"]))
             items.append(it)
             kept += 1
         source_kept["Alpaca"] = kept

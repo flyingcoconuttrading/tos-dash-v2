@@ -165,7 +165,7 @@ def _reconfigure_advisor(cfg: dict):
 # ── Config ────────────────────────────────────────────────────────────────────
 DEFAULT_CONFIG = {
     "symbol":         "SPY",
-    "strike_range":   10,
+    "strike_range":   15,
     "wall_range":     12,
     "gex_range":      40,
     "strike_spacing": 1.0,
@@ -206,7 +206,7 @@ DEFAULT_CONFIG = {
     "paper_target_2_pct":    0.50,
     "paper_target_3_pct":    0.75,
     "drop_threshold":        55,
-    "min_delta":             0.25,
+    "min_delta":             0.30,
     "min_mark":              0.50,
     "max_mark":              2.00,
     "briefing_delta_min":    0.35,
