@@ -2731,6 +2731,18 @@ body.beta-view .change-from-open { display: block !important; }
         </div>
       </div>
 
+      <!-- ── CONFIG HISTORY ── -->
+      <div class="settings-card" style="grid-column:1/-1">
+        <div class="settings-card-title" style="display:flex;justify-content:space-between;align-items:center">
+          Config Change History
+          <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
+                  onclick="loadConfigHistory()">↺ Refresh</button>
+        </div>
+        <div id="configHistoryBody" style="font-size:11px;color:var(--muted)">
+          Loading…
+        </div>
+      </div>
+
     </div><!-- end spane-system -->
 
     <!-- ══ NEWS PANE ══ -->
@@ -2969,6 +2981,48 @@ function _updateBetaElements(snap) {
   if (mpKL) mpKL.textContent = f0(snap.max_pain);
 }
 
+// ── Config History ────────────────────────────────────────────────────────────
+async function loadConfigHistory() {
+  const el = document.getElementById('configHistoryBody');
+  if (!el) return;
+  try {
+    const d = await fetch(`${API}/config/history?limit=30`).then(r => r.json());
+    const rows = d.history || [];
+    if (!rows.length) {
+      el.innerHTML = '<span style="color:var(--muted)">No config changes recorded yet.</span>';
+      return;
+    }
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Time</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Source</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Changes</th>
+      </tr></thead>
+      <tbody>${rows.map(r => {
+        const t = r.changed_at ? new Date(r.changed_at).toLocaleString() : '--';
+        const src = r.source || 'manual';
+        const srcColor = src === 'advisor' ? 'var(--neutral)' : src === 'startup' ? 'var(--muted)' : 'var(--accent)';
+        const keys = Array.isArray(r.changed_keys) ? r.changed_keys : [];
+        const oldV = r.old_values || {};
+        const newV = r.new_values || {};
+        const changes = keys.map(k =>
+          `<span style="color:var(--dim)">${k}:</span> `+
+          `<span style="color:var(--bear)">${oldV[k] ?? '—'}</span>`+
+          ` → <span style="color:var(--bull)">${newV[k] ?? '—'}</span>`
+        ).join('<br>');
+        const note = r.note && r.source !== 'startup' ? `<div style="color:var(--muted);font-size:10px;margin-top:2px">${r.note}</div>` : '';
+        return `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:5px 8px;color:var(--muted);white-space:nowrap;vertical-align:top">${t}</td>
+          <td style="padding:5px 8px;vertical-align:top"><span style="color:${srcColor};font-weight:600;font-size:10px;text-transform:uppercase">${src}</span></td>
+          <td style="padding:5px 8px;line-height:1.7">${changes}${note}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  } catch(e) {
+    el.innerHTML = `<span style="color:var(--bear)">Error: ${e.message}</span>`;
+  }
+}
+
 // ── Page nav ──────────────────────────────────────────────────────────────────
 let chartTick = -1;
 let chartInterval = null;
@@ -2982,6 +3036,7 @@ function showPage(name) {
   if (name === 'settings') {
     loadSettings();
     runSettingsAdvisor();
+    loadConfigHistory();
   }
   if (name === 'chain') {
     renderChain();

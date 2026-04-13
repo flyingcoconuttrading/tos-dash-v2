@@ -130,6 +130,23 @@ _current_trend:     str   = "Choppy"   # exported for scalp_advisor
 _last_candle_close: float = 0.0
 _candle_minute:     int   = -1
 _candle_last:       float = 0.0
+_momentum_short_cfg:  int = MOMENTUM_SHORT_DEF   # last applied config value
+_momentum_medium_cfg: int = MOMENTUM_MEDIUM_DEF  # last applied config value
+
+
+def _resize_momentum_deques(short_ticks: int, medium_ticks: int):
+    """Resize momentum deques if config values have changed.
+    Preserves existing history up to the new maxlen."""
+    global _momentum_short, _momentum_medium
+    global _momentum_short_cfg, _momentum_medium_cfg
+    if short_ticks != _momentum_short_cfg and short_ticks > 0:
+        existing = list(_momentum_short)
+        _momentum_short = deque(existing[-short_ticks:], maxlen=short_ticks)
+        _momentum_short_cfg = short_ticks
+    if medium_ticks != _momentum_medium_cfg and medium_ticks > 0:
+        existing = list(_momentum_medium)
+        _momentum_medium = deque(existing[-medium_ticks:], maxlen=medium_ticks)
+        _momentum_medium_cfg = medium_ticks
 
 
 def _update_candle(price: float) -> float:
@@ -550,6 +567,10 @@ def analyze(
 
     # ── Feed momentum deques + compute unified trend ──────────────────────────
     global _current_trend
+    # Resize deques if config values differ from current maxlen
+    _cfg_short  = cfg.get("momentum_short_ticks",  MOMENTUM_SHORT_DEF)  if cfg else MOMENTUM_SHORT_DEF
+    _cfg_medium = cfg.get("momentum_medium_ticks", MOMENTUM_MEDIUM_DEF) if cfg else MOMENTUM_MEDIUM_DEF
+    _resize_momentum_deques(_cfg_short, _cfg_medium)
     _momentum_short.append(current_price)
     _momentum_medium.append(current_price)
     if len(_momentum_short) < 4:

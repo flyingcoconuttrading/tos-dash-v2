@@ -1089,6 +1089,12 @@ async def startup():
     asyncio.create_task(tick_loop())
     asyncio.create_task(_watchdog())
     news_fetcher.start(load_config)
+    # Log startup config snapshot so history is always anchored
+    try:
+        idea_logger.log_config_change({}, cfg, source="startup",
+                                       note="System startup — full config snapshot")
+    except Exception:
+        pass
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -1123,12 +1129,41 @@ def get_snapshot():
 def get_config():
     return load_config()
 
+@app.get("/config/history")
+def get_config_history(limit: int = 50):
+    """Return recent config changes from config_history table."""
+    try:
+        rows = idea_logger.query_raw(f"""
+            SELECT id, changed_at, source, changed_keys, old_values, new_values, note
+            FROM config_history
+            ORDER BY changed_at DESC
+            LIMIT {limit}
+        """)
+        import json as _json
+        for r in rows:
+            for col in ("changed_keys", "old_values", "new_values"):
+                if isinstance(r.get(col), str):
+                    try:
+                        r[col] = _json.loads(r[col])
+                    except Exception:
+                        pass
+        return {"history": rows, "total": len(rows)}
+    except Exception as e:
+        return {"history": [], "total": 0, "error": str(e)}
+
 @app.post("/config")
-def update_config(update: ConfigUpdate):
-    cfg = load_config()
+def update_config(update: ConfigUpdate, request: Request = None):
+    old_cfg = load_config()
+    cfg = dict(old_cfg)
     for field, val in update.model_dump(exclude_none=True).items():
         cfg[field] = val
     save_config(cfg)
+    # Log the change
+    try:
+        _source = "advisor" if (request and request.headers.get("X-Config-Source") == "advisor") else "manual"
+        idea_logger.log_config_change(old_cfg, cfg, source=_source)
+    except Exception:
+        pass
     # Apply EMA/SMA to advisor
     _reconfigure_advisor(cfg)
     # Restart writer with new config

@@ -229,6 +229,37 @@ class IdeaLogger:
             cols = [d[0] for d in cur.description]
             return [dict(zip(cols, r)) for r in rows]
 
+    def log_config_change(self, old_cfg: dict, new_cfg: dict,
+                          source: str = "manual", note: str = "") -> None:
+        """Log a config change to config_history table.
+        Only records keys that actually changed."""
+        import json as _json
+        changed_keys = [k for k in new_cfg if new_cfg.get(k) != old_cfg.get(k)]
+        if not changed_keys:
+            return
+        old_vals = {k: old_cfg.get(k) for k in changed_keys}
+        new_vals = {k: new_cfg.get(k) for k in changed_keys}
+        # Never log API keys
+        _sensitive = {"anthropic_api_key", "alpaca_api_key", "alpaca_secret_key"}
+        for k in _sensitive:
+            old_vals.pop(k, None)
+            new_vals.pop(k, None)
+            if k in changed_keys:
+                changed_keys.remove(k)
+        if not changed_keys:
+            return
+        try:
+            with self._lock:
+                self._conn.execute("""
+                    INSERT INTO config_history
+                        (changed_at, source, changed_keys, old_values, new_values, note)
+                    VALUES (CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
+                """, [source, _json.dumps(changed_keys),
+                      _json.dumps(old_vals), _json.dumps(new_vals), note])
+                self._conn.commit()
+        except Exception as e:
+            self._log.warning("log_config_change failed: %s", e)
+
     def write_backtest_finding(self, hypothesis: str, verdict: str, summary: str,
                                 evidence: dict = None, recommendation: str = "",
                                 trade_count: int = None, date_range: str = None,
@@ -1281,6 +1312,21 @@ class IdeaLogger:
             )
         """)
         self._conn.execute("CREATE INDEX IF NOT EXISTS idx_sc_time ON surface_candidates(surfaced_at)")
+
+        # Config change history — logs every settings change with before/after values
+        self._conn.execute("CREATE SEQUENCE IF NOT EXISTS config_history_seq START 1")
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS config_history (
+                id          INTEGER DEFAULT nextval('config_history_seq') PRIMARY KEY,
+                changed_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                source      VARCHAR,   -- 'manual' | 'advisor' | 'api' | 'startup'
+                changed_keys JSON,     -- list of keys that changed
+                old_values   JSON,     -- {key: old_value} for changed keys only
+                new_values   JSON,     -- {key: new_value} for changed keys only
+                note        TEXT       -- optional context
+            )
+        """)
+        self._conn.execute("CREATE INDEX IF NOT EXISTS idx_cfg_history_time ON config_history(changed_at)")
 
         # Backtesting findings table
         self._conn.execute("CREATE SEQUENCE IF NOT EXISTS backtest_runs_seq START 1")
