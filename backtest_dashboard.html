@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>tos-dash-v2 | Backtesting</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf3;font-size:13px;min-height:100vh}
+header{background:#161b22;border-bottom:1px solid #30363d;padding:10px 18px;display:flex;align-items:center;gap:16px}
+header h1{font-size:15px;font-weight:600;color:#58a6ff}
+header .sub{color:#8b949e;font-size:12px}
+.badge{background:#21262d;border:1px solid #30363d;border-radius:4px;padding:2px 8px;font-size:11px;color:#8b949e}
+.badge.green{border-color:#238636;color:#3fb950}
+.badge.yellow{border-color:#9e6a03;color:#d29922}
+.badge.red{border-color:#da3633;color:#f85149}
+.layout{display:grid;grid-template-columns:340px 1fr;gap:0;height:calc(100vh - 47px)}
+.sidebar{background:#161b22;border-right:1px solid #30363d;overflow-y:auto;padding:14px}
+.main{overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:14px}
+
+/* Cards */
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden}
+.card-header{padding:8px 12px;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between;background:#1c2128}
+.card-header h2{font-size:12px;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:.5px}
+.card-body{padding:12px}
+
+/* Metrics grid */
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.metric{background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px;text-align:center}
+.metric .val{font-size:20px;font-weight:700;color:#e6edf3}
+.metric .val.green{color:#3fb950}
+.metric .val.red{color:#f85149}
+.metric .val.yellow{color:#d29922}
+.metric .lbl{font-size:10px;color:#8b949e;margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
+
+/* Tables */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#1c2128;color:#8b949e;font-weight:500;padding:6px 10px;text-align:left;border-bottom:1px solid #30363d;white-space:nowrap}
+td{padding:5px 10px;border-bottom:1px solid #21262d;vertical-align:middle}
+tr:hover td{background:#1c2128}
+.right{text-align:right}
+.center{text-align:center}
+.green{color:#3fb950}
+.red{color:#f85149}
+.yellow{color:#d29922}
+.muted{color:#8b949e}
+
+/* Prompt area */
+.prompt-area{display:flex;flex-direction:column;gap:8px}
+textarea{background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:8px;font-size:12px;font-family:inherit;resize:vertical;width:100%;min-height:80px}
+textarea:focus{outline:none;border-color:#388bfd}
+select{background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:6px 8px;font-size:12px;width:100%;cursor:pointer}
+select:focus{outline:none;border-color:#388bfd}
+input[type=number]{background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:5px 8px;font-size:12px;width:100%}
+input[type=number]:focus{outline:none;border-color:#388bfd}
+label{font-size:11px;color:#8b949e;margin-bottom:3px;display:block}
+
+/* Buttons */
+.btn{border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:500;cursor:pointer;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:#238636;color:#fff}
+.btn-blue{background:#1f6feb;color:#fff}
+.btn-danger{background:#da3633;color:#fff}
+.btn-ghost{background:#21262d;color:#e6edf3;border:1px solid #30363d}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap}
+
+/* Log/stream */
+.log-box{background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:8px;font-family:'Cascadia Code','Consolas',monospace;font-size:11px;max-height:320px;overflow-y:auto;line-height:1.5}
+.log-box .log-line{padding:1px 0}
+.log-box .log-tool{color:#388bfd}
+.log-box .log-result{color:#3fb950}
+.log-box .log-think{color:#8b949e;font-style:italic}
+.log-box .log-error{color:#f85149}
+.log-box .log-finding{color:#d29922;font-weight:600}
+.log-box .log-done{color:#3fb950;font-weight:600}
+.log-box .log-info{color:#e6edf3}
+
+/* Progress */
+.progress-bar{background:#21262d;border-radius:4px;height:6px;overflow:hidden;margin:6px 0}
+.progress-fill{background:#388bfd;height:100%;transition:width .3s;border-radius:4px}
+
+/* Finding cards */
+.finding-card{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px;margin-bottom:10px}
+.finding-card .f-hypothesis{font-size:12px;color:#8b949e;margin-bottom:6px}
+.finding-card .f-verdict{font-size:14px;font-weight:600;margin-bottom:6px}
+.finding-card .f-summary{font-size:12px;line-height:1.6;color:#e6edf3;margin-bottom:8px}
+.finding-card .f-evidence{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-bottom:8px}
+.finding-card .ev-item{background:#161b22;border:1px solid #21262d;border-radius:4px;padding:6px 8px}
+.finding-card .ev-item .ev-val{font-size:15px;font-weight:700}
+.finding-card .ev-item .ev-lbl{font-size:10px;color:#8b949e;text-transform:uppercase}
+.finding-card .f-rec{font-size:12px;color:#d29922;border-left:3px solid #d29922;padding-left:8px;margin-top:6px}
+.finding-card .f-meta{font-size:10px;color:#8b949e;margin-top:6px}
+.verdict-strong-edge{color:#3fb950}
+.verdict-weak-edge{color:#d29922}
+.verdict-no-edge{color:#f85149}
+.verdict-inconclusive{color:#8b949e}
+
+/* Chart */
+.chart-wrap{position:relative;height:180px;width:100%}
+canvas{width:100%!important}
+
+/* Regime/exit tables in sidebar */
+.mini-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.mini-tbl th{color:#8b949e;font-weight:500;padding:4px 6px;text-align:left;border-bottom:1px solid #21262d}
+.mini-tbl td{padding:3px 6px;border-bottom:1px solid #161b22}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;border-bottom:1px solid #30363d;margin-bottom:12px}
+.tab{padding:6px 14px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:#8b949e;transition:color .15s}
+.tab.active{color:#58a6ff;border-bottom-color:#388bfd}
+.tab:hover:not(.active){color:#e6edf3}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:#0d1117}
+::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+
+/* Responsive */
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr}
+  .sidebar{border-right:none;border-bottom:1px solid #30363d}
+  .metric-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* Spinner */
+.spinner{width:16px;height:16px;border:2px solid #30363d;border-top-color:#388bfd;border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Filter sim */
+.sim-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sim-result{background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px;margin-top:8px;font-size:12px}
+
+/* Balance chart placeholder */
+#balanceChart{display:block}
+</style>
+</head>
+<body>
+<header>
+  <h1>tos-dash-v2 Backtesting</h1>
+  <span class="sub">Smart Testing Dashboard</span>
+  <span class="badge" id="statusBadge">Idle</span>
+  <div style="margin-left:auto;display:flex;gap:6px">
+    <button class="btn btn-ghost btn-sm" onclick="loadMetrics()">Refresh Metrics</button>
+    <button class="btn btn-ghost btn-sm" onclick="exportToday()">Export Today</button>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <!-- Run Analysis -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header"><h2>Run Analysis</h2></div>
+      <div class="card-body prompt-area">
+        <label>Preset Hypothesis</label>
+        <select id="hypothesisSelect" onchange="applyPreset()">
+          <option value="">-- Custom prompt --</option>
+          <option value="H-001">H-001: High score (≥70) edge</option>
+          <option value="H-002">H-002: Regime performance comparison</option>
+          <option value="H-003">H-003: Time-of-day patterns</option>
+          <option value="H-004">H-004: Stop loss effectiveness</option>
+          <option value="H-005">H-005: Score vs exit reason correlation</option>
+          <option value="ALL">ALL: Run all hypotheses</option>
+        </select>
+        <label style="margin-top:6px">Custom Prompt</label>
+        <textarea id="promptInput" placeholder="Describe what you want to analyze about the trade history...&#10;&#10;Examples:&#10;• Do SPY calls outperform puts in trending regimes?&#10;• What score threshold maximizes expectancy?&#10;• Are morning trades better than afternoon?"></textarea>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div style="flex:1">
+            <label>Max Iterations</label>
+            <input type="number" id="maxIter" value="30" min="5" max="100"/>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="runBtn" onclick="startRun()" style="flex:1">Run Analysis</button>
+          <button class="btn btn-danger btn-sm" id="stopBtn" onclick="stopStream()" disabled>Stop</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="card" style="margin-bottom:12px" id="progressCard" style="display:none">
+      <div class="card-header">
+        <h2>Progress</h2>
+        <span id="iterBadge" class="badge">0 / 30</span>
+      </div>
+      <div class="card-body">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+        <div id="currentAction" style="font-size:11px;color:#8b949e;margin-top:4px">Waiting...</div>
+      </div>
+    </div>
+
+    <!-- Live Log -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header">
+        <h2>Live Log</h2>
+        <button class="btn btn-ghost btn-sm" onclick="clearLog()">Clear</button>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div class="log-box" id="logBox">
+          <div class="log-line muted">Ready. Run an analysis to begin.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Simulate -->
+    <div class="card">
+      <div class="card-header"><h2>Quick Filter Sim</h2></div>
+      <div class="card-body">
+        <div class="sim-grid">
+          <div>
+            <label>Min Score</label>
+            <input type="number" id="simMinScore" value="60" min="0" max="100"/>
+          </div>
+          <div>
+            <label>Max Score</label>
+            <input type="number" id="simMaxScore" value="100" min="0" max="100"/>
+          </div>
+          <div>
+            <label>Regime (blank=all)</label>
+            <input type="text" id="simRegime" placeholder="PINNED, TRENDING…" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:5px 8px;font-size:12px;width:100%"/>
+          </div>
+          <div>
+            <label>Direction</label>
+            <select id="simDir" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:5px 8px;font-size:12px;width:100%">
+              <option value="">Any</option>
+              <option value="CALL">CALL</option>
+              <option value="PUT">PUT</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-blue btn-sm" style="width:100%;margin-top:8px" onclick="runSim()">Simulate</button>
+        <div id="simResult" class="sim-result" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- Overview metrics -->
+    <div class="card">
+      <div class="card-header"><h2>Overall Performance</h2><span class="muted" id="metricsAge" style="font-size:11px"></span></div>
+      <div class="card-body">
+        <div class="metric-grid" id="metricsGrid">
+          <div class="metric"><div class="val" id="m-trades">—</div><div class="lbl">Trades</div></div>
+          <div class="metric"><div class="val" id="m-wr">—</div><div class="lbl">Win Rate</div></div>
+          <div class="metric"><div class="val" id="m-net">—</div><div class="lbl">Total Net P&L</div></div>
+          <div class="metric"><div class="val" id="m-avg">—</div><div class="lbl">Avg P&L %</div></div>
+          <div class="metric"><div class="val" id="m-exp">—</div><div class="lbl">Expectancy %</div></div>
+          <div class="metric"><div class="val" id="m-pf">—</div><div class="lbl">Profit Factor</div></div>
+          <div class="metric"><div class="val" id="m-stop">—</div><div class="lbl">Stop Rate</div></div>
+          <div class="metric"><div class="val" id="m-days">—</div><div class="lbl">Trading Days</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs: charts + breakdowns -->
+    <div class="card">
+      <div class="card-header"><h2>Analysis</h2></div>
+      <div class="card-body">
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('balance')">Balance Curve</div>
+          <div class="tab" onclick="switchTab('regime')">By Regime</div>
+          <div class="tab" onclick="switchTab('score')">By Score</div>
+          <div class="tab" onclick="switchTab('exit')">By Exit</div>
+        </div>
+
+        <div class="tab-panel active" id="tab-balance">
+          <div class="chart-wrap">
+            <canvas id="balanceChart"></canvas>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-regime">
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>Regime</th><th class="right">Trades</th><th class="right">Win%</th>
+                <th class="right">Avg P&L%</th><th class="right">Total Net</th>
+              </tr></thead>
+              <tbody id="regimeBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-score">
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>Score Band</th><th class="right">Trades</th>
+                <th class="right">Avg P&L%</th><th class="right">Total Net</th>
+              </tr></thead>
+              <tbody id="scoreBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-exit">
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>Exit Reason</th><th class="right">Trades</th><th class="right">Avg P&L%</th>
+              </tr></thead>
+              <tbody id="exitBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Findings -->
+    <div class="card">
+      <div class="card-header">
+        <h2>AI Findings</h2>
+        <span class="badge" id="findingsCount">0 findings</span>
+      </div>
+      <div class="card-body" id="findingsBody">
+        <div class="muted" style="font-size:12px;text-align:center;padding:20px 0">
+          No findings yet. Run an analysis to generate insights.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let _eventSource = null;
+let _currentRunId = null;
+let _maxIter = 30;
+let _iterCount = 0;
+let _balanceData = [];
+let _balanceChart = null;
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const panels = ['balance','regime','score','exit'];
+    t.classList.toggle('active', panels[i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'tab-' + name);
+  });
+  if (name === 'balance' && _balanceData.length) renderBalanceChart(_balanceData);
+}
+
+// ── Logging ────────────────────────────────────────────────────────────────
+function addLog(text, cls='log-info') {
+  const box = document.getElementById('logBox');
+  const div = document.createElement('div');
+  div.className = 'log-line ' + cls;
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+function clearLog() {
+  document.getElementById('logBox').innerHTML = '';
+}
+
+// ── Status badge ───────────────────────────────────────────────────────────
+function setStatus(text, type='') {
+  const b = document.getElementById('statusBadge');
+  b.textContent = text;
+  b.className = 'badge' + (type ? ' ' + type : '');
+}
+
+// ── Preset hypothesis ──────────────────────────────────────────────────────
+function applyPreset() {
+  const val = document.getElementById('hypothesisSelect').value;
+  if (val) {
+    document.getElementById('promptInput').value = val;
+    document.getElementById('promptInput').style.color = '#8b949e';
+  } else {
+    document.getElementById('promptInput').value = '';
+    document.getElementById('promptInput').style.color = '';
+  }
+}
+
+// ── Run analysis ───────────────────────────────────────────────────────────
+async function startRun() {
+  const prompt = document.getElementById('promptInput').value.trim();
+  if (!prompt) { addLog('Error: prompt is required', 'log-error'); return; }
+  _maxIter = parseInt(document.getElementById('maxIter').value) || 30;
+  _iterCount = 0;
+
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+  setStatus('Running…', 'yellow');
+  addLog('── Starting analysis ──', 'log-info');
+  updateProgress(0);
+
+  try {
+    const res = await fetch('/run', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({prompt, max_iterations: _maxIter})
+    });
+    const data = await res.json();
+    if (data.error) { addLog('Error: ' + data.error, 'log-error'); resetRunState(); return; }
+    _currentRunId = data.run_id;
+    addLog(`Run ${data.run_id} started`, 'log-info');
+    startStream(data.run_id);
+  } catch(e) {
+    addLog('Failed to start: ' + e.message, 'log-error');
+    resetRunState();
+  }
+}
+
+function startStream(runId) {
+  if (_eventSource) _eventSource.close();
+  _eventSource = new EventSource('/stream/' + runId);
+
+  _eventSource.onmessage = (e) => {
+    const ev = JSON.parse(e.data);
+    handleEvent(ev);
+  };
+  _eventSource.onerror = () => {
+    addLog('Stream disconnected', 'log-error');
+    resetRunState();
+  };
+}
+
+function handleEvent(ev) {
+  switch(ev.type) {
+    case 'ping': return;
+    case 'iteration':
+      _iterCount = ev.iteration || _iterCount + 1;
+      updateProgress(_iterCount / _maxIter * 100);
+      document.getElementById('iterBadge').textContent = `${_iterCount} / ${_maxIter}`;
+      break;
+    case 'tool_call':
+      addLog(`→ ${ev.tool}(${JSON.stringify(ev.input || {}).slice(0,80)}…)`, 'log-tool');
+      document.getElementById('currentAction').textContent = `Tool: ${ev.tool}`;
+      break;
+    case 'tool_result':
+      addLog(`  ✓ ${(JSON.stringify(ev.result || '')).slice(0,100)}`, 'log-result');
+      break;
+    case 'thinking':
+      addLog(`  💭 ${(ev.text || '').slice(0,120)}`, 'log-think');
+      break;
+    case 'text':
+      addLog((ev.text || '').slice(0,200), 'log-info');
+      break;
+    case 'finding':
+      addLog(`★ Finding saved: ${ev.verdict || ''} — ${(ev.summary || '').slice(0,80)}`, 'log-finding');
+      loadFindings();
+      break;
+    case 'error':
+      addLog('Error: ' + (ev.message || ''), 'log-error');
+      break;
+    case 'done':
+      addLog('── Analysis complete ──', 'log-done');
+      setStatus('Done', 'green');
+      resetRunState();
+      loadFindings();
+      loadMetrics();
+      break;
+  }
+}
+
+function stopStream() {
+  if (_eventSource) { _eventSource.close(); _eventSource = null; }
+  addLog('Stopped by user', 'log-error');
+  resetRunState();
+}
+
+function resetRunState() {
+  document.getElementById('runBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  if (document.getElementById('statusBadge').textContent === 'Running…')
+    setStatus('Idle');
+}
+
+function updateProgress(pct) {
+  document.getElementById('progressFill').style.width = Math.min(100, pct) + '%';
+}
+
+// ── Metrics ────────────────────────────────────────────────────────────────
+async function loadMetrics() {
+  try {
+    const d = await fetch('/metrics').then(r => r.json());
+    if (d.error) { console.warn('Metrics error:', d.error); return; }
+    const o = d.overall || {};
+    function setEl(id, val, fmt='') {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = fmt === 'pct' ? val + '%'
+                     : fmt === '$'   ? '$' + val.toFixed(2)
+                     : fmt === 'x'   ? val + 'x'
+                     : String(val);
+      el.className = 'val';
+      if (fmt === 'pct' || fmt === '$') {
+        if (val > 0) el.classList.add('green');
+        else if (val < 0) el.classList.add('red');
+      }
+    }
+    setEl('m-trades', o.total_trades || 0);
+    setEl('m-wr', o.win_rate || 0, 'pct');
+    setEl('m-net', o.total_net || 0, '$');
+    setEl('m-avg', o.avg_pnl || 0, 'pct');
+    setEl('m-exp', o.expectancy || 0, 'pct');
+    setEl('m-pf', o.profit_factor != null ? o.profit_factor.toFixed(2) : '—');
+    setEl('m-stop', o.stop_rate || 0, 'pct');
+    setEl('m-days', o.trading_days || 0);
+
+    // Regime table
+    const rb = document.getElementById('regimeBody');
+    rb.innerHTML = (d.by_regime || []).map(r => `
+      <tr>
+        <td>${r.entry_regime || '—'}</td>
+        <td class="right">${r.n}</td>
+        <td class="right ${r.win_rate >= 50 ? 'green' : 'red'}">${r.win_rate}%</td>
+        <td class="right ${r.avg_pnl >= 0 ? 'green' : 'red'}">${r.avg_pnl}%</td>
+        <td class="right ${r.total_net >= 0 ? 'green' : 'red'}">$${r.total_net.toFixed(2)}</td>
+      </tr>`).join('');
+
+    // Score table
+    const sb = document.getElementById('scoreBody');
+    sb.innerHTML = (d.by_score || []).map(r => `
+      <tr>
+        <td>${r.band_floor}–${r.band_floor + 2}</td>
+        <td class="right">${r.n}</td>
+        <td class="right ${r.avg_pnl >= 0 ? 'green' : 'red'}">${r.avg_pnl}%</td>
+        <td class="right ${r.total_net >= 0 ? 'green' : 'red'}">$${r.total_net.toFixed(2)}</td>
+      </tr>`).join('');
+
+    // Exit table
+    const eb = document.getElementById('exitBody');
+    eb.innerHTML = (d.by_exit || []).map(r => `
+      <tr>
+        <td>${r.exit_reason || '—'}</td>
+        <td class="right">${r.n}</td>
+        <td class="right ${r.avg_pnl >= 0 ? 'green' : 'red'}">${r.avg_pnl}%</td>
+      </tr>`).join('');
+
+    // Balance curve
+    _balanceData = d.balance || [];
+    if (document.getElementById('tab-balance').classList.contains('active'))
+      renderBalanceChart(_balanceData);
+
+    document.getElementById('metricsAge').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch(e) {
+    console.warn('loadMetrics error:', e);
+  }
+}
+
+// ── Balance chart (pure canvas, no library dependency) ─────────────────────
+function renderBalanceChart(data) {
+  const canvas = document.getElementById('balanceChart');
+  if (!canvas) return;
+  const wrap = canvas.parentElement;
+  const W = wrap.clientWidth || 600;
+  const H = 180;
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  if (!data || !data.length) {
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '12px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillText('No data', W/2, H/2);
+    return;
+  }
+
+  const vals = data.map(d => parseFloat(d.running_total) || 0);
+  const mn = Math.min(0, ...vals);
+  const mx = Math.max(0, ...vals);
+  const range = mx - mn || 1;
+  const pad = {l:50, r:14, t:14, b:28};
+  const cW = W - pad.l - pad.r;
+  const cH = H - pad.t - pad.b;
+
+  function xp(i) { return pad.l + (i / (vals.length - 1 || 1)) * cW; }
+  function yp(v) { return pad.t + (1 - (v - mn) / range) * cH; }
+
+  // Grid
+  ctx.strokeStyle = '#21262d';
+  ctx.lineWidth = 1;
+  [0, 0.25, 0.5, 0.75, 1].forEach(f => {
+    const y = pad.t + f * cH;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+    const v = mx - f * range;
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '10px Segoe UI';
+    ctx.textAlign = 'right';
+    ctx.fillText((v >= 0 ? '+' : '') + '$' + v.toFixed(0), pad.l - 4, y + 3);
+  });
+
+  // Zero line
+  const z0 = yp(0);
+  ctx.strokeStyle = '#388bfd33';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, z0); ctx.lineTo(W - pad.r, z0); ctx.stroke();
+
+  // Fill
+  const grad = ctx.createLinearGradient(0, pad.t, 0, H - pad.b);
+  const lastVal = vals[vals.length - 1];
+  const mainColor = lastVal >= 0 ? '#3fb950' : '#f85149';
+  grad.addColorStop(0, mainColor + '44');
+  grad.addColorStop(1, mainColor + '08');
+  ctx.beginPath();
+  ctx.moveTo(xp(0), yp(vals[0]));
+  vals.forEach((v, i) => { if (i > 0) ctx.lineTo(xp(i), yp(v)); });
+  ctx.lineTo(xp(vals.length - 1), H - pad.b);
+  ctx.lineTo(xp(0), H - pad.b);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = mainColor;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  vals.forEach((v, i) => { i === 0 ? ctx.moveTo(xp(0), yp(v)) : ctx.lineTo(xp(i), yp(v)); });
+  ctx.stroke();
+
+  // X labels
+  const step = Math.ceil(vals.length / 6);
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '10px Segoe UI';
+  ctx.textAlign = 'center';
+  vals.forEach((_, i) => {
+    if (i % step === 0 || i === vals.length - 1) {
+      ctx.fillText('#' + (i + 1), xp(i), H - 6);
+    }
+  });
+}
+
+// ── Findings ───────────────────────────────────────────────────────────────
+async function loadFindings() {
+  try {
+    const d = await fetch('/findings?limit=20').then(r => r.json());
+    const findings = d.findings || [];
+    document.getElementById('findingsCount').textContent = `${d.total || 0} findings`;
+    const body = document.getElementById('findingsBody');
+    if (!findings.length) {
+      body.innerHTML = '<div class="muted" style="font-size:12px;text-align:center;padding:20px 0">No findings yet.</div>';
+      return;
+    }
+    body.innerHTML = findings.map(f => {
+      const vClass = {
+        'STRONG_EDGE':   'verdict-strong-edge',
+        'WEAK_EDGE':     'verdict-weak-edge',
+        'NO_EDGE':       'verdict-no-edge',
+        'INCONCLUSIVE':  'verdict-inconclusive',
+      }[f.verdict] || '';
+      const ev = Array.isArray(f.evidence) ? f.evidence : [];
+      const evHtml = ev.map(e => `
+        <div class="ev-item">
+          <div class="ev-val ${parseFloat(e.value)>=0?'green':'red'}">${e.value}</div>
+          <div class="ev-lbl">${e.label || ''}</div>
+        </div>`).join('');
+      const runAt = f.run_at ? new Date(f.run_at).toLocaleString() : '';
+      return `
+      <div class="finding-card">
+        <div class="f-hypothesis">${esc(f.hypothesis || '')} <span class="muted">· ${f.trade_count || 0} trades · ${f.date_range || ''}</span></div>
+        <div class="f-verdict ${vClass}">${f.verdict || '—'}</div>
+        <div class="f-summary">${esc(f.summary || '')}</div>
+        ${ev.length ? `<div class="f-evidence">${evHtml}</div>` : ''}
+        ${f.recommendation ? `<div class="f-rec">${esc(f.recommendation)}</div>` : ''}
+        <div class="f-meta">${runAt}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    console.warn('loadFindings error:', e);
+  }
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Quick Sim ──────────────────────────────────────────────────────────────
+async function runSim() {
+  const params = {
+    min_score:  parseInt(document.getElementById('simMinScore').value) || 0,
+    max_score:  parseInt(document.getElementById('simMaxScore').value) || 100,
+    regime:     document.getElementById('simRegime').value.trim() || null,
+    direction:  document.getElementById('simDir').value || null,
+  };
+  const el = document.getElementById('simResult');
+  el.style.display = 'block';
+  el.textContent = 'Running…';
+  try {
+    const d = await fetch('/simulate', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({params, label: 'quick-sim'})
+    }).then(r => r.json());
+    if (d.error) { el.innerHTML = `<span class="red">${esc(d.error)}</span>`; return; }
+    const wr = d.win_rate != null ? d.win_rate.toFixed(1) : '—';
+    const net = d.total_net != null ? '$' + d.total_net.toFixed(2) : '—';
+    const pf  = d.profit_factor != null ? d.profit_factor.toFixed(2) : '—';
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">
+        <div><div class="val ${d.total_net>=0?'green':'red'}" style="font-size:16px">${net}</div><div class="muted">Net P&L</div></div>
+        <div><div class="val ${d.win_rate>=50?'green':'red'}" style="font-size:16px">${wr}%</div><div class="muted">Win Rate</div></div>
+        <div><div class="val" style="font-size:16px">${pf}</div><div class="muted">Profit Factor</div></div>
+      </div>
+      <div class="muted" style="margin-top:6px;font-size:11px">${d.trade_count || 0} trades · ${d.label || ''}</div>`;
+  } catch(e) {
+    el.innerHTML = `<span class="red">Error: ${esc(e.message)}</span>`;
+  }
+}
+
+// ── Export today ───────────────────────────────────────────────────────────
+async function exportToday() {
+  try {
+    const d = await fetch('/export/today').then(r => r.json());
+    const trades = (d.trades || []).length;
+    addLog(`Exported ${trades} trades for ${d.date || 'today'}`, 'log-result');
+  } catch(e) {
+    addLog('Export error: ' + e.message, 'log-error');
+  }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  loadMetrics();
+  loadFindings();
+  window.addEventListener('resize', () => {
+    if (_balanceData.length) renderBalanceChart(_balanceData);
+  });
+});
+
+// Auto-refresh findings every 30s
+setInterval(loadFindings, 30000);
+</script>
+</body>
+</html>

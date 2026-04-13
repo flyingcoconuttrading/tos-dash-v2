@@ -28,6 +28,7 @@ import uvicorn
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -85,6 +86,10 @@ _vix_history:  deque = deque(maxlen=21)
 _vix_open:     float = 0.0
 _vix_open_set: bool  = False
 
+import re as _re
+_RE_CALL = _re.compile(r'\d[C]\d')
+_RE_PUT  = _re.compile(r'\d[P]\d')
+
 def _compute_vix_signals(vix: float) -> dict:
     """Compute VIX EMA(9)/SMA(21), cross signals, and vs open."""
     global _vix_open, _vix_open_set
@@ -95,8 +100,8 @@ def _compute_vix_signals(vix: float) -> dict:
         _vix_open     = sorted(list(_vix_history)[:3])[1]  # median of first 3
         _vix_open_set = True
     hist = list(_vix_history)
-    # EMA(9)
-    ema9 = hist[-1]
+    # EMA(9) — seed from value just before the 9-tick window to avoid double-counting hist[-1]
+    ema9 = hist[-10] if len(hist) >= 10 else hist[0]
     k9 = 2 / (9 + 1)
     for v in hist[-9:]:
         ema9 = v * k9 + ema9 * (1 - k9)
@@ -252,15 +257,26 @@ DEFAULT_CONFIG = {
     "replay_db_path":          "D:/tos-dash-v2-replay/",
 }
 
+_cfg_cache: dict = {}
+_cfg_cache_time: float = 0.0
+
 def load_config() -> dict:
+    global _cfg_cache, _cfg_cache_time
+    if _cfg_cache and (time.time() - _cfg_cache_time) < 2.0:
+        return _cfg_cache
     try:
         saved = json.loads(CONFIG_FILE.read_text())
-        return {**DEFAULT_CONFIG, **saved}
+        _cfg_cache = {**DEFAULT_CONFIG, **saved}
     except Exception:
-        return dict(DEFAULT_CONFIG)
+        _cfg_cache = dict(DEFAULT_CONFIG)
+    _cfg_cache_time = time.time()
+    return _cfg_cache
 
 def save_config(cfg: dict):
+    global _cfg_cache, _cfg_cache_time
     CONFIG_FILE.write_text(json.dumps(cfg, indent=2))
+    _cfg_cache = dict(cfg)
+    _cfg_cache_time = time.time()
 
 # ── Writer process manager ────────────────────────────────────────────────────
 writer_proc: Optional[subprocess.Popen] = None
@@ -560,7 +576,6 @@ def build_snapshot() -> dict:
         ms_dict = {"error": str(e)}
 
     # Track SPY price for surge detection
-    import time as _t
     from datetime import datetime as _dt_now
     if price:
         _spy_price_recent.append(float(price))
@@ -581,10 +596,10 @@ def build_snapshot() -> dict:
     if len(_spy_price_recent) >= 2:
         _price_move = abs(_spy_price_recent[-1] - _spy_price_recent[-2])
         if _price_move > cfg.get("surge_price_move_threshold", 0.40) and spy_vol_ratio > cfg.get("surge_vol_ratio_threshold", 3.0):
-            _surge_suppress_until = _t.monotonic() + cfg.get("surge_suppress_sec", 60)
+            _surge_suppress_until = time.monotonic() + cfg.get("surge_suppress_sec", 60)
             logger.info("Surge protection triggered: price_move=%.2f vol_ratio=%.1f suppress=60s",
                         _price_move, spy_vol_ratio)
-    if _t.monotonic() < _surge_suppress_until:
+    if time.monotonic() < _surge_suppress_until:
         _surge_suppressed = True
 
     candidates = []
@@ -687,8 +702,6 @@ def build_snapshot() -> dict:
 
     # ── Trade Briefing ────────────────────────────────────────────────────────
     try:
-        from datetime import datetime
-        from zoneinfo import ZoneInfo
         _now_et  = datetime.now(ZoneInfo("America/New_York"))
         _eod_hr  = cfg.get("briefing_eod_hour", 14)
         _is_eod  = _now_et.hour >= _eod_hr and _now_et.minute >= 30
@@ -753,8 +766,8 @@ def build_snapshot() -> dict:
             _m_max = cfg.get("max_mark",  2.00)
             target_delta = (_d_min + _d_max) / 2
             for sym, fields in chain.items():
-                is_call = bool(__import__('re').search(r'\d[C]\d', sym))
-                is_put  = bool(__import__('re').search(r'\d[P]\d', sym))
+                is_call = bool(_RE_CALL.search(sym))
+                is_put  = bool(_RE_PUT.search(sym))
                 if side == "Call" and not is_call:
                     continue
                 if side == "Put" and not is_put:
