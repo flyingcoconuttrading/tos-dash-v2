@@ -38,7 +38,8 @@ from pydantic import BaseModel
 # ── Paths ─────────────────────────────────────────────────────────────────────
 THIS_DIR    = Path(__file__).parent
 WRITER_SCRIPT = THIS_DIR / "spy_writer.py"
-TICK_RECORDER_SCRIPT = THIS_DIR / "tick_recorder.py"
+TICK_RECORDER_SCRIPT  = THIS_DIR / "tick_recorder.py"
+BACKTEST_SCRIPT       = THIS_DIR / "backtest_dashboard.py"
 CONFIG_FILE = THIS_DIR / "config.json"
 PRICE_FILE  = THIS_DIR / "spy_price.json"
 CHAIN_FILE  = THIS_DIR / "option_chain.json"
@@ -361,6 +362,43 @@ def stop_tick_recorder():
             (THIS_DIR / "tick_recorder.stop").unlink(missing_ok=True)
         except Exception:
             pass
+
+# ── Backtest dashboard process manager ────────────────────────────────────────
+backtest_proc: Optional[subprocess.Popen] = None
+backtest_lock = threading.Lock()
+
+def start_backtest_dashboard():
+    global backtest_proc
+    if not BACKTEST_SCRIPT.exists():
+        logger.warning("backtest_dashboard.py not found — skipping auto-start")
+        return
+    with backtest_lock:
+        if backtest_proc and backtest_proc.poll() is None:
+            return  # already running
+        try:
+            backtest_proc = subprocess.Popen(
+                [sys.executable, str(BACKTEST_SCRIPT)],
+                stderr=None,
+                stdout=subprocess.DEVNULL,
+                cwd=str(THIS_DIR),
+            )
+            logger.info(f"Backtest dashboard started (PID {backtest_proc.pid})")
+        except Exception as e:
+            logger.warning(f"Backtest dashboard start failed: {e}")
+
+def stop_backtest_dashboard():
+    global backtest_proc
+    with backtest_lock:
+        if backtest_proc and backtest_proc.poll() is None:
+            backtest_proc.terminate()
+            try:
+                backtest_proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                backtest_proc.kill()
+        backtest_proc = None
+
+def backtest_alive() -> bool:
+    return backtest_proc is not None and backtest_proc.poll() is None
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def read_json(path: Path) -> dict:
@@ -1042,11 +1080,12 @@ async def _watchdog():
 
 @app.on_event("startup")
 async def startup():
-    get_next_1dte()   # warm 1DTE cache on boot
+    get_next_1dte()
     start_writer()
     cfg = load_config()
     if cfg.get("tick_history_enabled", True):
         start_tick_recorder()
+    start_backtest_dashboard()
     asyncio.create_task(tick_loop())
     asyncio.create_task(_watchdog())
     news_fetcher.start(load_config)
@@ -1055,6 +1094,7 @@ async def startup():
 async def shutdown():
     stop_writer()
     stop_tick_recorder()
+    stop_backtest_dashboard()
     news_fetcher.stop()
 
 # ── REST endpoints ────────────────────────────────────────────────────────────
@@ -1209,6 +1249,172 @@ def rtd_test(symbol: str):
                 "hint": f"Known symbols: {list(symbol_map.keys())}"}
     except Exception as e:
         return {"symbol": symbol, "value": None, "status": "error", "detail": str(e)}
+
+# ── Backtest DB proxy endpoints ────────────────────────────────────────────────
+# All DuckDB access for backtesting routes through these endpoints so that
+# idea_logger._conn (the single write connection) handles all reads.
+# External processes (backtest_dashboard, smart_tester) never open DuckDB directly.
+
+@app.post("/backtest/query")
+async def backtest_query(request: Request):
+    """Run a read-only SELECT on ideas.duckdb via idea_logger connection."""
+    body = await request.json()
+    sql  = body.get("sql", "").strip()
+    if not sql.upper().startswith("SELECT"):
+        return {"error": "Only SELECT queries permitted", "rows": [], "n": 0}
+    try:
+        rows = idea_logger.query_raw(sql)
+        # Truncate large results
+        truncated = len(rows) > 500
+        if truncated:
+            rows = rows[:500]
+        return {"rows": rows, "n": len(rows), "truncated": truncated}
+    except Exception as e:
+        return {"error": str(e), "rows": [], "n": 0}
+
+
+@app.post("/backtest/ticks-query")
+def backtest_ticks_query(request_body: dict):
+    """Run a read-only SELECT on ticks.duckdb. Opens a short-lived read-only
+    connection. Returns error if tick_recorder holds an exclusive lock."""
+    import duckdb as _ddb
+    from pathlib import Path as _Path
+    cfg      = load_config()
+    db_dir   = cfg.get("replay_db_path", "D:/tos-dash-v2-replay/")
+    db_path  = str(_Path(db_dir) / "ticks.duckdb")
+    sql      = request_body.get("sql", "").strip()
+    if not sql.upper().startswith("SELECT"):
+        return {"error": "Only SELECT queries permitted", "rows": [], "n": 0}
+    try:
+        with _ddb.connect(db_path, read_only=True) as conn:
+            cur  = conn.execute(sql)
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            data = [dict(zip(cols, r)) for r in rows]
+            truncated = len(data) > 500
+            return {"rows": data[:500], "n": len(data), "truncated": truncated}
+    except Exception as e:
+        err = str(e)
+        if "being used by another process" in err or "Cannot open file" in err:
+            return {"error": "Tick recorder is running and holds the DB lock. "
+                             "Pause it in Settings → System → Data Collection, "
+                             "wait 2 seconds, then retry.", "rows": [], "n": 0}
+        return {"error": err, "rows": [], "n": 0}
+
+
+@app.post("/backtest/ticks-query-async")
+async def backtest_ticks_query_async(request: Request):
+    body = await request.json()
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, lambda: backtest_ticks_query(body))
+    return result
+
+
+@app.post("/backtest/finding")
+async def backtest_save_finding(request: Request):
+    """Write a finding to backtest_runs via idea_logger connection."""
+    body = await request.json()
+    try:
+        row_id = idea_logger.write_backtest_finding(
+            hypothesis   = body.get("hypothesis", ""),
+            verdict      = body.get("verdict", "INCONCLUSIVE"),
+            summary      = body.get("summary", ""),
+            evidence     = body.get("evidence"),
+            recommendation = body.get("recommendation", ""),
+            trade_count  = body.get("trade_count"),
+            date_range   = body.get("date_range"),
+            prompt       = body.get("prompt", ""),
+        )
+        return {"saved": True, "id": row_id}
+    except Exception as e:
+        return {"saved": False, "error": str(e)}
+
+
+@app.post("/backtest/pattern")
+async def backtest_pattern(request: Request):
+    """Run a cross-instrument pattern scan on ticks.duckdb server-side
+    to avoid N HTTP round-trips from smart_tester."""
+    import duckdb as _ddb
+    import pandas as _pd
+    from pathlib import Path as _Path
+
+    body             = await request.json()
+    event_sql        = body.get("event_sql", "").strip()
+    instruments      = body.get("instruments", ["spy_price", "tick_val"])
+    window_before    = int(body.get("window_seconds_before", 60))
+    window_after     = int(body.get("window_seconds_after", 60))
+
+    cfg     = load_config()
+    db_dir  = cfg.get("replay_db_path", "D:/tos-dash-v2-replay/")
+    db_path = str(_Path(db_dir) / "ticks.duckdb")
+
+    def _run():
+        try:
+            with _ddb.connect(db_path, read_only=True) as conn:
+                sample = conn.execute("SELECT * FROM spy_ticks LIMIT 1").fetchdf()
+                valid  = [i for i in instruments if i in sample.columns]
+                if not valid:
+                    return {"error": f"None of {instruments} found in spy_ticks", "n_events": 0}
+
+                events = conn.execute(event_sql).fetchdf()
+                if events.empty or "recorded_at" not in events.columns:
+                    return {"error": "Query must return a 'recorded_at' column", "n_events": 0}
+
+                n = len(events)
+                if n > 500:
+                    return {"error": f"Too many events ({n}). Add LIMIT.", "n_events": n}
+
+                inst_cols = ", ".join(valid)
+                frames = []
+                for _, row in events.iterrows():
+                    ts = str(row["recorded_at"])[:19]
+                    try:
+                        wdf = conn.execute(f"""
+                            SELECT EPOCH(recorded_at) - EPOCH(TIMESTAMP '{ts}') AS offset_sec,
+                                   {inst_cols}
+                            FROM spy_ticks
+                            WHERE recorded_at BETWEEN
+                                TIMESTAMP '{ts}' - INTERVAL '{window_before} seconds'
+                                AND TIMESTAMP '{ts}' + INTERVAL '{window_after} seconds'
+                              AND CAST(recorded_at AS TIME) >= '09:30:00'
+                            ORDER BY recorded_at
+                        """).fetchdf()
+                        if not wdf.empty:
+                            frames.append(wdf)
+                    except Exception:
+                        continue
+
+                if not frames:
+                    return {"error": "No tick data found in windows", "n_events": n}
+
+                combined = _pd.concat(frames, ignore_index=True)
+                combined["bucket"] = ((combined["offset_sec"] // 10) * 10).astype(int)
+                summary = combined.groupby("bucket")[valid].agg(["mean","std","count"]).round(4).reset_index()
+                summary.columns = ["_".join(c).strip("_") for c in summary.columns]
+                return {
+                    "n_events": n, "frames_used": len(frames),
+                    "instruments": valid,
+                    "buckets": json.loads(summary.to_json(orient="records")),
+                }
+        except Exception as e:
+            err = str(e)
+            if "being used by another process" in err or "Cannot open file" in err:
+                return {"error": "Tick recorder holds the DB lock. Pause it first.", "n_events": 0}
+            return {"error": err, "n_events": 0}
+
+    loop   = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, _run)
+    return result
+
+
+@app.get("/backtest/status")
+def backtest_status():
+    return {
+        "running": backtest_alive(),
+        "pid":     backtest_proc.pid if backtest_alive() else None,
+        "url":     "http://127.0.0.1:8003/",
+    }
+
 
 # ── WebSocket ─────────────────────────────────────────────────────────────────
 subscribers: list[WebSocket] = []
@@ -1393,6 +1599,7 @@ def get_log(lines: int = 100):
 
 if __name__ == "__main__":
     logger.info(f"Starting tos-dash-v2 on http://127.0.0.1:8001")
-    logger.info(f"Dashboard: http://127.0.0.1:8001/")
-    logger.info(f"Config:    http://127.0.0.1:8001/config")
+    logger.info(f"Dashboard:  http://127.0.0.1:8001/")
+    logger.info(f"Config:     http://127.0.0.1:8001/config")
+    logger.info(f"Backtesting: http://127.0.0.1:8003/")
     uvicorn.run(app, host="127.0.0.1", port=8001, log_level="warning")

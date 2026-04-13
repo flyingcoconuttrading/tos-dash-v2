@@ -1428,6 +1428,56 @@ header {
 .news-row.bearish .news-headline { color: var(--bear); }
 .news-row.neutral .news-headline { color: var(--dim);  }
 .news-row.news-alert              { background: rgba(255,179,0,0.06); border-left: 2px solid var(--neutral); }
+
+/* ── Beta View ────────────────────────────────────────────────────────────── */
+.beta-only  { display: none !important; }
+.beta-hide  { }
+
+body.beta-view .beta-only  { display: flex !important; }
+body.beta-view .beta-only.block { display: block !important; }
+body.beta-view .beta-hide  { display: none !important; }
+
+/* Tighten key levels rows */
+body.beta-view .level-row  { padding: 3px 0; }
+
+/* Smaller SPY price */
+body.beta-view .spy-price  { font-size: 24px; }
+body.beta-view .spy-price-block { min-width: 120px; }
+
+/* Inline live prices in beta price hero */
+.beta-live-prices {
+  display: none;
+  align-items: center;
+  gap: 16px;
+  margin-left: 4px;
+}
+body.beta-view .beta-live-prices { display: flex !important; }
+.beta-price-item { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.beta-price-lbl  { font-family: var(--mono); font-size: 8px; color: var(--muted); letter-spacing: 0.10em; }
+.beta-price-val  { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--text); }
+
+/* Spread warning */
+.spread-warning {
+  display: none;
+  font-family: var(--mono); font-size: 11px;
+}
+body.beta-view .spread-warning { display: block !important; }
+.spread-warning.tight { color: var(--muted); }
+.spread-warning.wide  { color: var(--neutral); font-weight: 700; }
+
+/* Change from open */
+.change-from-open {
+  display: none;
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
+  align-self: flex-end; margin-bottom: 2px;
+}
+body.beta-view .change-from-open { display: block !important; }
+.change-from-open.pos { color: var(--bull); }
+.change-from-open.neg { color: var(--bear); }
+.change-from-open.flat { color: var(--muted); }
+
+/* BETA VIEW button active state */
+.dte-toggle.beta-active { background: var(--neutral); color: var(--bg); border-color: var(--neutral); }
 </style>
 </head>
 <body>
@@ -1452,6 +1502,8 @@ header {
     <span class="status-txt" id="statusTxt">CONNECTING</span>
     <div class="ai-call-dot" id="aiCallDot" title="AI API calls"></div>
     <span class="ai-call-label" id="aiCallLabel">AI 0</span>
+    <button class="dte-toggle" id="betaViewBtn" onclick="toggleBetaView()" title="Toggle Beta View layout">BETA VIEW</button>
+    <a href="http://127.0.0.1:8003/" target="_blank" style="font-family:var(--mono);font-size:9px;letter-spacing:0.10em;padding:3px 8px;border-radius:2px;border:1px solid var(--border);color:var(--muted);text-decoration:none;transition:all 0.15s;" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">BACKTESTING ↗</a>
     <span class="version-tag">v2.1</span>
     <span class="ts" id="tsEl">--</span>
   </div>
@@ -1482,11 +1534,17 @@ header {
       <div class="spy-price flat" id="spyPrice">--</div>
       <div id="priceTypeLabel" style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:0.10em;text-align:center">LAST</div>
     </div>
-    <div class="meta-group">
+    <!-- Beta: change from open -->
+    <div class="change-from-open flat" id="changeFromOpen">--</div>
+    <!-- Beta: spread warning (replaces bid/ask) -->
+    <div class="spread-warning tight" id="spreadWarning">SPREAD --</div>
+    <!-- Default: bid/ask -->
+    <div class="meta-group beta-hide" id="bidAskGroup">
       <div class="meta-label">BID / ASK</div>
       <div class="meta-val" id="bidAsk">-- / --</div>
     </div>
-    <div class="meta-group">
+    <!-- Default: max pain (hidden in beta — shown in key levels instead) -->
+    <div class="meta-group beta-hide" id="maxPainGroup">
       <div class="meta-label">MAX PAIN</div>
       <div class="meta-val accent" id="maxPain">--</div>
     </div>
@@ -1494,9 +1552,17 @@ header {
       <div class="meta-label">EXPIRY</div>
       <div class="meta-val" id="expiry">--</div>
     </div>
-    <div class="meta-group">
+    <!-- Default: feed tick counter (hidden in beta — not a trading signal) -->
+    <div class="meta-group beta-hide" id="tickGroup">
       <div class="meta-label">TICK</div>
       <div class="meta-val" id="tickEl">--</div>
+    </div>
+    <!-- Beta: live prices inline -->
+    <div class="beta-live-prices">
+      <div class="beta-price-item"><span class="beta-price-lbl">QQQ</span><span class="beta-price-val" id="betaQqq">--</span></div>
+      <div class="beta-price-item"><span class="beta-price-lbl">/ES</span><span class="beta-price-val" id="betaEs">--</span></div>
+      <div class="beta-price-item"><span class="beta-price-lbl">/NQ</span><span class="beta-price-val" id="betaNq">--</span></div>
+      <div class="beta-price-item"><span class="beta-price-lbl">IWM</span><span class="beta-price-val" id="betaIwm">--</span></div>
     </div>
     <div class="bias-block">
       <div class="bias-pill neutral" id="biasPill">--</div>
@@ -1510,6 +1576,11 @@ header {
     <!-- Left: Levels -->
     <div class="panel">
       <div class="panel-title">Key Levels</div>
+      <!-- Beta view: Max Pain shown here instead of price hero -->
+      <div class="level-row beta-only block" id="maxPainKLRow">
+        <span class="level-name">MAX PAIN</span>
+        <span class="level-val accent" id="maxPainKL">--</span>
+      </div>
       <div class="level-row"><span class="level-name">CALL WALL</span><span class="level-val bull" id="callWall">--</span></div>
       <div class="level-row"><span class="level-name">PUT WALL</span><span class="level-val bear" id="putWall">--</span></div>
       <div class="level-row"><span class="level-name">GEX ANCHOR</span><span class="level-val accent" id="gexAnchor">--</span></div>
@@ -1994,6 +2065,7 @@ header {
     <div class="settings-tabs">
       <button class="stab-btn stab-active" id="stab-trading" onclick="showSettingsTab('trading')">Trading</button>
       <button class="stab-btn" id="stab-system" onclick="showSettingsTab('system')">System</button>
+      <button class="stab-btn" id="stab-news" onclick="showSettingsTab('news')">News</button>
     </div>
 
     <!-- ══ TRADING PANE ══ -->
@@ -2660,6 +2732,86 @@ header {
 
     </div><!-- end spane-system -->
 
+    <!-- ══ NEWS PANE ══ -->
+    <div class="spane" id="spane-news">
+      <div class="settings-card" style="grid-column:1/-1">
+        <div class="settings-card-title">News Feeds</div>
+        <div id="newsFeedsListNews" style="margin-bottom:8px"></div>
+        <div style="border-top:1px solid var(--border);margin:10px 0 8px;padding-top:10px">
+          <div class="settings-card-title" style="font-size:10px;margin-bottom:8px">Add Custom RSS Feed</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <span class="field-desc">Name</span>
+              <input class="field-input" id="news_new_name2" type="text" placeholder="e.g. Bloomberg" style="max-width:160px">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:200px">
+              <span class="field-desc">RSS URL</span>
+              <input class="field-input" id="news_new_url2" type="text" placeholder="https://feeds.example.com/rss">
+            </div>
+            <button class="btn btn-secondary" style="font-size:9px;padding:5px 14px;align-self:flex-end"
+                    onclick="addNewsFeed2()">+ ADD</button>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);margin:10px 0 8px;padding-top:10px">
+          <div class="settings-card-title" style="font-size:10px;margin-bottom:8px">Filter &amp; Limits</div>
+          <div class="field-row" style="align-items:flex-start">
+            <span class="field-label" style="padding-top:4px">SHOW ONLY</span>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <textarea class="field-input" id="news_keywords2" rows="2"
+                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
+              <span class="field-desc">Pipe-separated keywords. Only show headlines matching at least one.</span>
+            </div>
+          </div>
+          <div class="field-row" style="align-items:flex-start;margin-top:6px">
+            <span class="field-label" style="padding-top:4px">BLOCKED</span>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <textarea class="field-input" id="news_blocked_keywords2" rows="2"
+                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
+              <span class="field-desc">Pipe-separated keywords. Always hide headlines matching these.</span>
+            </div>
+          </div>
+          <div class="field-row" style="align-items:flex-start;margin-top:6px">
+            <span class="field-label" style="padding-top:4px">⚡ ALERTS</span>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <textarea class="field-input" id="news_alert_keywords2" rows="2"
+                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
+              <span class="field-desc">Triggers beep + flash (e.g. MOC|halt|FOMC).</span>
+            </div>
+          </div>
+          <div class="field-row" style="align-items:flex-start;margin-top:6px">
+            <span class="field-label" style="padding-top:4px">BULLISH WORDS</span>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <input class="field-input" id="news_bullish_words2" type="text"
+                style="width:100%;font-family:var(--mono);font-size:10px">
+              <span class="field-desc">Pipe-separated words for green highlight.</span>
+            </div>
+          </div>
+          <div class="field-row" style="align-items:flex-start;margin-top:6px">
+            <span class="field-label" style="padding-top:4px">BEARISH WORDS</span>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <input class="field-input" id="news_bearish_words2" type="text"
+                style="width:100%;font-family:var(--mono);font-size:10px">
+              <span class="field-desc">Pipe-separated words for red highlight.</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:4px">
+            <div class="field-row" style="flex:0 0 auto">
+              <span class="field-label">MAX AGE hrs</span>
+              <input class="field-input" id="news_max_age_hours2" type="number" min="1" max="24" step="1" style="max-width:60px">
+            </div>
+            <div class="field-row" style="flex:0 0 auto">
+              <span class="field-label">MAX HEADLINES</span>
+              <input class="field-input" id="news_max_headlines2" type="number" min="5" max="50" step="5" style="max-width:60px">
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+          <button class="btn btn-primary" style="font-size:10px" onclick="saveNewsConfig2()">SAVE NEWS SETTINGS</button>
+          <span class="save-status" id="newsSaveStatus2"></span>
+        </div>
+      </div>
+    </div><!-- end spane-news -->
+
     <div class="settings-footer">
       <button class="btn btn-primary" onclick="saveSettings()">APPLY &amp; RESTART</button>
       <button class="btn btn-danger" onclick="restartWriter()">RESTART WRITER</button>
@@ -2729,6 +2881,92 @@ let _retryCount        = 0;      // current reconnect attempt number
 let _retryMax          = 3;      // max auto-retry attempts
 let _retryTimeout      = null;   // setTimeout handle for next retry
 let _audioCtx          = null;   // Web Audio context for beep
+
+// ── Beta View ─────────────────────────────────────────────────────────────────
+let _betaView      = localStorage.getItem('betaView') === 'true';
+let _openPrice     = null;
+let _openPriceSet  = false;
+let _openPriceDate = '';
+
+// Apply saved preference on load
+if (_betaView) {
+  document.body.classList.add('beta-view');
+}
+
+function toggleBetaView() {
+  _betaView = !_betaView;
+  document.body.classList.toggle('beta-view', _betaView);
+  localStorage.setItem('betaView', _betaView);
+  const btn = document.getElementById('betaViewBtn');
+  if (btn) btn.classList.toggle('beta-active', _betaView);
+}
+
+// Call on page load to sync button state
+(function() {
+  const btn = document.getElementById('betaViewBtn');
+  if (btn && _betaView) btn.classList.add('beta-active');
+})();
+
+function _updateBetaElements(snap) {
+  if (!snap) return;
+  const price = snap.price;
+
+  // Open price tracking — set on first tick at/after 09:30 ET each day
+  const today = new Date().toISOString().slice(0, 10);
+  if (_openPriceDate !== today) {
+    // New day — reset
+    _openPrice     = null;
+    _openPriceSet  = false;
+    _openPriceDate = today;
+  }
+  if (!_openPriceSet && price && price > 0) {
+    const now = new Date();
+    const etOffset = now.getTimezoneOffset() + 240; // rough ET offset
+    const etHour   = now.getHours() - Math.floor(etOffset / 60);
+    const etMin    = now.getMinutes();
+    if (etHour > 9 || (etHour === 9 && etMin >= 30)) {
+      _openPrice    = price;
+      _openPriceSet = true;
+    }
+  }
+
+  // Change from open
+  const coEl = document.getElementById('changeFromOpen');
+  if (coEl) {
+    if (_openPrice && price && price > 0) {
+      const chg = price - _openPrice;
+      const sign = chg >= 0 ? '+' : '';
+      coEl.textContent = `${sign}$${chg.toFixed(2)}`;
+      coEl.className = 'change-from-open ' + (chg > 0 ? 'pos' : chg < 0 ? 'neg' : 'flat');
+    } else {
+      coEl.textContent = '--';
+      coEl.className = 'change-from-open flat';
+    }
+  }
+
+  // Spread warning
+  const swEl = document.getElementById('spreadWarning');
+  if (swEl && snap.bid != null && snap.ask != null) {
+    const spread = snap.ask - snap.bid;
+    const isWide = spread > 0.05;
+    swEl.textContent = `SPREAD $${spread.toFixed(2)}${isWide ? ' ⚠' : ''}`;
+    swEl.className = 'spread-warning ' + (isWide ? 'wide' : 'tight');
+  }
+
+  // Beta live prices
+  const bq = document.getElementById('betaQqq');
+  const be = document.getElementById('betaEs');
+  const bn = document.getElementById('betaNq');
+  const bi = document.getElementById('betaIwm');
+  if (bq) bq.textContent = snap.qqq  != null ? snap.qqq.toFixed(2)  : '--';
+  if (be) be.textContent = snap.es_last != null ? snap.es_last.toFixed(0) : '--';
+  if (bn) bn.textContent = snap.nq   != null ? snap.nq.toFixed(0)   : '--';
+  if (bi) bi.textContent = snap.iwm  != null ? snap.iwm.toFixed(2)  : '--';
+
+  // Max pain mirrored in key levels for beta view
+  const mpKL = document.getElementById('maxPainKL');
+  if (mpKL) mpKL.textContent = f0(snap.max_pain);
+}
 
 // ── Page nav ──────────────────────────────────────────────────────────────────
 let chartTick = -1;
@@ -2910,6 +3148,7 @@ function update(snap) {
   renderBriefing(snap);
   updateTickVix(snap);
   updatePaperBalance(snap);
+  _updateBetaElements(snap);
 
   // Converter widget
   updateConverter(snap);
@@ -3872,13 +4111,62 @@ function saveSettings() {
   });
 }
 
-function showSettingsTab(tab) {
-  ['trading', 'system'].forEach(t => {
-    const pane = document.getElementById('spane-' + t);
-    const btn  = document.getElementById('stab-' + t);
-    if (pane) pane.className = 'spane' + (t === tab ? ' spane-active' : '');
-    if (btn)  btn.className  = 'stab-btn' + (t === tab ? ' stab-active' : '');
+function showSettingsTab(name) {
+  ['trading','system','news'].forEach(t => {
+    document.getElementById('stab-'+t)?.classList.toggle('stab-active', t===name);
+    document.getElementById('spane-'+t)?.classList.toggle('spane-active', t===name);
   });
+  if (name === 'news') syncNewsTab();
+}
+
+function syncNewsTab() {
+  // Mirror values from system tab news fields to news tab fields
+  const pairs = [
+    ['news_keywords','news_keywords2'],
+    ['news_blocked_keywords','news_blocked_keywords2'],
+    ['news_alert_keywords','news_alert_keywords2'],
+    ['news_bullish_words','news_bullish_words2'],
+    ['news_bearish_words','news_bearish_words2'],
+    ['news_max_age_hours','news_max_age_hours2'],
+    ['news_max_headlines','news_max_headlines2'],
+  ];
+  pairs.forEach(([src, dst]) => {
+    const s = document.getElementById(src);
+    const d = document.getElementById(dst);
+    if (s && d) d.value = s.value;
+  });
+}
+
+function saveNewsConfig2() {
+  // Sync news tab fields back to system tab fields, then call saveNewsConfig
+  const pairs = [
+    ['news_keywords2','news_keywords'],
+    ['news_blocked_keywords2','news_blocked_keywords'],
+    ['news_alert_keywords2','news_alert_keywords'],
+    ['news_bullish_words2','news_bullish_words'],
+    ['news_bearish_words2','news_bearish_words'],
+    ['news_max_age_hours2','news_max_age_hours'],
+    ['news_max_headlines2','news_max_headlines'],
+  ];
+  pairs.forEach(([src, dst]) => {
+    const s = document.getElementById(src);
+    const d = document.getElementById(dst);
+    if (s && d) d.value = s.value;
+  });
+  saveNewsConfig();
+  const st = document.getElementById('newsSaveStatus2');
+  if (st) { st.textContent = 'Saved'; setTimeout(() => st.textContent = '', 2000); }
+}
+
+function addNewsFeed2() {
+  const n = document.getElementById('news_new_name2');
+  const u = document.getElementById('news_new_url2');
+  if (n && u) {
+    document.getElementById('news_new_name').value = n.value;
+    document.getElementById('news_new_url').value  = u.value;
+    addNewsFeed();
+    n.value = ''; u.value = '';
+  }
 }
 
 function restartWriter() {

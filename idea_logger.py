@@ -216,6 +216,39 @@ class IdeaLogger:
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, r)) for r in rows]
 
+    def query_raw(self, sql: str, params=()):
+        """Run a read-only SELECT via the existing connection. Returns list of dicts.
+        Thread-safe — acquires _lock to prevent concurrent access."""
+        if not sql.strip().upper().startswith("SELECT"):
+            raise ValueError("Only SELECT queries permitted via query_raw")
+        with self._lock:
+            cur  = self._conn.execute(sql, list(params))
+            rows = cur.fetchall()
+            if not rows:
+                return []
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, r)) for r in rows]
+
+    def write_backtest_finding(self, hypothesis: str, verdict: str, summary: str,
+                                evidence: dict = None, recommendation: str = "",
+                                trade_count: int = None, date_range: str = None,
+                                prompt: str = "") -> int:
+        """Write a backtesting finding to backtest_runs. Returns new row id."""
+        import json as _json
+        with self._lock:
+            cur = self._conn.execute("""
+                INSERT INTO backtest_runs
+                    (run_at, hypothesis, verdict, summary, evidence,
+                     recommendation, trade_count, date_range, prompt)
+                VALUES (CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?)
+                RETURNING id
+            """, [hypothesis, verdict, summary,
+                  _json.dumps(evidence or {}),
+                  recommendation or "", trade_count, date_range, prompt])
+            row_id = cur.fetchone()[0]
+            self._conn.commit()
+        return row_id
+
     def _exec(self, sql: str, params=()):
         """Execute a write statement and commit."""
         self._conn.execute(sql, list(params))
@@ -1248,6 +1281,24 @@ class IdeaLogger:
             )
         """)
         self._conn.execute("CREATE INDEX IF NOT EXISTS idx_sc_time ON surface_candidates(surfaced_at)")
+
+        # Backtesting findings table
+        self._conn.execute("CREATE SEQUENCE IF NOT EXISTS backtest_runs_seq START 1")
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS backtest_runs (
+                id             INTEGER DEFAULT nextval('backtest_runs_seq') PRIMARY KEY,
+                run_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                hypothesis     VARCHAR,
+                verdict        VARCHAR,
+                summary        TEXT,
+                evidence       JSON,
+                recommendation TEXT,
+                trade_count    INTEGER,
+                date_range     VARCHAR,
+                run_params     JSON,
+                prompt         TEXT
+            )
+        """)
         self._conn.commit()
 
         for path, headers in [(IDEAS_CSV, IDEA_HEADERS), (EVENTS_CSV, EVENT_HEADERS), (ALERTS_CSV, ALERT_HEADERS)]:
