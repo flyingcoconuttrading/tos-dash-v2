@@ -1498,6 +1498,7 @@ body.beta-view .change-from-open { display: block !important; }
     <button class="dte-toggle dte-active" id="dteBtn0" onclick="setDTE('0DTE')">0DTE</button>
     <button class="dte-toggle" id="dteBtn1" onclick="setDTE('1DTE')">1DTE</button>
     <button class="ai-quick-toggle" id="aiQuickToggle" onclick="quickToggleAI()">AI</button>
+    <button class="ai-quick-toggle" id="aiPauseAllBtn" onclick="toggleAIPauseAll()" title="Pause all AI calls — commentary + advisor stop, data feed continues">AI PAUSE</button>
     <div class="status-dot" id="statusDot"></div>
     <span class="status-txt" id="statusTxt">CONNECTING</span>
     <div class="ai-call-dot" id="aiCallDot" title="AI API calls"></div>
@@ -3328,8 +3329,7 @@ function renderBriefing(snap) {
     row.style.cursor = 'copy';
     row.title = `Click to copy ${c.symbol}`;
     row.onclick = () => {
-      const text = `${c.symbol}  $${f2(c.mark)}`;
-      navigator.clipboard?.writeText(text).catch(() => {});
+      navigator.clipboard?.writeText(c.symbol).catch(() => {});
       const orig = row.style.outline;
       row.style.outline = '2px solid var(--accent)';
       setTimeout(() => { row.style.outline = orig; }, 600);
@@ -3681,8 +3681,8 @@ function _doRender() {
             style="cursor:pointer;font-size:12px;user-select:none;color:${pinColor}"
             title="${c._pinned?'Unpin':'Pin'}">${pinIcon}</span></td>
           <td style="font-size:9px;cursor:pointer;color:var(--text);font-weight:600"
-            onclick="prefillTrade('${c.symbol}','${c.side}',${c.strike||0},${getLast(c.symbol,lastChainData)||0})"
-            title="${isTrackedOnly ? 'Tracked (on cooldown)' : 'Click to add trade'}">${c.symbol||'--'}</td>
+            onclick="event.ctrlKey ? prefillTrade('${c.symbol}','${c.side}',${c.strike||0},${getLast(c.symbol,lastChainData)||0}) : (navigator.clipboard?.writeText('${c.symbol}').catch(()=>{}), this.style.outline='1px solid var(--accent)', setTimeout(()=>this.style.outline='',600))"
+            title="Click to copy symbol · Ctrl+Click to add trade">${c.symbol||'--'}</td>
           <td><span class="side-c ${c.side}">${c.side||'--'}</span></td>
           <td>${f0(c.strike)}</td>
           <td style="${lastCol}">${f2(last)}</td>
@@ -4959,6 +4959,7 @@ Rules:
 - Never recommend a direction that contradicts the SETTING DIRECTION RULES above`;
 
 async function runSettingsAdvisor() {
+  if (isAIPausedAll()) return;
   const bodyEl = document.getElementById('advisorBody');
   const btn    = document.getElementById('advisorBtn');
   const apiKey = localStorage.getItem('ai_api_key') || '';
@@ -5127,6 +5128,17 @@ function _updateAIQuickToggle() {
   btn.textContent = on ? 'AI ON' : 'AI OFF';
 }
 
+let _aiPausedAll = false;
+function toggleAIPauseAll() {
+  _aiPausedAll = !_aiPausedAll;
+  const btn = document.getElementById('aiPauseAllBtn');
+  if (btn) {
+    btn.className = _aiPausedAll ? 'ai-quick-toggle ai-on' : 'ai-quick-toggle';
+    btn.textContent = _aiPausedAll ? 'AI PAUSED' : 'AI PAUSE';
+  }
+}
+function isAIPausedAll() { return _aiPausedAll; }
+
 function applyAIEnabled() {
   const enabled = localStorage.getItem('ai_enabled') !== 'false';
   const cb = document.getElementById('cfg_ai_enabled');
@@ -5276,6 +5288,7 @@ function _majorChange(snap) {
 // Auto-commentary
 async function refreshAICommentary(force = false) {
   if (localStorage.getItem('ai_enabled') === 'false') return;
+  if (isAIPausedAll()) return;
   if (!force && _aiCommentaryPaused) return;
   const now = Date.now();
   const intervalMs = (parseInt(localStorage.getItem('ai_commentary_interval')) || 5) * 60000;

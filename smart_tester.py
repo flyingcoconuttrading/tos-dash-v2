@@ -61,7 +61,10 @@ TOOLS = [
             "Tables: ideas, surface_candidates, idea_events, idea_tick_history, backtest_runs. "
             "Always add paper_exit_reason IS NOT NULL for closed trades. "
             "Exclude OnDemand: EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
-            "surface_candidates only from 2026-04-10. Flag n<20 as PRELIMINARY."
+            "surface_candidates only from 2026-04-10. Flag n<20 as PRELIMINARY. "
+            "Key column names in ideas: paper_pnl_pct (not paper_pnl), paper_net_dollar_pnl, "
+            "paper_entry_ask, paper_exit_bid, paper_exit_reason, entry_score, entry_tick, "
+            "entry_regime, entry_trend, entry_vix, entry_spy, surfaced_at, option_type, symbol."
         ),
         "input_schema": {"type": "object",
                          "properties": {"sql": {"type": "string"}},
@@ -266,6 +269,10 @@ def run_analysis(prompt: str, callback: Optional[Callable] = None,
 
         tool_results = []
         for block in tool_blocks:
+            # Check if a stop was requested via the callback channel
+            if callback and hasattr(callback, '_stop_requested') and callback._stop_requested:
+                emit("done", {"findings": findings, "iterations": iteration, "stopped": True})
+                return {"findings": findings, "iterations": iteration, "stopped": True}
             emit("tool_call", {"tool": block.name, "input": block.input, "iteration": iteration})
             result = _dispatch(block.name, block.input, prompt)
             emit("tool_result", {"tool": block.name, "result": result, "iteration": iteration})

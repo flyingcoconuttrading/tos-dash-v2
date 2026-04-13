@@ -24,6 +24,7 @@ DASH_FILE = THIS_DIR / "backtest_dashboard.html"
 API_BASE  = "http://127.0.0.1:8001"
 
 _active_runs: dict[str, asyncio.Queue] = {}
+_completed_runs: dict[str, dict] = {}   # run_id -> final event, kept 30s
 _run_loop: Optional[asyncio.AbstractEventLoop] = None
 
 
@@ -187,9 +188,27 @@ async def start_run(request: Request):
     queue  = asyncio.Queue()
     _active_runs[run_id] = queue
 
+    _stop_flag = {"requested": False}
+
     def callback(event_type, data):
         if _run_loop:
             _run_loop.call_soon_threadsafe(queue.put_nowait, {"type": event_type, **data})
+        # Check if a stop sentinel was placed in the queue
+        if event_type == "tool_call" and not _stop_flag["requested"]:
+            # Non-blocking check for stop sentinel
+            try:
+                while not queue.empty():
+                    item = queue.get_nowait()
+                    if item.get("type") == "stopped":
+                        _stop_flag["requested"] = True
+                        callback._stop_requested = True
+                    else:
+                        queue.put_nowait(item)
+                    break
+            except Exception:
+                pass
+
+    callback._stop_requested = False
 
     async def run_in_background():
         import smart_tester
@@ -207,6 +226,15 @@ async def start_run(request: Request):
 
 @app.get("/stream/{run_id}")
 async def stream_run(run_id: str):
+    # Return cached final event if run already completed
+    if run_id in _completed_runs:
+        cached = _completed_runs[run_id]
+        async def replay():
+            yield f"data: {json.dumps(cached, default=str)}\n\n"
+        return StreamingResponse(replay(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache",
+                                          "Access-Control-Allow-Origin": "*"})
+
     queue = _active_runs.get(run_id)
     if not queue:
         async def not_found():
@@ -223,6 +251,11 @@ async def stream_run(run_id: str):
                     continue
                 yield f"data: {json.dumps(event, default=str)}\n\n"
                 if event.get("type") == "done":
+                    # Cache the final event for 30s in case client reconnects
+                    _completed_runs[run_id] = event
+                    asyncio.get_event_loop().call_later(
+                        30, lambda: _completed_runs.pop(run_id, None)
+                    )
                     break
         finally:
             _active_runs.pop(run_id, None)
@@ -231,6 +264,17 @@ async def stream_run(run_id: str):
                              headers={"Cache-Control": "no-cache",
                                       "X-Accel-Buffering": "no",
                                       "Access-Control-Allow-Origin": "*"})
+
+
+@app.post("/run/{run_id}/stop")
+async def stop_run(run_id: str):
+    """Signal a running analysis to stop after its current tool call."""
+    queue = _active_runs.get(run_id)
+    if not queue:
+        return {"stopped": False, "reason": "Run not found or already complete"}
+    # Put a stop sentinel into the queue — the background thread checks for it
+    await queue.put({"type": "stopped", "message": "Stopped by user"})
+    return {"stopped": True, "run_id": run_id}
 
 
 @app.post("/simulate")
