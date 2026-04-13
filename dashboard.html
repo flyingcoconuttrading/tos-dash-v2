@@ -2311,8 +2311,15 @@ header {
         <div class="field-row">
           <span class="field-label">WALL RANGE ±$</span>
           <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-            <input class="field-input" id="cfg_wall_range" type="number" min="5" max="100" step="5">
-            <span class="field-desc">Strike range used for call/put wall and max pain calculation.</span>
+            <input class="field-input" id="cfg_wall_range" type="number" min="5" max="25" step="1">
+            <span class="field-desc">Strike range for call/put wall detection. Tight = 10-15.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">GEX RANGE</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+            <input class="field-input" id="cfg_gex_range" type="number" min="20" max="60" step="5">
+            <span class="field-desc">Strike range for GEX regime detection. Broad = 40.</span>
           </div>
         </div>
         <div class="field-row">
@@ -3651,7 +3658,8 @@ function loadSettings() {
       document.getElementById('cfg_surge_threshold').value  = cfg.surge_threshold ?? 2.0;
       document.getElementById('cfg_ema_ticks').value        = cfg.ema_ticks ?? 9;
       document.getElementById('cfg_sma_ticks').value        = cfg.sma_ticks ?? 20;
-      document.getElementById('cfg_wall_range').value        = cfg.wall_range ?? 10;
+      document.getElementById('cfg_wall_range').value        = cfg.wall_range ?? 12;
+      document.getElementById('cfg_gex_range').value         = cfg.gex_range  ?? 40;
       document.getElementById('cfg_poll_ms').value          = cfg.poll_ms ?? 500;
       document.getElementById('cfg_test_mode').checked      = cfg.test_mode || false;
       document.getElementById('cfg_test_date').value        = cfg.test_date || '';
@@ -3743,6 +3751,7 @@ function saveSettings() {
     ema_ticks:         parseInt(get('cfg_ema_ticks').value),
     sma_ticks:         parseInt(get('cfg_sma_ticks').value),
     wall_range:        parseInt(get('cfg_wall_range').value),
+    gex_range:               parseInt(get('cfg_gex_range').value),
     poll_ms:           parseInt(get('cfg_poll_ms').value),
     test_mode:         get('cfg_test_mode').checked,
     test_date:         get('cfg_test_date').value || null,
@@ -4434,20 +4443,30 @@ async function renderJournal() {
     container.innerHTML = `
       <table class="trades-table" style="font-size:10px">
         <thead><tr>
-          <th>DATE</th><th>TIME</th><th>SYMBOL</th><th>TYPE</th>
-          <th>SCORE</th><th>ENTRY</th><th>EXIT</th><th>RESULT</th>
-          <th>QTY</th><th>COST</th><th>P&L%</th><th>NET$</th><th>MIN</th>
+          <th>DATE</th><th>ENTRY</th><th>EXIT TIME</th><th>SYMBOL</th><th>TYPE</th>
+          <th>SCORE</th><th>ENTRY$</th><th>EXIT$</th><th>RESULT</th>
+          <th>QTY</th><th>COST</th><th>P&L%</th><th>NET$</th>
           <th>ENTRY NOTES</th><th>EXIT NOTES</th>
         </tr></thead>
         <tbody>${closed.map(r => {
-          const dt   = r.surfaced_at ? r.surfaced_at.substring(0,10) : '--';
-          const tm   = r.surfaced_at ? r.surfaced_at.substring(11,19) : '--';
+          const dt      = r.surfaced_at ? r.surfaced_at.substring(0,10) : '--';
+          const tm      = r.surfaced_at ? r.surfaced_at.substring(11,16) : '--';
+          // Compute exit time from surfaced_at + paper_exit_minute
+          let exitTm = '--';
+          if (r.surfaced_at && r.paper_exit_minute != null) {
+            try {
+              const entryMs = new Date(r.surfaced_at).getTime();
+              const exitMs  = entryMs + r.paper_exit_minute * 60000;
+              exitTm = new Date(exitMs).toTimeString().substring(0,5);
+            } catch(e) {}
+          }
           const pnl  = r.paper_pnl_pct;
           const net  = r.paper_net_dollar_pnl;
           const res  = r.paper_exit_reason;
           return `<tr>
             <td style="color:var(--muted)">${dt}</td>
             <td style="color:var(--muted)">${tm}</td>
+            <td style="color:var(--dim)">${exitTm}</td>
             <td style="font-size:9px">${r.symbol||'--'}</td>
             <td>
               <span class="side-c ${r.option_type}" style="font-size:8px">${r.option_type||'--'}</span>
@@ -4462,7 +4481,6 @@ async function renderJournal() {
             <td style="color:var(--muted)">${r.paper_entry_ask!=null&&r.paper_contracts!=null?'$'+(r.paper_entry_ask*r.paper_contracts*100).toFixed(0):'--'}</td>
             <td class="${pnl!=null?(pnl>=0?'pnl-pos':'pnl-neg'):''}">${pnl!=null?(pnl>=0?'+':'')+pnl.toFixed(1)+'%':'--'}</td>
             <td class="${net!=null?(net>=0?'pnl-pos':'pnl-neg'):''}">${net!=null?(net>=0?'+':'')+net.toFixed(2):'--'}</td>
-            <td style="color:var(--dim)">${r.paper_exit_minute!=null?r.paper_exit_minute+'m':'--'}</td>
             <td style="font-size:8px;color:var(--dim);max-width:200px;white-space:normal">${r.entry_notes||''}</td>
             <td style="font-size:8px;color:var(--dim);max-width:200px;white-space:normal">${r.exit_notes||''}</td>
           </tr>`;
@@ -4566,6 +4584,7 @@ Rules:
 - Lead with highest-impact change
 - Only recommend changes supported by the data
 - Use actual numbers from the data
+- MINIMUM SAMPLE SIZE: Do not recommend a change based on fewer than 20 closed trades in that category. If sample is too small, write "Insufficient data (n=X)" instead of a recommendation.
 - No preamble, no summary, bullets only
 - Never recommend a direction that contradicts the SETTING DIRECTION RULES above`;
 

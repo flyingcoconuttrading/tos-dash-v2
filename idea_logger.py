@@ -537,6 +537,44 @@ class IdeaLogger:
             self._log.error("cleanup_outside_market_hours error: %s", e)
             return 0
 
+    def log_surface_candidates(self, candidates: list, spy_price: float,
+                                ms, vix_signals: dict, ntick, spy_vol_ratio: float):
+        """Log all surfaced candidates each tick for backtesting analysis."""
+        if not candidates:
+            return
+        cfg = self._cfg
+        if cfg.get("test_mode", False):
+            return  # skip during OnDemand replay
+        now = datetime.now().isoformat(timespec="seconds")
+        regime  = getattr(ms, "regime", None) if ms else None
+        trend   = getattr(ms, "trend",  None) if ms else None
+        s_lean  = getattr(getattr(ms, "checklist", None), "structural_lean", None) if ms else None
+        vix     = vix_signals.get("last") if vix_signals else None
+        rows = []
+        for c in candidates:
+            rows.append((
+                now, c.symbol, c.option_type,
+                float(c.strike) if c.strike else None,
+                float(c.score)  if c.score  else None,
+                float(c.mark)   if c.mark   else None,
+                float(c.delta)  if c.delta  else None,
+                float(c.iv)     if c.iv     else None,
+                float(spy_price) if spy_price else None,
+                regime, trend, s_lean, vix,
+                int(ntick) if ntick is not None else None,
+                float(spy_vol_ratio) if spy_vol_ratio else None,
+                c.reasons[0] if c.reasons else None,
+            ))
+        try:
+            self._execmany("""
+                INSERT INTO surface_candidates
+                (surfaced_at, symbol, option_type, strike, score, mark, delta, iv,
+                 spy_price, regime, trend, structure, vix, ntick, vol_ratio, reason)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """, rows)
+        except Exception as e:
+            self._log.debug("log_surface_candidates error: %s", e)
+
     def backfill_paper_net_pnl(self):
         """One-time backfill: compute paper_net_dollar_pnl for rows where it is NULL."""
         cfg = self._cfg
@@ -885,6 +923,8 @@ class IdeaLogger:
             return
 
         cfg = {**self._cfg, "_channel": self._last_channel}
+        if cfg.get("test_mode", False):
+            return  # don't run paper sim during OnDemand replay
         regime = (row["entry_regime"] or "").upper()
         if regime == "PINNED":
             stop_pct = cfg.get("paper_stop_pct_pinned", cfg.get("paper_stop_pct", 0.20))
@@ -1184,6 +1224,30 @@ class IdeaLogger:
             CREATE INDEX IF NOT EXISTS idx_tick_history_idea_id
             ON idea_tick_history(idea_id)
         """)
+
+        # Candidate surfaces log — every candidate surfaced by scalp_advisor for backtesting
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS surface_candidates (
+                id           INTEGER PRIMARY KEY,
+                surfaced_at  TIMESTAMP NOT NULL,
+                symbol       TEXT NOT NULL,
+                option_type  TEXT,
+                strike       DOUBLE,
+                score        DOUBLE,
+                mark         DOUBLE,
+                delta        DOUBLE,
+                iv           DOUBLE,
+                spy_price    DOUBLE,
+                regime       TEXT,
+                trend        TEXT,
+                structure    TEXT,
+                vix          DOUBLE,
+                ntick        INTEGER,
+                vol_ratio    DOUBLE,
+                reason       TEXT
+            )
+        """)
+        self._conn.execute("CREATE INDEX IF NOT EXISTS idx_sc_time ON surface_candidates(surfaced_at)")
         self._conn.commit()
 
         for path, headers in [(IDEAS_CSV, IDEA_HEADERS), (EVENTS_CSV, EVENT_HEADERS), (ALERTS_CSV, ALERT_HEADERS)]:

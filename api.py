@@ -166,7 +166,8 @@ def _reconfigure_advisor(cfg: dict):
 DEFAULT_CONFIG = {
     "symbol":         "SPY",
     "strike_range":   10,
-    "wall_range":     10,
+    "wall_range":     12,
+    "gex_range":      40,
     "strike_spacing": 1.0,
     "expiry_date":    None,
     "warn_distance":  2.0,
@@ -436,15 +437,27 @@ def build_snapshot() -> dict:
     if not strikes:
         return {"error": "Could not extract strikes"}
 
-    # Wall strikes — wider range for accurate wall/max_pain calculation
-    # Uses all symbols in chain (spy_writer subscribes to wall_range)
-    wall_strikes = strikes  # same set — spy_writer controls what's in chain
-    price_val = float(price) if price else 0
-    wall_range = cfg.get("wall_range", 25)
-    if price_val:
-        wall_strikes = [s for s in strikes
-                        if abs(s - price_val) <= wall_range]
-    # Build wall_option_symbols using exact strike matching (not substring)
+    price_val  = float(price) if price else 0
+    wall_range = cfg.get("wall_range", 12)
+    gex_range  = cfg.get("gex_range",  40)
+
+    # GEX strikes — broad range for accurate regime/net_gex detection
+    gex_strike_set = set(s for s in strikes if abs(s - price_val) <= gex_range) if price_val else set(strikes)
+    gex_option_symbols = []
+    for sym in option_symbols:
+        try:
+            for sep in ("C", "P"):
+                if sep in sym[1:]:
+                    f = float(sym[1:].split(sep)[-1])
+                    s = int(f) if f == int(f) else f
+                    if s in gex_strike_set:
+                        gex_option_symbols.append(sym)
+                    break
+        except (ValueError, IndexError):
+            pass
+
+    # Wall strikes — tight range for intraday call/put wall detection
+    wall_strikes = [s for s in strikes if abs(s - price_val) <= wall_range] if price_val else list(strikes)
     wall_strike_set = set(wall_strikes)
     wall_option_symbols = []
     for sym in option_symbols:
@@ -492,8 +505,8 @@ def build_snapshot() -> dict:
     try:
         ms = ms_mod.analyze(
             data              = data,
-            strikes           = strikes,
-            option_symbols    = option_symbols,
+            strikes           = list(gex_strike_set),
+            option_symbols    = gex_option_symbols,
             current_price     = price,
             max_pain          = max_pain or price,
             call_wall         = call_wall,
@@ -613,6 +626,16 @@ def build_snapshot() -> dict:
                     continue
                 filtered.append(_c)
             candidates = filtered
+
+        # Log all surfaced candidates for backtesting
+        idea_logger.log_surface_candidates(
+            candidates    = candidates,
+            spy_price     = price_data.get("last", 0),
+            ms            = ms,
+            vix_signals   = vix_signals,
+            ntick         = ntick,
+            spy_vol_ratio = spy_vol_ratio,
+        )
 
         # Full lifecycle tracking — process_tick handles all idea logic
         idea_logger.update_cfg(cfg)
@@ -888,6 +911,7 @@ class ConfigUpdate(BaseModel):
     symbol:           Optional[str]   = None
     strike_range:     Optional[int]   = None
     wall_range:       Optional[int]   = None
+    gex_range:        Optional[int]   = None
     strike_spacing:   Optional[float] = None
     expiry_date:      Optional[str]   = None
     warn_distance:    Optional[float] = None
