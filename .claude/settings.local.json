@@ -34,7 +34,10 @@
       "Bash(pip install:*)",
       "Bash(taskkill /F /IM python.exe /FI \"WINDOWTITLE eq migrate*\")",
       "Bash(taskkill /F /PID 44044)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Read(//c/Users/randy/tos-api/**)",
+      "Read(//c/Users/**)",
+      "Bash([ -f \"C:/Users/randy/tos-api/.env\" ])"
     ]
   }
 }

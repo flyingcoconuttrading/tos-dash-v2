@@ -32,6 +32,10 @@
     }
   ],
   "keywords": "SPY|SPX|QQQ|VIX|S&P|Nasdaq|ETF|options|index|indices|futures|Fed|FOMC|inflation|CPI|GDP|Powell|Treasury|yield|interest rate|tariff|jobs report|crash|recession|selloff|plunge|crude oil|WTI|Brent|OPEC|oil price|oil supply|oil sanctions|energy market|refinery|LNG|natural gas|Iran|Strait of Hormuz|Iran sanctions|Iran nuclear|Middle East conflict|Israel Iran|airstrike|oil embargo|Persian Gulf|geopolit|trump|TRUMP",
-  "max_age_hours": 5,
+  "negative_keywords": "enrollment|tuition|student|university|college|e-learning|eLearning|real estate|mortgage|pharma|biotech|FDA|clinical trial|IPO lockup|earnings call|housing market|retail sales|consumer spend|job listing|hiring|layoff|workforce|supply chain|crypto|bitcoin|blockchain|NFL|NBA|MLB|NHL|soccer|tournament|box office|album|movie|TV show",
+  "alert_keywords": "MOC|market on close|halted|circuit breaker|trading halt|Fed statement|FOMC|emergency|TRUMP|trump",
+  "bullish_words": "beat|surge|rally|rise|gain|strong|upgrade|buy|above|jumps|soars|record|high|positive|growth",
+  "bearish_words": "miss|drop|fall|crash|weak|cut|below|downgrade|sell|recession|tumbles|slumps|negative|loss|decline",
+  "max_age_hours": 3,
   "max_headlines": 25
 }
