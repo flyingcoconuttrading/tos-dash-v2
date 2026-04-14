@@ -58,13 +58,18 @@ TOOLS = [
         "name": "query_ideas_db",
         "description": (
             "Run a read-only SELECT on ideas.duckdb via api.py. "
-            "Tables: ideas, surface_candidates, idea_events, idea_tick_history, backtest_runs. "
+            "Tables: ideas, surface_candidates, idea_events, idea_tick_history, "
+            "backtest_runs, moc_events, market_events, config_history. "
             "Always add paper_exit_reason IS NOT NULL for closed trades. "
-            "Exclude OnDemand: EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+            "Exclude OnDemand hours: EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
             "surface_candidates only from 2026-04-10. Flag n<20 as PRELIMINARY. "
-            "Key column names in ideas: paper_pnl_pct (not paper_pnl), paper_net_dollar_pnl, "
-            "paper_entry_ask, paper_exit_bid, paper_exit_reason, entry_score, entry_tick, "
-            "entry_regime, entry_trend, entry_vix, entry_spy, surfaced_at, option_type, symbol."
+            "EXACT ideas columns: id, symbol, strike, option_type, surfaced_at, entry_regime, "
+            "entry_trend, entry_score, entry_tick, entry_vix, entry_spy, paper_pnl_pct, "
+            "paper_net_dollar_pnl, paper_entry_ask, paper_exit_bid, paper_exit_reason. "
+            "NEVER use: paper_pnl, paper_profit, pnl_pct, net_pnl. "
+            "moc_events columns: id, event_date, published_at, direction, sp500_mln, "
+            "nasdaq_mln, dow_mln, mag7_mln, total_mln, spy_price_at, spy_close, "
+            "price_move, raw_headline, source."
         ),
         "input_schema": {"type": "object",
                          "properties": {"sql": {"type": "string"}},
@@ -75,8 +80,14 @@ TOOLS = [
         "description": (
             "Run a read-only SELECT on ticks.duckdb via api.py. "
             "Tables: spy_ticks, chain_ticks. "
-            "NEVER use trinq_val. ALWAYS filter: CAST(recorded_at AS TIME) >= '09:30:00'. "
-            "Returns error if tick_recorder holds the lock — pause it first."
+            "EXACT spy_ticks columns: recorded_at, date, spy_price, vix, tick_val, "
+            "trin_val, trinq_val, add_val, qqq_price, iwm_price, nq_price. "
+            "NEVER use: tick_value, spy_volume, vol_ratio, ntick, ntick_val. "
+            "ALWAYS filter market hours: CAST(recorded_at AS TIME) >= '09:30:00'. "
+            "chain_ticks columns: recorded_at, date, symbol, bid, ask, last, delta, "
+            "gamma, theta, vega, iv, volume, open_interest. "
+            "Do NOT use CTEs or window functions in WHERE clauses — use subqueries instead. "
+            "Returns error if tick_recorder holds the lock — pause it in Settings first."
         ),
         "input_schema": {"type": "object",
                          "properties": {"sql": {"type": "string"}},

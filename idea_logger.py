@@ -229,6 +229,31 @@ class IdeaLogger:
             cols = [d[0] for d in cur.description]
             return [dict(zip(cols, r)) for r in rows]
 
+    def log_moc_event(self, event_date: str, sp500_mln: float = None,
+                      nasdaq_mln: float = None, dow_mln: float = None,
+                      mag7_mln: float = None, total_mln: float = None,
+                      direction: str = "unknown", spy_price_at: float = None,
+                      raw_headline: str = "", source: str = "financial_juice",
+                      published_at: str = None) -> int:
+        """Log a MOC imbalance event. Returns new row id."""
+        try:
+            with self._lock:
+                cur = self._conn.execute("""
+                    INSERT INTO moc_events
+                        (event_date, published_at, direction, sp500_mln, nasdaq_mln,
+                         dow_mln, mag7_mln, total_mln, spy_price_at, raw_headline, source)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    RETURNING id
+                """, [event_date, published_at, direction,
+                      sp500_mln, nasdaq_mln, dow_mln, mag7_mln, total_mln,
+                      spy_price_at, raw_headline, source])
+                row_id = cur.fetchone()[0]
+                self._conn.commit()
+            return row_id
+        except Exception as e:
+            self._log.warning("log_moc_event failed: %s", e)
+            return -1
+
     def log_config_change(self, old_cfg: dict, new_cfg: dict,
                           source: str = "manual", note: str = "") -> None:
         """Log a config change to config_history table.
@@ -1312,6 +1337,52 @@ class IdeaLogger:
             )
         """)
         self._conn.execute("CREATE INDEX IF NOT EXISTS idx_sc_time ON surface_candidates(surfaced_at)")
+
+        # MOC imbalance events — auto-populated from Financial Juice RSS
+        self._conn.execute("CREATE SEQUENCE IF NOT EXISTS moc_events_seq START 1")
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS moc_events (
+                id              INTEGER DEFAULT nextval('moc_events_seq') PRIMARY KEY,
+                event_date      DATE NOT NULL,
+                published_at    TIMESTAMP,
+                direction       VARCHAR,   -- 'buy' | 'sell' | 'unknown'
+                sp500_mln       DOUBLE,    -- S&P 500 imbalance in $M
+                nasdaq_mln      DOUBLE,    -- Nasdaq 100 imbalance in $M
+                dow_mln         DOUBLE,    -- Dow 30 imbalance in $M
+                mag7_mln        DOUBLE,    -- Mag 7 imbalance in $M
+                total_mln       DOUBLE,    -- total imbalance if available
+                spy_price_at    DOUBLE,    -- SPY price when headline was captured
+                spy_close       DOUBLE,    -- SPY close (filled EOD)
+                price_move      DOUBLE,    -- close - price_at
+                raw_headline    TEXT,      -- original headline text
+                source          VARCHAR    -- 'financial_juice' | 'manual'
+            )
+        """)
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_moc_date ON moc_events(event_date)"
+        )
+
+        # General market events log
+        self._conn.execute("CREATE SEQUENCE IF NOT EXISTS market_events_seq START 1")
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS market_events (
+                id           INTEGER DEFAULT nextval('market_events_seq') PRIMARY KEY,
+                event_date   DATE NOT NULL,
+                event_time   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                event_type   VARCHAR,   -- 'MOC' | 'FOMC' | 'CPI' | 'HALT' | 'GAP' | 'OTHER'
+                direction    VARCHAR,   -- 'bullish' | 'bearish' | 'neutral'
+                magnitude    DOUBLE,    -- dollar value, bps, or custom unit
+                description  TEXT,
+                source       VARCHAR,
+                spy_price    DOUBLE,
+                vix          DOUBLE,
+                tags         JSON
+            )
+        """)
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_mev_date ON market_events(event_date)"
+        )
+        self._conn.commit()
 
         # Config change history — logs every settings change with before/after values
         self._conn.execute("CREATE SEQUENCE IF NOT EXISTS config_history_seq START 1")

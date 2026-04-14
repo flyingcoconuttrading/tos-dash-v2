@@ -10,3 +10,6 @@ config.json
 testing/logs/
 testing/test_violations.log
 testing/test_rtd_compare.log
+
+# Environment secrets
+.env

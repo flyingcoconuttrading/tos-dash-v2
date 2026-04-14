@@ -53,6 +53,25 @@ from idea_logger import setup_app_logging, IdeaLogger
 app_log = setup_app_logging()
 logger  = logging.getLogger("tos_dash.api")
 
+# Load .env secrets — environment vars take precedence over config.json
+def _load_dotenv():
+    """Load key=value pairs from .env file into os.environ if not already set."""
+    import os
+    env_file = THIS_DIR / ".env"
+    if not env_file.exists():
+        return
+    for line in env_file.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        val = val.strip()
+        if key and val and key not in os.environ:
+            os.environ[key] = val
+
+_load_dotenv()
+
 # ── Business logic imports ────────────────────────────────────────────────────
 from gamma_chart import calculate_max_pain, calculate_walls
 import market_structure as ms_mod
@@ -262,6 +281,7 @@ _cfg_cache: dict = {}
 _cfg_cache_time: float = 0.0
 
 def load_config() -> dict:
+    import os
     global _cfg_cache, _cfg_cache_time
     if _cfg_cache and (time.time() - _cfg_cache_time) < 2.0:
         return _cfg_cache
@@ -270,6 +290,13 @@ def load_config() -> dict:
         _cfg_cache = {**DEFAULT_CONFIG, **saved}
     except Exception:
         _cfg_cache = dict(DEFAULT_CONFIG)
+    # Environment variables override config.json for secrets
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        _cfg_cache["anthropic_api_key"] = os.environ["ANTHROPIC_API_KEY"]
+    if os.environ.get("ALPACA_API_KEY"):
+        _cfg_cache["alpaca_api_key"] = os.environ["ALPACA_API_KEY"]
+    if os.environ.get("ALPACA_SECRET_KEY"):
+        _cfg_cache["alpaca_secret_key"] = os.environ["ALPACA_SECRET_KEY"]
     _cfg_cache_time = time.time()
     return _cfg_cache
 
@@ -307,6 +334,7 @@ def start_writer():
             cwd=str(THIS_DIR),  # run from tos-dash-v2/ dir
         )
         logger.info(f"Writer started (PID {writer_proc.pid})")
+        _record_start("writer")
 
 def stop_writer():
     global writer_proc
@@ -341,6 +369,7 @@ def start_tick_recorder():
                 cwd=str(THIS_DIR),
             )
             logger.info(f"Tick recorder started (PID {tick_recorder_proc.pid})")
+            _record_start("tick_recorder")
         except Exception as e:
             logger.warning(f"Tick recorder start failed: {e}")
 
@@ -383,6 +412,7 @@ def start_backtest_dashboard():
                 cwd=str(THIS_DIR),
             )
             logger.info(f"Backtest dashboard started (PID {backtest_proc.pid})")
+            _record_start("backtest")
         except Exception as e:
             logger.warning(f"Backtest dashboard start failed: {e}")
 
@@ -399,6 +429,21 @@ def stop_backtest_dashboard():
 
 def backtest_alive() -> bool:
     return backtest_proc is not None and backtest_proc.poll() is None
+
+# ── Process start time tracking ───────────────────────────────────────────────
+_process_start_times: dict[str, float] = {}
+
+def _record_start(name: str):
+    _process_start_times[name] = time.time()
+
+def _uptime_str(name: str) -> Optional[str]:
+    t = _process_start_times.get(name)
+    if not t:
+        return None
+    secs = int(time.time() - t)
+    h, rem = divmod(secs, 3600)
+    m, s   = divmod(rem, 60)
+    return f"{h}h {m}m {s}s" if h else f"{m}m {s}s"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def read_json(path: Path) -> dict:
@@ -1080,6 +1125,7 @@ async def _watchdog():
 
 @app.on_event("startup")
 async def startup():
+    _record_start("api")
     get_next_1dte()
     start_writer()
     cfg = load_config()
@@ -1449,6 +1495,172 @@ def backtest_status():
         "pid":     backtest_proc.pid if backtest_alive() else None,
         "url":     "http://127.0.0.1:8003/",
     }
+
+
+# ── System health endpoints ────────────────────────────────────────────────────
+@app.get("/system/status")
+def system_status():
+    """Return status of all managed processes."""
+    import os
+    return {
+        "processes": {
+            "api": {
+                "alive":  True,
+                "pid":    os.getpid(),
+                "uptime": _uptime_str("api"),
+                "url":    "http://127.0.0.1:8001",
+            },
+            "writer": {
+                "alive":  writer_alive(),
+                "pid":    writer_proc.pid if writer_proc else None,
+                "uptime": _uptime_str("writer"),
+            },
+            "tick_recorder": {
+                "alive":  tick_recorder_proc is not None and tick_recorder_proc.poll() is None,
+                "pid":    tick_recorder_proc.pid if tick_recorder_proc else None,
+                "uptime": _uptime_str("tick_recorder"),
+                "paused": (THIS_DIR / "tick_recorder.pause").exists(),
+            },
+            "backtest": {
+                "alive":  backtest_alive(),
+                "pid":    backtest_proc.pid if backtest_proc else None,
+                "uptime": _uptime_str("backtest"),
+                "url":    "http://127.0.0.1:8003",
+            },
+        }
+    }
+
+
+@app.post("/process/{name}/restart")
+def process_restart(name: str):
+    """Restart a named subprocess."""
+    if name == "writer":
+        threading.Thread(target=start_writer, daemon=True).start()
+        return {"status": "restarting", "process": name}
+    elif name == "tick_recorder":
+        stop_tick_recorder()
+        threading.Thread(target=start_tick_recorder, daemon=True).start()
+        return {"status": "restarting", "process": name}
+    elif name == "backtest":
+        stop_backtest_dashboard()
+        threading.Thread(target=start_backtest_dashboard, daemon=True).start()
+        return {"status": "restarting", "process": name}
+    elif name == "api":
+        return {"status": "error", "message": "Cannot restart API from itself. Use Stop API button."}
+    return {"status": "error", "message": f"Unknown process: {name}"}
+
+
+@app.post("/process/{name}/stop")
+def process_stop(name: str):
+    """Stop a named subprocess."""
+    if name == "writer":
+        stop_writer()
+        return {"status": "stopped", "process": name}
+    elif name == "tick_recorder":
+        stop_tick_recorder()
+        return {"status": "stopped", "process": name}
+    elif name == "backtest":
+        stop_backtest_dashboard()
+        return {"status": "stopped", "process": name}
+    elif name == "api":
+        # Deferred shutdown — return response first
+        import signal
+        def _delayed_shutdown():
+            time.sleep(1.0)
+            os.kill(os.getpid(), signal.SIGTERM)
+        threading.Thread(target=_delayed_shutdown, daemon=True).start()
+        return {"status": "stopping", "message": "API shutting down in 1 second"}
+    return {"status": "error", "message": f"Unknown process: {name}"}
+
+
+@app.post("/moc/event")
+async def save_moc_event(request: Request):
+    """Save a MOC imbalance event."""
+    body = await request.json()
+    try:
+        row_id = idea_logger.log_moc_event(
+            event_date   = body.get("event_date", datetime.now().strftime("%Y-%m-%d")),
+            sp500_mln    = body.get("sp500_mln"),
+            nasdaq_mln   = body.get("nasdaq_mln"),
+            dow_mln      = body.get("dow_mln"),
+            mag7_mln     = body.get("mag7_mln"),
+            total_mln    = body.get("total_mln"),
+            direction    = body.get("direction", "unknown"),
+            spy_price_at = body.get("spy_price_at"),
+            raw_headline = body.get("raw_headline", ""),
+            source       = body.get("source", "manual"),
+            published_at = body.get("published_at"),
+        )
+        return {"saved": True, "id": row_id}
+    except Exception as e:
+        return {"saved": False, "error": str(e)}
+
+
+@app.get("/moc/events")
+def get_moc_events(limit: int = 50):
+    """Return recent MOC events."""
+    try:
+        rows = idea_logger.query_raw(f"""
+            SELECT * FROM moc_events
+            ORDER BY event_date DESC, published_at DESC
+            LIMIT {limit}
+        """)
+        return {"events": rows, "total": len(rows)}
+    except Exception as e:
+        return {"events": [], "total": 0, "error": str(e)}
+
+
+@app.get("/data/health")
+def data_health():
+    """Return row counts and latest timestamps for all tables."""
+    results = {}
+    # ideas.duckdb tables
+    for table in ("ideas", "surface_candidates", "idea_tick_history",
+                  "backtest_runs", "config_history", "moc_events", "market_events"):
+        try:
+            rows = idea_logger.query_raw(f"""
+                SELECT COUNT(*) AS n,
+                       MAX(CAST(
+                           COALESCE(surfaced_at, changed_at, run_at, event_time,
+                                    recorded_at, created_at) AS VARCHAR
+                       )) AS latest
+                FROM {table}
+            """)
+            r = rows[0] if rows else {}
+            results[table] = {
+                "db":     "ideas.duckdb",
+                "count":  int(r.get("n") or 0),
+                "latest": r.get("latest"),
+            }
+        except Exception as e:
+            results[table] = {"db": "ideas.duckdb", "count": 0, "error": str(e)}
+
+    # ticks.duckdb — try read_only, skip if locked
+    import duckdb as _ddb
+    from pathlib import Path as _Path
+    cfg     = load_config()
+    db_dir  = cfg.get("replay_db_path", "D:/tos-dash-v2-replay/")
+    db_path = str(_Path(db_dir) / "ticks.duckdb")
+    for table in ("spy_ticks", "chain_ticks"):
+        try:
+            with _ddb.connect(db_path, read_only=True) as conn:
+                cur = conn.execute(
+                    f"SELECT COUNT(*) AS n, MAX(CAST(recorded_at AS VARCHAR)) AS latest FROM {table}"
+                )
+                r = dict(zip([d[0] for d in cur.description], cur.fetchone()))
+                results[table] = {
+                    "db":     "ticks.duckdb",
+                    "count":  int(r.get("n") or 0),
+                    "latest": r.get("latest"),
+                }
+        except Exception as e:
+            err = str(e)
+            results[table] = {
+                "db":    "ticks.duckdb",
+                "count": 0,
+                "error": "Locked by tick_recorder" if "another process" in err else err,
+            }
+    return {"tables": results, "timestamp": datetime.now().isoformat()}
 
 
 # ── WebSocket ─────────────────────────────────────────────────────────────────

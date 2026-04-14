@@ -2067,6 +2067,7 @@ body.beta-view .change-from-open { display: block !important; }
       <button class="stab-btn stab-active" id="stab-trading" onclick="showSettingsTab('trading')">Trading</button>
       <button class="stab-btn" id="stab-system" onclick="showSettingsTab('system')">System</button>
       <button class="stab-btn" id="stab-news" onclick="showSettingsTab('news')">News</button>
+      <button class="stab-btn" id="stab-health" onclick="showSettingsTab('health')">Health</button>
     </div>
 
     <!-- ══ TRADING PANE ══ -->
@@ -2825,6 +2826,37 @@ body.beta-view .change-from-open { display: block !important; }
       </div>
     </div><!-- end spane-news -->
 
+    <!-- ══ HEALTH PANE ══ -->
+    <div class="spane" id="spane-health">
+
+      <!-- System Health -->
+      <div class="settings-card" style="grid-column:1/-1">
+        <div class="settings-card-title" style="display:flex;justify-content:space-between;align-items:center">
+          System Health
+          <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
+                  onclick="loadSystemHealth()">↺ Refresh</button>
+        </div>
+        <div id="systemHealthBody" style="font-size:11px"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn btn-secondary" style="font-size:9px"
+                  onclick="restartAll()">↺ Restart All Subprocesses</button>
+          <button class="btn btn-secondary" style="font-size:9px;color:var(--bear);border-color:var(--bear)"
+                  onclick="confirmStopApi()">⏹ Stop API</button>
+        </div>
+      </div>
+
+      <!-- Data Health -->
+      <div class="settings-card" style="grid-column:1/-1">
+        <div class="settings-card-title" style="display:flex;justify-content:space-between;align-items:center">
+          Data Health
+          <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
+                  onclick="loadDataHealth()">↺ Refresh</button>
+        </div>
+        <div id="dataHealthBody" style="font-size:11px;color:var(--muted)">Loading…</div>
+      </div>
+
+    </div><!-- end spane-health -->
+
     <div class="settings-footer">
       <button class="btn btn-primary" onclick="saveSettings()">APPLY &amp; RESTART</button>
       <button class="btn btn-danger" onclick="restartWriter()">RESTART WRITER</button>
@@ -2979,6 +3011,119 @@ function _updateBetaElements(snap) {
   // Max pain mirrored in key levels for beta view
   const mpKL = document.getElementById('maxPainKL');
   if (mpKL) mpKL.textContent = f0(snap.max_pain);
+}
+
+// ── System Health ─────────────────────────────────────────────────────────────
+async function loadSystemHealth() {
+  const el = document.getElementById('systemHealthBody');
+  if (!el) return;
+  try {
+    const d = await fetch(`${API}/system/status`).then(r => r.json());
+    const procs = d.processes || {};
+    const rows  = Object.entries(procs).map(([name, p]) => {
+      const dot   = p.alive ? '🟢' : '🔴';
+      const pid   = p.pid   ? `PID ${p.pid}` : '—';
+      const up    = p.uptime || '—';
+      const paused = p.paused ? ' <span style="color:var(--neutral)">(paused)</span>' : '';
+      const url   = p.url    ? `<a href="${p.url}" target="_blank" style="color:var(--accent);font-size:10px">${p.url}</a>` : '';
+      const btns  = name !== 'api' ? `
+        <button class="btn btn-secondary" style="font-size:9px;padding:2px 8px"
+                onclick="processAction('${name}','restart')">↺</button>
+        <button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;color:var(--bear)"
+                onclick="processAction('${name}','stop')">⏹</button>` : '';
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:5px 8px">${dot} <strong>${name}</strong>${paused}</td>
+        <td style="padding:5px 8px;color:var(--muted)">${pid}</td>
+        <td style="padding:5px 8px;color:var(--muted)">${up}</td>
+        <td style="padding:5px 8px">${url}</td>
+        <td style="padding:5px 8px">${btns}</td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Process</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">PID</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Uptime</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">URL</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--border)"></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  } catch(e) {
+    el.innerHTML = `<span style="color:var(--bear)">Error: ${e.message}</span>`;
+  }
+}
+
+async function processAction(name, action) {
+  try {
+    const r = await fetch(`${API}/process/${name}/${action}`, {method:'POST'}).then(r => r.json());
+    setTimeout(loadSystemHealth, 1500);
+    if (r.status === 'stopping') {
+      alert('API is shutting down. Restart api.py manually.');
+    }
+  } catch(e) {
+    alert(`Error: ${e.message}`);
+  }
+}
+
+async function restartAll() {
+  if (!confirm('Restart all subprocesses (writer, tick recorder, backtest)?')) return;
+  await Promise.all([
+    fetch(`${API}/process/writer/restart`,       {method:'POST'}),
+    fetch(`${API}/process/tick_recorder/restart`,{method:'POST'}),
+    fetch(`${API}/process/backtest/restart`,     {method:'POST'}),
+  ]);
+  setTimeout(loadSystemHealth, 2000);
+}
+
+function confirmStopApi() {
+  if (!confirm('Stop the API server? You will need to restart api.py manually.')) return;
+  fetch(`${API}/process/api/stop`, {method:'POST'}).catch(() => {});
+  setTimeout(() => alert('API stopped. Run: python api.py'), 1500);
+}
+
+// ── Data Health ───────────────────────────────────────────────────────────────
+async function loadDataHealth() {
+  const el = document.getElementById('dataHealthBody');
+  if (!el) return;
+  try {
+    const d = await fetch(`${API}/data/health`).then(r => r.json());
+    const tables = d.tables || {};
+    const now    = Date.now();
+    const rows   = Object.entries(tables).map(([tbl, info]) => {
+      const latest = info.latest ? new Date(info.latest) : null;
+      const ageMs  = latest ? now - latest.getTime() : null;
+      const ageMin = ageMs  ? Math.floor(ageMs / 60000) : null;
+      let freshness = '—';
+      let color     = 'var(--muted)';
+      if (ageMin !== null) {
+        if (ageMin < 5)   { freshness = `${ageMin}m ago`;  color = 'var(--bull)'; }
+        else if (ageMin < 60) { freshness = `${ageMin}m ago`; color = 'var(--neutral)'; }
+        else { const h = Math.floor(ageMin/60); freshness = `${h}h ago`; color = 'var(--bear)'; }
+      }
+      const err = info.error ? `<span style="color:var(--bear);font-size:10px"> ⚠ ${info.error}</span>` : '';
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:5px 8px;font-family:var(--mono);font-size:11px">${tbl}</td>
+        <td style="padding:5px 8px;color:var(--muted);font-size:10px">${info.db || ''}</td>
+        <td style="padding:5px 8px;text-align:right">${(info.count||0).toLocaleString()}</td>
+        <td style="padding:5px 8px;color:${color}">${freshness}${err}</td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Table</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">DB</th>
+        <th style="text-align:right;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Rows</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Freshness</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="font-size:10px;color:var(--muted);margin-top:6px">
+      Updated ${new Date(d.timestamp).toLocaleTimeString()}
+    </div>`;
+  } catch(e) {
+    el.innerHTML = `<span style="color:var(--bear)">Error: ${e.message}</span>`;
+  }
 }
 
 // ── Config History ────────────────────────────────────────────────────────────
@@ -4040,14 +4185,10 @@ function loadSettings() {
       document.getElementById('cfg_test_mode').checked      = cfg.test_mode || false;
       document.getElementById('cfg_test_date').value        = cfg.test_date || '';
       toggleTestDate();
-      // AI key — prefer localStorage, fall back to config.json, always sync both
-      const _lsKey  = localStorage.getItem('ai_api_key') || '';
-      const _cfgKey = cfg.anthropic_api_key || '';
-      const _storedAiKey = _lsKey || _cfgKey;
-      document.getElementById('cfg_ai_api_key').value = _storedAiKey;
-      if (_storedAiKey) {
-        localStorage.setItem('ai_api_key', _storedAiKey);
-      }
+      // AI key — always read from config.json (stored server-side in .env)
+      document.getElementById('cfg_ai_api_key').value = cfg.anthropic_api_key || '';
+      // Cache API key in window for commentary/advisor use
+      window._cfgAnthropicKey = cfg.anthropic_api_key || '';
       const aiOn = localStorage.getItem('ai_enabled') !== 'false';
       document.getElementById('cfg_ai_enabled').checked = aiOn;
       document.getElementById('aiEnabledLabel').textContent = aiOn ? 'ON' : 'OFF';
@@ -4134,14 +4275,15 @@ function saveSettings() {
     alpaca_api_key:    get('cfg_alpaca_api_key').value.trim()    || null,
     alpaca_secret_key: get('cfg_alpaca_secret_key').value.trim() || null,
   };
-  // AI key + enabled flag saved to localStorage only
+  // AI key — save to config.json (persisted server-side in .env)
   const aiKey = get('cfg_ai_api_key').value.trim();
-  if (aiKey) localStorage.setItem('ai_api_key', aiKey);
-  else localStorage.removeItem('ai_api_key');
   if (aiKey) cfg.anthropic_api_key = aiKey;
   localStorage.setItem('ai_enabled', get('cfg_ai_enabled').checked ? 'true' : 'false');
   const aiInterval = parseInt(get('cfg_ai_interval').value) || 5;
   localStorage.setItem('ai_commentary_interval', String(aiInterval));
+  // Fix: save advisor interval to localStorage so it persists
+  const advisorInterval = parseInt(get('cfg_advisor_interval').value) || 10;
+  localStorage.setItem('advisor_interval', String(advisorInterval));
   applyAIEnabled();
 
   const status = document.getElementById('saveStatus');
@@ -4167,11 +4309,12 @@ function saveSettings() {
 }
 
 function showSettingsTab(name) {
-  ['trading','system','news'].forEach(t => {
+  ['trading','system','news','health'].forEach(t => {
     document.getElementById('stab-'+t)?.classList.toggle('stab-active', t===name);
     document.getElementById('spane-'+t)?.classList.toggle('spane-active', t===name);
   });
-  if (name === 'news') syncNewsTab();
+  if (name === 'news')   syncNewsTab();
+  if (name === 'health') { loadSystemHealth(); loadDataHealth(); }
 }
 
 function syncNewsTab() {
@@ -5017,7 +5160,7 @@ async function runSettingsAdvisor() {
   if (isAIPausedAll()) return;
   const bodyEl = document.getElementById('advisorBody');
   const btn    = document.getElementById('advisorBtn');
-  const apiKey = localStorage.getItem('ai_api_key') || '';
+  const apiKey = (window._cfgAnthropicKey || localStorage.getItem('ai_api_key') || '');
 
   // Cooldown — don't re-call if opened within advisor_interval minutes
   const cooldownMin = parseInt(localStorage.getItem('advisor_interval') || '10');
@@ -5268,7 +5411,7 @@ function _buildCompactContext(snap) {
 }
 
 async function _callClaude(messages, maxTokens = 300, systemPrompt = null) {
-  const apiKey = localStorage.getItem('ai_api_key') || '';
+  const apiKey = (window._cfgAnthropicKey || localStorage.getItem('ai_api_key') || '');
   if (!apiKey) throw new Error('NO_KEY');
   if (_isStale || _disconnectTime) throw new Error('STALE');
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -5350,7 +5493,7 @@ async function refreshAICommentary(force = false) {
   const timerDue = now - _aiLastRefresh >= intervalMs;
   const changed  = _majorChange(_chainSnap);
   if (!force && !timerDue && !changed) return;
-  const apiKey = localStorage.getItem('ai_api_key') || '';
+  const apiKey = (window._cfgAnthropicKey || localStorage.getItem('ai_api_key') || '');
   const textEl = document.getElementById('aiCommentaryText');
   const ageEl  = document.getElementById('aiCommentaryAge');
   if (!textEl) return;
@@ -5433,7 +5576,7 @@ async function sendAIChat() {
   if (!input) return;
   const text = input.value.trim();
   if (!text) return;
-  const apiKey = localStorage.getItem('ai_api_key') || '';
+  const apiKey = (window._cfgAnthropicKey || localStorage.getItem('ai_api_key') || '');
   if (!apiKey) {
     _appendChatMsg('sys', 'Add your API key in Settings to use AI Chat.');
     return;

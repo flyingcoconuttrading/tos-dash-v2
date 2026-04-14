@@ -308,6 +308,50 @@ def _fetch_all(cfg: dict) -> list:
     else:
         logger.debug("News: %d total.  Per-source kept/fetched: %s", len(items), summary)
 
+    # ── MOC auto-capture ──────────────────────────────────────────────────────
+    # Detect Financial Juice MOC headlines and queue for DB write via api.py
+    _MOC_RE = re.compile(
+        r"MOC\s+Imbalance.*?S&P\s*500\s*:\s*([+-]?\d+(?:\.\d+)?)\s*mln",
+        re.IGNORECASE
+    )
+    _MOC_NQ_RE   = re.compile(r"Nasdaq\s*100\s*:\s*([+-]?\d+(?:\.\d+)?)\s*mln", re.IGNORECASE)
+    _MOC_DOW_RE  = re.compile(r"Dow\s*30\s*:\s*([+-]?\d+(?:\.\d+)?)\s*mln",     re.IGNORECASE)
+    _MOC_MAG_RE  = re.compile(r"Mag\s*7\s*:\s*([+-]?\d+(?:\.\d+)?)\s*mln",       re.IGNORECASE)
+
+    for it in items:
+        if not it.get("alert"):
+            continue
+        headline = it.get("headline", "")
+        m = _MOC_RE.search(headline)
+        if not m:
+            continue
+        try:
+            sp500 = float(m.group(1))
+            nq_m  = _MOC_NQ_RE.search(headline)
+            dow_m = _MOC_DOW_RE.search(headline)
+            mag_m = _MOC_MAG_RE.search(headline)
+            nasdaq = float(nq_m.group(1))  if nq_m  else None
+            dow    = float(dow_m.group(1)) if dow_m else None
+            mag7   = float(mag_m.group(1)) if mag_m else None
+            direction = "buy" if sp500 > 0 else "sell" if sp500 < 0 else "unknown"
+            it["_moc_event"] = {
+                "sp500_mln":    sp500,
+                "nasdaq_mln":   nasdaq,
+                "dow_mln":      dow,
+                "mag7_mln":     mag7,
+                "direction":    direction,
+                "raw_headline": headline,
+                "published_at": it.get("published_at"),
+                "source":       "financial_juice",
+            }
+            logger.info("MOC detected: S&P %+.0fM  Nasdaq %s  Dow %s  Mag7 %s",
+                        sp500,
+                        f"{nasdaq:+.0f}M" if nasdaq else "N/A",
+                        f"{dow:+.0f}M"    if dow    else "N/A",
+                        f"{mag7:+.0f}M"   if mag7   else "N/A")
+        except Exception as e:
+            logger.warning("MOC parse error: %s  headline: %s", e, headline)
+
     items.sort(key=lambda x: x["_dt"], reverse=True)
     for it in items:
         it.pop("_dt", None)
@@ -329,6 +373,16 @@ def start(cfg_loader: Callable[[], dict]) -> None:
             try:
                 cfg   = cfg_loader()
                 items = _fetch_all(cfg)
+                # Auto-save MOC events detected in this cycle
+                for it in items:
+                    moc = it.pop("_moc_event", None)
+                    if moc:
+                        try:
+                            import requests as _req
+                            _req.post("http://127.0.0.1:8001/moc/event",
+                                      json=moc, timeout=3)
+                        except Exception:
+                            pass
                 with _lock:
                     _cache      = items
                     _cache_time = datetime.now(tz=timezone.utc)

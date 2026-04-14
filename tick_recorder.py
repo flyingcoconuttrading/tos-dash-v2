@@ -142,10 +142,26 @@ try:
             print("[tick_recorder] Stop file detected — shutting down.", file=sys.stderr)
             break
 
-        # Paused
+        # Paused — close DB connection to release Windows exclusive lock
         if PAUSE_FILE.exists():
+            if db_conn is not None:
+                try:
+                    db_conn.close()
+                except Exception:
+                    pass
+                db_conn = None
+                print("[tick_recorder] Paused — DB connection released.", file=sys.stderr)
             time.sleep(max(0.0, POLL_SEC - (time.perf_counter() - t0)))
             continue
+        elif db_conn is None:
+            # Resuming from pause — reopen connection
+            try:
+                db_conn = _open_db()
+                print("[tick_recorder] Resumed — DB connection restored.", file=sys.stderr)
+            except Exception as e:
+                print(f"[tick_recorder] Resume error: {e}", file=sys.stderr)
+                time.sleep(1.0)
+                continue
 
         # Market hours gate: 9:30–16:00 ET only
         if not _is_market_hours():
@@ -168,6 +184,10 @@ try:
         now          = datetime.now()
         recorded_at  = now.isoformat(timespec="milliseconds")
         date_str     = now.date().isoformat()
+
+        if db_conn is None:
+            time.sleep(max(0.0, POLL_SEC - (time.perf_counter() - t0)))
+            continue
 
         try:
             # Write spy row
