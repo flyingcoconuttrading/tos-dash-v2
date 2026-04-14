@@ -1,5 +1,6 @@
 """
 smart_tester.py — Autonomous backtesting agent for tos-dash-v2.
+Version: v2.49.0
 
 All DuckDB queries route through api.py (port 8001) HTTP endpoints.
 No direct DuckDB access — avoids Windows file lock conflicts.
@@ -143,12 +144,66 @@ TOOLS = [
 ]
 
 HYPOTHESIS_PROMPTS = {
-    "H-001": "Validate H-001: PINNED regime over-suppression. Query ideas where entry_regime='PINNED'. Split by entry_tick > 150 vs <= 150. Compare avg paper_pnl_pct, stop rate, target rate. Save a finding.",
-    "H-002": "Validate H-002: score band 58-62 optimal. Bucket entry_score into <54, 54-58, 58-62, 62-66, 66+. Show n/avg_pnl/win_rate. Simulate score_ceiling=62. Flag n<20. Save a finding.",
-    "H-003": "Validate H-003: TICK at entry predicts outcome. Bucket entry_tick. Show P&L. Show what the TICK directional filter is actually blocking. Save a finding.",
-    "H-004": "Validate H-004: vol_ratio at entry. Check surface_candidates. Bucket vol_ratio. Simulate vol_ratio_max=2.0. Save a finding.",
-    "H-005": "Check H-005: channel position at entry. Check surface_candidates.structure values. Compare P&L by structure. If insufficient data, state when to re-run. Save a finding.",
-    "ALL":   "Run H-001 through H-005 in order. Save a finding for each. End with system health summary.",
+    "H-001": (
+        "Validate H-001: Score band edge. Query ideas where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "Bucket entry_score into <50, 50-54, 54-58, 58-62, 62-66, 66+. "
+        "Show n, avg_pnl_pct, win_rate for each band. "
+        "Flag any band with n<10 as PRELIMINARY. "
+        "Save a finding with verdict SUPPORTS/REFUTES/INCONCLUSIVE."
+    ),
+    "H-002": (
+        "Validate H-002: PINNED vs TRENDING regime performance. "
+        "Query ideas where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "Compare entry_regime=PINNED vs TRENDING: n, avg_pnl_pct, win_rate, stop_rate. "
+        "Also break down by entry_trend within each regime. "
+        "Flag n<20 per regime as PRELIMINARY. "
+        "Save a finding."
+    ),
+    "H-003": (
+        "Validate H-003: TICK at entry predicts outcome. "
+        "Query ideas where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "Bucket entry_tick: <-500, -500 to -200, -200 to 0, 0 to 200, 200 to 500, >500. "
+        "Show n, avg_pnl_pct, win_rate per bucket. "
+        "Show what the current ±500 TICK filter is actually blocking. "
+        "Recommend tighter or wider threshold based on data. "
+        "Flag n<10 per bucket as PRELIMINARY. Save a finding."
+    ),
+    "H-004": (
+        "Validate H-004: Calls vs Puts performance. "
+        "Query ideas where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "Compare option_type=Call vs Put: n, avg_pnl_pct, win_rate, stop_rate, avg_entry_score. "
+        "Break down by regime (PINNED/TRENDING) for each type. "
+        "Flag PRELIMINARY if n<20 per type. Save a finding."
+    ),
+    "H-005": (
+        "Validate H-005: VIX level at entry. "
+        "Query ideas where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "Bucket entry_vix: <15, 15-20, 20-25, 25-30, >30. "
+        "Show n, avg_pnl_pct, win_rate per bucket. "
+        "Identify optimal VIX range for entries. "
+        "Flag PRELIMINARY if n<10 per bucket. Save a finding."
+    ),
+    "MOC": (
+        "Analyze MOC precursor patterns. "
+        "First query moc_events table for all recorded MOC events. "
+        "Then query spy_ticks for the 30 minutes before each MOC event time (around 15:50). "
+        "Look for: tick_val sustained above +500, add_val above +850, "
+        "tick_val and add_val both crossing thresholds within the same 5-minute window. "
+        "Find the earliest consistent dual-threshold signal across all events. "
+        "Report lead time in minutes. "
+        "Save a finding with the dual-threshold pattern and confidence level."
+    ),
+    "ALL": (
+        "Run H-001 through H-005 in order. Save a finding for each. "
+        "End with a system health summary covering: total trades, win rate, "
+        "top performing regime+trend combination, recommended config changes. "
+        "Save the summary as a separate finding."
+    ),
 }
 
 SYSTEM_PROMPT = """You are a quantitative analyst for tos-dash-v2, an intraday SPY options scalp advisor.

@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v2.49.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -175,11 +176,12 @@ canvas{width:100%!important}
         <label>Preset Hypothesis</label>
         <select id="hypothesisSelect" onchange="applyPreset()">
           <option value="">-- Custom prompt --</option>
-          <option value="H-001">H-001: High score (≥70) edge</option>
-          <option value="H-002">H-002: Regime performance comparison</option>
-          <option value="H-003">H-003: Time-of-day patterns</option>
-          <option value="H-004">H-004: Stop loss effectiveness</option>
-          <option value="H-005">H-005: Score vs exit reason correlation</option>
+          <option value="H-001">H-001: Score band edge (≥50)</option>
+          <option value="H-002">H-002: PINNED vs TRENDING regime</option>
+          <option value="H-003">H-003: TICK at entry predicts outcome</option>
+          <option value="H-004">H-004: Calls vs Puts performance</option>
+          <option value="H-005">H-005: VIX level at entry</option>
+          <option value="MOC">MOC: Precursor pattern analysis</option>
           <option value="ALL">ALL: Run all hypotheses</option>
         </select>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
@@ -473,7 +475,7 @@ canvas{width:100%!important}
         </div>
         <div id="findingsSummaryBody" style="font-size:12px;line-height:1.7;color:#e6edf3"></div>
       </div>
-      <div class="card-body" id="findingsBody" style="max-height:600px;overflow-y:auto">
+      <div class="card-body" id="findingsBody" style="max-height:500px;overflow-y:auto;padding-right:4px">
         <div class="muted" style="font-size:12px;text-align:center;padding:20px 0">
           No findings yet. Run an analysis to generate insights.
         </div>
