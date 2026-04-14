@@ -288,6 +288,23 @@ async def simulate(request: Request):
     return result
 
 
+@app.get("/moc/events")
+async def get_moc_events(limit: int = 50):
+    """Proxy to api.py moc events."""
+    async with httpx.AsyncClient() as client:
+        r = await client.get(f"{API_BASE}/moc/events?limit={limit}", timeout=5.0)
+        return r.json()
+
+
+@app.post("/moc/event")
+async def save_moc_event(request: Request):
+    """Proxy to api.py moc event save."""
+    body = await request.json()
+    async with httpx.AsyncClient() as client:
+        r = await client.post(f"{API_BASE}/moc/event", json=body, timeout=5.0)
+        return r.json()
+
+
 @app.post("/pattern")
 async def pattern(request: Request):
     body = await request.json()

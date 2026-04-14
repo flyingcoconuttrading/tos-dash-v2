@@ -182,7 +182,11 @@ canvas{width:100%!important}
           <option value="H-005">H-005: Score vs exit reason correlation</option>
           <option value="ALL">ALL: Run all hypotheses</option>
         </select>
-        <label style="margin-top:6px">Custom Prompt</label>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+          <label>Custom Prompt</label>
+          <button class="btn btn-ghost btn-sm" style="font-size:9px;padding:2px 8px"
+                  onclick="document.getElementById('promptInput').value='';document.getElementById('hypothesisSelect').value=''">✕ Clear</button>
+        </div>
         <textarea id="promptInput" placeholder="Describe what you want to analyze about the trade history...&#10;&#10;Examples:&#10;• Do SPY calls outperform puts in trending regimes?&#10;• What score threshold maximizes expectancy?&#10;• Are morning trades better than afternoon?"></textarea>
         <div style="display:flex;gap:6px;align-items:center">
           <div style="flex:1">
@@ -338,6 +342,7 @@ canvas{width:100%!important}
           <div class="tab" onclick="switchTab('regime')">By Regime</div>
           <div class="tab" onclick="switchTab('score')">By Score</div>
           <div class="tab" onclick="switchTab('exit')">By Exit</div>
+          <div class="tab" onclick="switchTab('moc')">MOC Events</div>
         </div>
 
         <div class="tab-panel active" id="tab-balance">
@@ -380,6 +385,72 @@ canvas{width:100%!important}
             </table>
           </div>
         </div>
+
+        <div class="tab-panel" id="tab-moc">
+          <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span style="font-size:11px;color:#8b949e">MOC Imbalance Log — auto-captured from Financial Juice</span>
+            <button class="btn btn-ghost btn-sm" onclick="loadMocEvents()"
+                    style="font-size:9px;padding:2px 8px;margin-left:auto">↺ Refresh</button>
+          </div>
+          <!-- Manual entry form -->
+          <div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px;margin-bottom:10px">
+            <div style="font-size:10px;color:#8b949e;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Manual Entry</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-bottom:8px">
+              <div>
+                <label style="font-size:10px;color:#8b949e;display:block;margin-bottom:2px">Date</label>
+                <input type="date" id="mocDate" class="moc-input"
+                       style="background:#161b22;border:1px solid #30363d;border-radius:4px;color:#e6edf3;padding:4px 6px;font-size:11px;width:100%">
+              </div>
+              <div>
+                <label style="font-size:10px;color:#8b949e;display:block;margin-bottom:2px">S&amp;P 500 ($M)</label>
+                <input type="number" id="mocSp500" placeholder="+1927" class="moc-input"
+                       style="background:#161b22;border:1px solid #30363d;border-radius:4px;color:#e6edf3;padding:4px 6px;font-size:11px;width:100%">
+              </div>
+              <div>
+                <label style="font-size:10px;color:#8b949e;display:block;margin-bottom:2px">Nasdaq ($M)</label>
+                <input type="number" id="mocNasdaq" placeholder="+847" class="moc-input"
+                       style="background:#161b22;border:1px solid #30363d;border-radius:4px;color:#e6edf3;padding:4px 6px;font-size:11px;width:100%">
+              </div>
+              <div>
+                <label style="font-size:10px;color:#8b949e;display:block;margin-bottom:2px">Dow ($M)</label>
+                <input type="number" id="mocDow" placeholder="+413" class="moc-input"
+                       style="background:#161b22;border:1px solid #30363d;border-radius:4px;color:#e6edf3;padding:4px 6px;font-size:11px;width:100%">
+              </div>
+              <div>
+                <label style="font-size:10px;color:#8b949e;display:block;margin-bottom:2px">Mag 7 ($M)</label>
+                <input type="number" id="mocMag7" placeholder="+316" class="moc-input"
+                       style="background:#161b22;border:1px solid #30363d;border-radius:4px;color:#e6edf3;padding:4px 6px;font-size:11px;width:100%">
+              </div>
+              <div>
+                <label style="font-size:10px;color:#8b949e;display:block;margin-bottom:2px">SPY Price</label>
+                <input type="number" id="mocSpyPrice" placeholder="683.89" step="0.01" class="moc-input"
+                       style="background:#161b22;border:1px solid #30363d;border-radius:4px;color:#e6edf3;padding:4px 6px;font-size:11px;width:100%">
+              </div>
+            </div>
+            <button class="btn btn-blue btn-sm" onclick="saveMocEvent()"
+                    style="font-size:10px;width:100%">+ Save MOC Event</button>
+            <div id="mocSaveStatus" style="font-size:10px;color:#3fb950;margin-top:4px;min-height:14px"></div>
+          </div>
+          <!-- MOC events table -->
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>Date</th>
+                <th class="right">S&amp;P $M</th>
+                <th class="right">NQ $M</th>
+                <th class="right">Dow $M</th>
+                <th class="right">Mag7 $M</th>
+                <th>Dir</th>
+                <th class="right">SPY@pub</th>
+                <th class="right">Move</th>
+                <th>Source</th>
+              </tr></thead>
+              <tbody id="mocBody">
+                <tr><td colspan="9" class="center muted" style="padding:20px">No MOC events yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -387,9 +458,22 @@ canvas{width:100%!important}
     <div class="card">
       <div class="card-header">
         <h2>AI Findings</h2>
-        <span class="badge" id="findingsCount">0 findings</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="badge" id="findingsCount">0 findings</span>
+          <button class="btn btn-ghost btn-sm" onclick="exportFindings()"
+                  style="font-size:9px;padding:2px 8px">↓ Export</button>
+          <button class="btn btn-ghost btn-sm" onclick="generateFindingsSummary()"
+                  style="font-size:9px;padding:2px 8px" id="summaryBtn">⚡ Summarize</button>
+        </div>
       </div>
-      <div class="card-body" id="findingsBody">
+      <!-- AI-generated consolidated summary -->
+      <div id="findingsSummary" style="display:none;border-bottom:1px solid #30363d;padding:12px 12px 10px">
+        <div style="font-size:10px;color:#8b949e;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">
+          Consolidated Actions
+        </div>
+        <div id="findingsSummaryBody" style="font-size:12px;line-height:1.7;color:#e6edf3"></div>
+      </div>
+      <div class="card-body" id="findingsBody" style="max-height:600px;overflow-y:auto">
         <div class="muted" style="font-size:12px;text-align:center;padding:20px 0">
           No findings yet. Run an analysis to generate insights.
         </div>
@@ -410,13 +494,14 @@ let _balanceChart = null;
 // ── Tab switching ──────────────────────────────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => {
-    const panels = ['balance','regime','score','exit'];
+    const panels = ['balance','regime','score','exit','moc'];
     t.classList.toggle('active', panels[i] === name);
   });
   document.querySelectorAll('.tab-panel').forEach(p => {
     p.classList.toggle('active', p.id === 'tab-' + name);
   });
   if (name === 'balance' && _balanceData.length) renderBalanceChart(_balanceData);
+  if (name === 'moc') loadMocEvents();
 }
 
 // ── Logging ────────────────────────────────────────────────────────────────
@@ -1005,10 +1090,190 @@ async function loadAdvisorConfigHistory() {
   }
 }
 
+// ── MOC Events ─────────────────────────────────────────────────────────────
+async function loadMocEvents() {
+  const body = document.getElementById('mocBody');
+  if (!body) return;
+  try {
+    const d = await fetch('/moc/events').then(r => r.json());
+    const events = d.events || [];
+    if (!events.length) {
+      body.innerHTML = '<tr><td colspan="9" class="center muted" style="padding:20px">No MOC events yet.</td></tr>';
+      return;
+    }
+    // Pre-fill today's date
+    const today = new Date().toISOString().slice(0,10);
+    const dateEl = document.getElementById('mocDate');
+    if (dateEl && !dateEl.value) dateEl.value = today;
+
+    body.innerHTML = events.map(e => {
+      const dir   = e.direction === 'buy' ? '<span class="green">BUY</span>'
+                  : e.direction === 'sell' ? '<span class="red">SELL</span>'
+                  : '<span class="muted">?</span>';
+      const move  = e.price_move != null
+                  ? `<span class="${e.price_move>=0?'green':'red'}">${e.price_move>=0?'+':''}${parseFloat(e.price_move).toFixed(2)}</span>`
+                  : '—';
+      const fmt   = v => v != null ? `<span class="${v>=0?'green':'red'}">${v>=0?'+':''}${Math.round(v)}</span>` : '—';
+      return `<tr>
+        <td>${e.event_date || '—'}</td>
+        <td class="right">${fmt(e.sp500_mln)}</td>
+        <td class="right">${fmt(e.nasdaq_mln)}</td>
+        <td class="right">${fmt(e.dow_mln)}</td>
+        <td class="right">${fmt(e.mag7_mln)}</td>
+        <td class="center">${dir}</td>
+        <td class="right">${e.spy_price_at != null ? parseFloat(e.spy_price_at).toFixed(2) : '—'}</td>
+        <td class="right">${move}</td>
+        <td class="muted" style="font-size:10px">${e.source || '—'}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    body.innerHTML = `<tr><td colspan="9" class="center red">Error: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+async function saveMocEvent() {
+  const get = id => document.getElementById(id)?.value?.trim();
+  const statusEl = document.getElementById('mocSaveStatus');
+  const body = {
+    event_date:   get('mocDate')     || new Date().toISOString().slice(0,10),
+    sp500_mln:    parseFloat(get('mocSp500'))    || null,
+    nasdaq_mln:   parseFloat(get('mocNasdaq'))   || null,
+    dow_mln:      parseFloat(get('mocDow'))      || null,
+    mag7_mln:     parseFloat(get('mocMag7'))     || null,
+    spy_price_at: parseFloat(get('mocSpyPrice')) || null,
+    direction:    (parseFloat(get('mocSp500')) || 0) > 0 ? 'buy'
+                : (parseFloat(get('mocSp500')) || 0) < 0 ? 'sell' : 'unknown',
+    source:       'manual',
+  };
+  if (!body.sp500_mln) { if(statusEl) statusEl.textContent='S&P value required'; return; }
+  try {
+    const r = await fetch('/moc/event', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    }).then(r => r.json());
+    if (r.saved) {
+      if (statusEl) { statusEl.textContent = '✓ Saved'; setTimeout(()=>statusEl.textContent='', 2000); }
+      loadMocEvents();
+    } else {
+      if (statusEl) statusEl.textContent = 'Error: ' + (r.error || 'unknown');
+    }
+  } catch(e) {
+    if (statusEl) statusEl.textContent = 'Error: ' + e.message;
+  }
+}
+
+// ── Export findings ─────────────────────────────────────────────────────────
+function exportFindings() {
+  try {
+    const d = fetch('/findings?limit=200').then(r => r.json()).then(data => {
+      const findings = data.findings || [];
+      if (!findings.length) { alert('No findings to export.'); return; }
+      const lines = findings.map(f => [
+        `Hypothesis: ${f.hypothesis || ''}`,
+        `Verdict: ${f.verdict || ''}`,
+        `Date: ${f.run_at || ''}`,
+        `Trades: ${f.trade_count || 0}`,
+        `Summary: ${f.summary || ''}`,
+        `Recommendation: ${f.recommendation || ''}`,
+        '---',
+      ].join('\n')).join('\n\n');
+      const blob = new Blob([lines], {type: 'text/plain'});
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `backtesting-findings-${new Date().toISOString().slice(0,10)}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  } catch(e) {
+    alert('Export error: ' + e.message);
+  }
+}
+
+// ── Findings summary ────────────────────────────────────────────────────────
+let _summaryRunning = false;
+
+async function generateFindingsSummary() {
+  if (_summaryRunning) return;
+  const summaryDiv  = document.getElementById('findingsSummary');
+  const summaryBody = document.getElementById('findingsSummaryBody');
+  const btn         = document.getElementById('summaryBtn');
+  if (!summaryDiv || !summaryBody) return;
+
+  _summaryRunning     = true;
+  btn.disabled        = true;
+  btn.textContent     = '⏳ Summarizing…';
+  summaryDiv.style.display = 'block';
+  summaryBody.textContent  = 'Generating consolidated summary…';
+
+  try {
+    const d        = await fetch('/findings?limit=50').then(r => r.json());
+    const findings = d.findings || [];
+    if (!findings.length) {
+      summaryBody.textContent = 'No findings to summarize yet.';
+      return;
+    }
+
+    const prompt = `You are a quantitative trading analyst. Synthesize these backtesting findings into a prioritized action list.
+
+FINDINGS:
+${findings.map(f =>
+  `[${f.verdict}] ${f.hypothesis}\nSummary: ${f.summary}\nRecommendation: ${f.recommendation || 'none'}`
+).join('\n\n')}
+
+Write a 3-5 bullet consolidated action list. Each bullet should be:
+- Specific (exact setting name and value)
+- Prioritized (most impactful first)
+- Justified (one line of evidence)
+
+Format: • [ACTION]: [SPECIFIC CHANGE] — [ONE LINE REASON]
+End with a one-sentence overall assessment of system health.`;
+
+    const apiKey = window._cfgAnthropicKey || localStorage.getItem('ai_api_key') || '';
+    if (!apiKey) {
+      summaryBody.textContent = 'No API key set — add key in Settings → System → AI Assistant.';
+      return;
+    }
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type':         'application/json',
+        'x-api-key':            apiKey,
+        'anthropic-version':    '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model:      'claude-sonnet-4-20250514',
+        max_tokens: 600,
+        messages:   [{role: 'user', content: prompt}],
+      }),
+    });
+
+    const data = await resp.json();
+    const text = data.content?.[0]?.text || 'No response.';
+    summaryBody.innerHTML = text
+      .split('\n')
+      .map(line => line.startsWith('•')
+        ? `<div style="margin-bottom:6px;padding-left:4px">${esc(line)}</div>`
+        : `<div style="color:#8b949e;margin-top:6px;font-style:italic">${esc(line)}</div>`)
+      .join('');
+  } catch(e) {
+    summaryBody.textContent = 'Error: ' + e.message;
+  } finally {
+    _summaryRunning     = false;
+    btn.disabled        = false;
+    btn.textContent     = '⚡ Summarize';
+  }
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   loadMetrics();
   loadFindings();
+  // Pre-fill today's date in MOC form
+  const dateEl = document.getElementById('mocDate');
+  if (dateEl) dateEl.value = new Date().toISOString().slice(0,10);
   window.addEventListener('resize', () => {
     if (_balanceData.length) renderBalanceChart(_balanceData);
   });
