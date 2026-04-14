@@ -1430,9 +1430,16 @@ header {
 .news-row.news-alert              { background: rgba(255,179,0,0.06); border-left: 2px solid var(--neutral); }
 
 /* ── Beta View ── */
-body.beta-view .spy-price  { font-size: 24px; }
-.dte-toggle.beta-active    { background: var(--neutral); color: var(--bg); border-color: var(--neutral); }
-.ai-quick-toggle.beta-paused { border-color: var(--bear); color: var(--bear); }
+.dte-toggle.beta-active    { background: var(--neutral); color: var(--bg,#0a0a0f); border-color: var(--neutral); }
+.ai-quick-toggle.ai-paused { border-color: var(--bear); color: var(--bear); }
+
+body.beta-view .spy-price  { font-size: 22px; }
+body.beta-view #bidAsk     { display: none; }
+body.beta-view #maxPain    { display: none; }
+body.beta-view #tickEl     { display: none; }
+
+/* Market context bar always visible */
+#marketContextBar { display: flex; }
 </style>
 </head>
 <body>
@@ -1511,6 +1518,25 @@ body.beta-view .spy-price  { font-size: 24px; }
       <div class="regime-tag" id="regimeEl">--</div>
       <div class="reason-tag" id="reasonEl">--</div>
     </div>
+  </div>
+
+  <!-- ── Market Context Bar ── -->
+  <div id="marketContextBar" style="
+    display:flex;align-items:center;gap:10px;padding:6px 14px;
+    background:var(--panel);border-bottom:1px solid var(--border);
+    font-family:var(--mono);font-size:10px;flex-wrap:wrap;
+  ">
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="color:var(--muted);letter-spacing:.08em">SCALP</span>
+      <div id="scalpScore" style="
+        font-size:13px;font-weight:700;padding:2px 8px;border-radius:3px;
+        background:var(--border);color:var(--muted)
+      ">--</div>
+    </div>
+    <div style="width:1px;height:16px;background:var(--border)"></div>
+    <div id="scalpCondition" style="color:var(--muted);flex:1">Waiting for data…</div>
+    <div style="width:1px;height:16px;background:var(--border)"></div>
+    <div id="scalpWatch" style="color:var(--muted)"></div>
   </div>
 
   <div class="dash-grid">
@@ -2754,6 +2780,96 @@ let _retryMax          = 3;      // max auto-retry attempts
 let _retryTimeout      = null;   // setTimeout handle for next retry
 let _audioCtx          = null;   // Web Audio context for beep
 
+// ── Market Context ────────────────────────────────────────────────────────────
+function updateMarketContext(snap) {
+  if (!snap) return;
+  const ms       = snap.market_structure || {};
+  const regime   = ms.regime  || 'UNKNOWN';
+  const trend    = ms.trend   || 'Choppy';
+  const bias     = ms.bias    || 'Neutral';
+  const volRatio = snap.spy_vol_ratio || 0;
+  const ntick    = snap.ntick || 0;
+  const cl       = ms.checklist || {};
+  const sLean    = cl.structural_lean || 'Mixed';
+  const sConf    = cl.structural_confidence || 'Insufficient';
+  const noTradeReason = (snap.briefing || {}).no_trade_reason || '';
+  const callWall = ms.call_wall;
+  const putWall  = ms.put_wall;
+  const price    = snap.price || 0;
+
+  // ── Scalping suitability score 0-100 ──
+  let score = 0;
+  let reasons = [];
+  let watch = '';
+
+  // Regime (30pts)
+  if (regime === 'TRENDING') { score += 30; reasons.push('Trending regime'); }
+  else if (regime === 'PINNED') { score += 15; reasons.push('Pinned regime'); }
+  else if (regime === 'SNAP IMMINENT') { score += 25; reasons.push('Snap imminent'); }
+
+  // Trend (20pts)
+  if (trend === 'Uptrend' || trend === 'Downtrend') { score += 20; reasons.push(trend); }
+  else { reasons.push('Choppy'); }
+
+  // Volume (20pts)
+  if (volRatio >= 1.5) { score += 20; reasons.push(`Vol ${volRatio.toFixed(1)}x`); }
+  else if (volRatio >= 0.8) { score += 10; reasons.push(`Vol ${volRatio.toFixed(1)}x`); }
+  else { reasons.push(`Low vol ${volRatio.toFixed(2)}x`); }
+
+  // TICK (15pts)
+  if (Math.abs(ntick) >= 500) { score += 15; reasons.push(`TICK ${ntick > 0 ? '+' : ''}${ntick}`); }
+  else if (Math.abs(ntick) >= 200) { score += 8; }
+
+  // Structure (15pts)
+  if (sConf === 'Strong') { score += 15; }
+  else if (sConf === 'Moderate') { score += 8; }
+
+  // Watch message
+  if (callWall && putWall && price) {
+    const distCall = Math.abs(price - callWall).toFixed(2);
+    const distPut  = Math.abs(price - putWall).toFixed(2);
+    if (price >= callWall - 1) {
+      watch = `⚠ At call wall $${callWall} — resistance`;
+    } else if (price <= putWall + 1) {
+      watch = `⚠ At put wall $${putWall} — support`;
+    } else {
+      watch = `Call wall $${callWall} (+$${distCall}) · Put wall $${putWall} (-$${distPut})`;
+    }
+  }
+
+  // Condition text
+  let condition = '';
+  if (score >= 70) {
+    condition = `✅ Good scalping conditions — ${reasons.slice(0,2).join(', ')}`;
+  } else if (score >= 45) {
+    condition = `⚡ Moderate conditions — ${reasons.slice(0,2).join(', ')}`;
+  } else if (volRatio < 0.3) {
+    condition = `⏸ Low volume grind — scalp edge reduced. Watch for volume surge or consider swing setup`;
+  } else if (trend === 'Choppy' && regime === 'PINNED') {
+    condition = `↔ PINNED + Choppy — mean reversion mode. Watch walls at $${callWall || '--'}/$${putWall || '--'}`;
+  } else if (noTradeReason) {
+    condition = `⏳ ${noTradeReason}`;
+  } else {
+    condition = `📊 ${regime} · ${trend} · ${bias}`;
+  }
+
+  // Update DOM
+  const scoreEl = document.getElementById('scalpScore');
+  const condEl  = document.getElementById('scalpCondition');
+  const watchEl = document.getElementById('scalpWatch');
+
+  if (scoreEl) {
+    scoreEl.textContent = score;
+    scoreEl.style.background = score >= 70 ? 'rgba(0,200,100,0.15)' :
+                                score >= 45 ? 'rgba(255,179,0,0.15)' :
+                                              'rgba(255,80,80,0.10)';
+    scoreEl.style.color = score >= 70 ? 'var(--bull)' :
+                          score >= 45 ? 'var(--neutral)' : 'var(--bear)';
+  }
+  if (condEl)  condEl.textContent  = condition;
+  if (watchEl) watchEl.textContent = watch;
+}
+
 // ── Beta View ─────────────────────────────────────────────────────────────────
 let _betaView = localStorage.getItem('betaView') === 'true';
 if (_betaView) document.body.classList.add('beta-view');
@@ -2805,11 +2921,21 @@ async function loadSystemHealth() {
       const up     = p.uptime || '—';
       const paused = p.paused ? ' <span style="color:var(--neutral)">(paused)</span>' : '';
       const url    = p.url   ? `<a href="${p.url}" target="_blank" style="color:var(--accent);font-size:10px">${p.url}</a>` : '';
-      const btns   = name !== 'api' ? `
-        <button class="btn btn-secondary" style="font-size:9px;padding:2px 8px"
-                onclick="processAction('${name}','restart')">↺</button>
-        <button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;color:var(--bear)"
-                onclick="processAction('${name}','stop')">⏹</button>` : '';
+      let btns = '';
+      if (name !== 'api') {
+        btns = `
+          <button class="btn btn-secondary" style="font-size:9px;padding:2px 8px"
+                  onclick="processAction('${name}','restart')" title="Restart">↺ Restart</button>
+          <button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;color:var(--bear)"
+                  onclick="processAction('${name}','stop')" title="Stop">⏹ Stop</button>`;
+        if (name === 'tick_recorder') {
+          const pauseLabel = p.paused ? '▶ Resume' : '⏸ Pause';
+          const pauseAction = p.paused ? 'resume' : 'pause';
+          btns += `
+          <button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;color:var(--neutral)"
+                  onclick="tickRecorderPauseToggle()" title="${pauseLabel}">${pauseLabel}</button>`;
+        }
+      }
       return `<tr style="border-bottom:1px solid var(--border)">
         <td style="padding:5px 8px">${dot} <strong>${name}</strong>${paused}</td>
         <td style="padding:5px 8px;color:var(--muted)">${pid}</td>
@@ -2839,6 +2965,13 @@ async function processAction(name, action) {
     setTimeout(loadSystemHealth, 1500);
     if (r.status === 'stopping') alert('API is shutting down. Restart api.py manually.');
   } catch(e) { alert(`Error: ${e.message}`); }
+}
+
+async function tickRecorderPauseToggle() {
+  const status = await fetch(`${API}/tick-recorder/status`).then(r => r.json());
+  const endpoint = status.paused ? '/tick-recorder/resume' : '/tick-recorder/pause';
+  await fetch(`${API}${endpoint}`, {method:'POST'});
+  setTimeout(loadSystemHealth, 800);
 }
 
 async function restartAllSubprocesses() {
@@ -2909,31 +3042,29 @@ async function loadConfigHistory() {
       el.innerHTML = '<span style="color:var(--muted)">No config changes recorded yet.</span>';
       return;
     }
-    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:11px">
-      <thead><tr>
-        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Time</th>
-        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Source</th>
-        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Changes</th>
-      </tr></thead>
-      <tbody>${rows.map(r => {
-        const t   = r.changed_at ? new Date(r.changed_at).toLocaleString() : '--';
-        const src = r.source || 'manual';
-        const srcColor = src==='advisor'?'var(--neutral)':src==='startup'?'var(--muted)':'var(--accent)';
+    el.innerHTML = `<div style="font-size:11px">
+      ${rows.filter(r => r.source !== 'startup' || rows.indexOf(r) === 0).map(r => {
+        const t    = r.changed_at ? new Date(r.changed_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '--';
+        const date = r.changed_at ? new Date(r.changed_at).toLocaleDateString([], {month:'short',day:'numeric'}) : '';
+        const src  = r.source || 'manual';
+        const srcColor = src==='advisor'?'var(--neutral)':src==='startup'?'var(--dim)':'var(--accent)';
         const keys = Array.isArray(r.changed_keys) ? r.changed_keys : [];
         const oldV = r.old_values || {};
         const newV = r.new_values || {};
+        // Compact: one line per key
         const changes = keys.map(k =>
-          `<span style="color:var(--dim)">${k}:</span> `+
-          `<span style="color:var(--bear)">${oldV[k]??'—'}</span>`+
-          ` → <span style="color:var(--bull)">${newV[k]??'—'}</span>`
-        ).join('<br>');
-        return `<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:5px 8px;color:var(--muted);white-space:nowrap;vertical-align:top">${t}</td>
-          <td style="padding:5px 8px;vertical-align:top"><span style="color:${srcColor};font-weight:600;font-size:10px;text-transform:uppercase">${src}</span></td>
-          <td style="padding:5px 8px;line-height:1.7">${changes}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table>`;
+          `<span style="color:var(--muted)">${k}</span> `+
+          `<span style="color:var(--bear);text-decoration:line-through">${oldV[k]??'—'}</span>`+
+          `<span style="color:var(--dim)">→</span>`+
+          `<span style="color:var(--bull)">${newV[k]??'—'}</span>`
+        ).join(' &nbsp;');
+        return `<div style="padding:4px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">
+          <span style="color:var(--dim);white-space:nowrap;flex-shrink:0">${date} ${t}</span>
+          <span style="color:${srcColor};font-size:9px;text-transform:uppercase;flex-shrink:0">${src}</span>
+          <span style="line-height:1.8;flex:1">${changes}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
   } catch(e) {
     el.innerHTML = `<span style="color:var(--bear)">Error: ${e.message}</span>`;
   }
@@ -3118,6 +3249,7 @@ function update(snap) {
   renderBriefing(snap);
   updateTickVix(snap);
   updatePaperBalance(snap);
+  updateMarketContext(snap);
 
   // Converter widget
   updateConverter(snap);
