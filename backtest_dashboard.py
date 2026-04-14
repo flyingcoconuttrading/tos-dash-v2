@@ -309,6 +309,14 @@ async def get_config():
             return {"error": str(e)}
 
 
+@app.get("/config/history")
+async def get_config_history(limit: int = 15):
+    """Proxy to api.py config history."""
+    async with httpx.AsyncClient() as client:
+        r = await client.get(f"{API_BASE}/config/history?limit={limit}", timeout=5.0)
+        return r.json()
+
+
 @app.post("/config")
 async def update_config(request: Request):
     body = await request.json()

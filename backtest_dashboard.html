@@ -153,7 +153,22 @@ canvas{width:100%!important}
 <div class="layout">
   <!-- SIDEBAR -->
   <div class="sidebar">
-    <!-- Run Analysis -->
+    <!-- Nav tabs -->
+    <div style="display:flex;gap:2px;margin-bottom:12px">
+      <button class="btn btn-ghost btn-sm" id="sideTab-run"
+              onclick="showSideTab('run')"
+              style="flex:1;font-size:10px;background:#21262d;border-color:#388bfd;color:#58a6ff">
+        Run Analysis
+      </button>
+      <button class="btn btn-ghost btn-sm" id="sideTab-advisor"
+              onclick="showSideTab('advisor')"
+              style="flex:1;font-size:10px">
+        Advisor
+      </button>
+    </div>
+
+    <!-- Run Analysis Panel -->
+    <div id="sidePanel-run">
     <div class="card" style="margin-bottom:12px">
       <div class="card-header"><h2>Run Analysis</h2></div>
       <div class="card-body prompt-area">
@@ -237,6 +252,62 @@ canvas{width:100%!important}
         <div id="simResult" class="sim-result" style="display:none"></div>
       </div>
     </div>
+    </div><!-- end sidePanel-run -->
+
+    <!-- Advisor Panel -->
+    <div id="sidePanel-advisor" style="display:none">
+
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header">
+          <h2>Settings Advisor</h2>
+          <button class="btn btn-ghost btn-sm" id="advisorRunBtn"
+                  onclick="runAdvisor()" style="font-size:9px;padding:2px 8px">
+            ↺ Refresh
+          </button>
+        </div>
+        <div class="card-body">
+          <div id="advisorStatus" style="font-size:10px;color:#8b949e;margin-bottom:6px"></div>
+          <div id="advisorOutput" style="font-size:12px;line-height:1.7;color:#e6edf3;min-height:60px">
+            Click Refresh to run the advisor.
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header"><h2>Apply Config Change</h2></div>
+        <div class="card-body">
+          <div style="font-size:10px;color:#8b949e;margin-bottom:8px">
+            Paste a config key and value from the advisor recommendation.
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <input type="text" id="cfgKey" placeholder="e.g. confirm_ticks"
+                   style="background:#0d1117;border:1px solid #30363d;border-radius:4px;
+                          color:#e6edf3;padding:5px 8px;font-size:11px;width:100%">
+            <input type="text" id="cfgVal" placeholder="e.g. 13"
+                   style="background:#0d1117;border:1px solid #30363d;border-radius:4px;
+                          color:#e6edf3;padding:5px 8px;font-size:11px;width:100%">
+            <button class="btn btn-blue btn-sm" onclick="applyConfigChange()"
+                    style="font-size:10px;width:100%">Apply Change</button>
+            <div id="cfgApplyStatus" style="font-size:10px;min-height:14px;color:#3fb950"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Config History</h2>
+          <button class="btn btn-ghost btn-sm" onclick="loadAdvisorConfigHistory()"
+                  style="font-size:9px;padding:2px 8px">↺</button>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div id="advisorConfigHistory"
+               style="max-height:200px;overflow-y:auto;font-size:11px;padding:8px">
+            Loading…
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end sidePanel-advisor -->
   </div>
 
   <!-- MAIN -->
@@ -414,12 +485,16 @@ function startStream(runId) {
   if (_eventSource) _eventSource.close();
   _eventSource = new EventSource('/stream/' + runId);
 
+  let _streamDone = false;
   _eventSource.onmessage = (e) => {
     const ev = JSON.parse(e.data);
+    if (ev.type === 'done' || ev.type === 'stopped') _streamDone = true;
     handleEvent(ev);
   };
   _eventSource.onerror = () => {
+    if (_streamDone) return;
     addLog('Stream disconnected', 'log-error');
+    if (_eventSource) { _eventSource.close(); _eventSource = null; }
     resetRunState();
   };
 }
@@ -455,6 +530,7 @@ function handleEvent(ev) {
     case 'done':
       addLog('── Analysis complete ──', 'log-done');
       setStatus('Done', 'green');
+      if (_eventSource) { _eventSource.close(); _eventSource = null; }
       resetRunState();
       loadFindings();
       loadMetrics();
@@ -717,6 +793,215 @@ async function exportToday() {
     addLog(`Exported ${trades} trades for ${d.date || 'today'}`, 'log-result');
   } catch(e) {
     addLog('Export error: ' + e.message, 'log-error');
+  }
+}
+
+// ── Side tab switching ──────────────────────────────────────────────────────
+function showSideTab(name) {
+  ['run','advisor'].forEach(t => {
+    const btn   = document.getElementById('sideTab-' + t);
+    const panel = document.getElementById('sidePanel-' + t);
+    const active = t === name;
+    if (btn) {
+      btn.style.borderColor = active ? '#388bfd' : '#30363d';
+      btn.style.color       = active ? '#58a6ff' : '#8b949e';
+      btn.style.background  = active ? '#21262d' : 'transparent';
+    }
+    if (panel) panel.style.display = active ? 'block' : 'none';
+  });
+  if (name === 'advisor') { runAdvisor(); loadAdvisorConfigHistory(); }
+}
+
+// ── Settings Advisor ────────────────────────────────────────────────────────
+const ADVISOR_SYSTEM = `You are a quantitative trading system analyst reviewing
+configuration settings for a SPY 0DTE options scalp scanner.
+The system scores option candidates 0-100 and surfaces them for scalp trades.
+
+SETTING DIRECTION RULES — follow exactly:
+- confirm_ticks: HIGHER = more confirmation = fewer but better entries
+- idea_cooldown_min: HIGHER = longer wait = fewer ideas
+- max_surface_score: LOWER = stricter ceiling
+- paper_stop_pct: LOWER = tighter stop = more stop-outs but smaller losses
+- paper_target_1_pct: LOWER = easier to hit target
+- post_stop_cooldown_sec: LOWER = faster recovery after stops
+- max_mark: HIGHER = allows more expensive options
+- ema_ticks: HIGHER = smoother trend detection (less noise)
+
+OUTPUT FORMAT — each bullet must follow exactly:
+[Setting Name]: Change X to Y — reason (n=X, avg=Y%)
+
+Rules:
+- Maximum 6 bullets
+- Lead with highest-impact change
+- Minimum sample size 20 trades per category
+- No preamble, bullets only
+- Never contradict SETTING DIRECTION RULES`;
+
+let _advisorLastRun = 0;
+
+async function runAdvisor() {
+  const COOLDOWN_MS = 5 * 60 * 1000; // 5 min
+  const now = Date.now();
+  if (now - _advisorLastRun < COOLDOWN_MS && _advisorLastRun > 0) {
+    document.getElementById('advisorStatus').textContent =
+      `Last run ${Math.round((now - _advisorLastRun) / 60000)}m ago`;
+    return;
+  }
+
+  const apiKey = window._cfgAnthropicKey || localStorage.getItem('ai_api_key') || '';
+  const outputEl = document.getElementById('advisorOutput');
+  const statusEl = document.getElementById('advisorStatus');
+  const btn      = document.getElementById('advisorRunBtn');
+
+  if (!apiKey) {
+    outputEl.textContent = 'No API key — set it in main dashboard Settings → System → AI Assistant.';
+    return;
+  }
+
+  if (btn) btn.disabled = true;
+  if (statusEl) statusEl.textContent = 'Fetching data…';
+  outputEl.textContent = '…';
+
+  try {
+    // Pull metrics + recent findings in parallel
+    const [metrics, findings, cfg] = await Promise.all([
+      fetch('/metrics').then(r => r.json()),
+      fetch('/findings?limit=10').then(r => r.json()),
+      fetch('/config').then(r => r.json()),
+    ]);
+
+    const o = metrics.overall || {};
+    const f = findings.findings || [];
+
+    const context = `
+CURRENT CONFIG (relevant):
+confirm_ticks=${cfg.confirm_ticks}  max_mark=${cfg.max_mark}  paper_stop_pct=${cfg.paper_stop_pct}
+post_stop_cooldown_sec=${cfg.post_stop_cooldown_sec}  idea_cooldown_min=${cfg.idea_cooldown_min}
+ema_ticks=${cfg.ema_ticks}  max_surface_score=${cfg.max_surface_score}
+confirm_score=${cfg.confirm_score}  paper_target_1_pct=${cfg.paper_target_1_pct}
+
+PERFORMANCE (${o.total_trades || 0} trades, ${o.trading_days || 0} days):
+Win Rate: ${o.win_rate || 0}%  Avg P&L: ${o.avg_pnl || 0}%  Stop Rate: ${o.stop_rate || 0}%
+Profit Factor: ${o.profit_factor || '—'}  Expectancy: ${o.expectancy || 0}%
+
+BY REGIME:
+${(metrics.by_regime || []).map(r =>
+  `${r.entry_regime}: n=${r.n} avg=${r.avg_pnl}% win=${r.win_rate}%`
+).join('\n')}
+
+RECENT FINDINGS:
+${f.slice(0,5).map(fi =>
+  `[${fi.verdict}] ${fi.hypothesis}: ${(fi.summary||'').slice(0,120)}`
+).join('\n')}`;
+
+    if (statusEl) statusEl.textContent = 'Calling Claude…';
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type':         'application/json',
+        'x-api-key':            apiKey,
+        'anthropic-version':    '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model:      'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        system:     ADVISOR_SYSTEM,
+        messages:   [{role: 'user', content: context}],
+      }),
+    });
+
+    const data = await resp.json();
+    const text = (data.content?.[0]?.text || 'No response.').trim();
+    _advisorLastRun = Date.now();
+
+    outputEl.innerHTML = text.split('\n')
+      .filter(l => l.trim())
+      .map(l => l.startsWith('[')
+        ? `<div style="margin-bottom:8px;padding:6px 8px;background:#0d1117;
+                       border-left:2px solid #d29922;border-radius:0 4px 4px 0">
+             ${esc(l)}
+           </div>`
+        : `<div style="color:#8b949e;font-size:10px;margin-top:4px">${esc(l)}</div>`)
+      .join('');
+
+    if (statusEl) statusEl.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+  } catch(e) {
+    outputEl.textContent = 'Error: ' + e.message;
+    if (statusEl) statusEl.textContent = '';
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function applyConfigChange() {
+  const key    = document.getElementById('cfgKey')?.value?.trim();
+  const val    = document.getElementById('cfgVal')?.value?.trim();
+  const status = document.getElementById('cfgApplyStatus');
+
+  if (!key || val === undefined || val === '') {
+    if (status) status.textContent = 'Key and value required';
+    return;
+  }
+
+  // Try to parse value as number/bool
+  let parsed = val;
+  if (val === 'true')  parsed = true;
+  else if (val === 'false') parsed = false;
+  else if (!isNaN(val) && val !== '') parsed = parseFloat(val);
+
+  try {
+    const r = await fetch('/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({[key]: parsed}),
+    }).then(r => r.json());
+
+    if (r.status === 'ok') {
+      if (status) {
+        status.textContent = `✓ ${key} set to ${parsed}`;
+        setTimeout(() => status.textContent = '', 3000);
+      }
+      document.getElementById('cfgKey').value = '';
+      document.getElementById('cfgVal').value = '';
+      setTimeout(loadAdvisorConfigHistory, 500);
+    } else {
+      if (status) status.textContent = 'Error: ' + JSON.stringify(r);
+    }
+  } catch(e) {
+    if (status) status.textContent = 'Error: ' + e.message;
+  }
+}
+
+async function loadAdvisorConfigHistory() {
+  const el = document.getElementById('advisorConfigHistory');
+  if (!el) return;
+  try {
+    const d    = await fetch('/config/history?limit=15').then(r => r.json());
+    const rows = d.history || [];
+    if (!rows.length) {
+      el.textContent = 'No config changes yet.';
+      return;
+    }
+    el.innerHTML = rows.map(r => {
+      const t    = r.changed_at ? new Date(r.changed_at).toLocaleString() : '--';
+      const src  = r.source || 'manual';
+      const keys = Array.isArray(r.changed_keys) ? r.changed_keys : [];
+      const oldV = r.old_values || {};
+      const newV = r.new_values || {};
+      const changes = keys.map(k =>
+        `<span style="color:#484f58">${k}:</span> `+
+        `<span style="color:#f85149">${oldV[k]??'—'}</span>→`+
+        `<span style="color:#3fb950">${newV[k]??'—'}</span>`
+      ).join('  ');
+      return `<div style="border-bottom:1px solid #21262d;padding:4px 0">
+        <div style="color:#8b949e;font-size:10px">${t} · <span style="color:#d29922">${src}</span></div>
+        <div style="margin-top:2px;line-height:1.6">${changes}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.textContent = 'Error loading history';
   }
 }
 
