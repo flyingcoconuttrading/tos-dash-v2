@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v2.49.0 -->
+<!-- v2.49.1 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -812,6 +812,9 @@ async function loadFindings() {
         'WEAK_EDGE':     'verdict-weak-edge',
         'NO_EDGE':       'verdict-no-edge',
         'INCONCLUSIVE':  'verdict-inconclusive',
+        'SUPPORTS':      'verdict-strong-edge',
+        'REFUTES':       'verdict-no-edge',
+        'PRELIMINARY':   'verdict-weak-edge',
       }[f.verdict] || '';
       const ev = Array.isArray(f.evidence) ? f.evidence : [];
       const evHtml = ev.map(e => `
@@ -819,7 +822,7 @@ async function loadFindings() {
           <div class="ev-val ${parseFloat(e.value)>=0?'green':'red'}">${e.value}</div>
           <div class="ev-lbl">${e.label || ''}</div>
         </div>`).join('');
-      const runAt = f.run_at ? new Date(f.run_at).toLocaleString() : '';
+      const runAt = f.run_at ? new Date(f.run_at.endsWith('Z') ? f.run_at : f.run_at + 'Z').toLocaleString() : '';
       return `
       <div class="finding-card">
         <div class="f-hypothesis">${esc(f.hypothesis || '')} <span class="muted">· ${f.trade_count || 0} trades · ${f.date_range || ''}</span></div>

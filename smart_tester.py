@@ -1,6 +1,6 @@
 """
 smart_tester.py — Autonomous backtesting agent for tos-dash-v2.
-Version: v2.49.0
+Version: v2.49.1
 
 All DuckDB queries route through api.py (port 8001) HTTP endpoints.
 No direct DuckDB access — avoids Windows file lock conflicts.
@@ -199,7 +199,9 @@ HYPOTHESIS_PROMPTS = {
         "Save a finding with the dual-threshold pattern and confidence level."
     ),
     "ALL": (
-        "Run H-001 through H-005 in order. Save a finding for each. "
+        "Run H-001 through H-005 in order. Do NOT check backtest_runs for existing findings — "
+        "always run every hypothesis fresh regardless of what is already saved. "
+        "Save a new finding for each hypothesis. "
         "End with a system health summary covering: total trades, win rate, "
         "top performing regime+trend combination, recommended config changes. "
         "Save the summary as a separate finding."
