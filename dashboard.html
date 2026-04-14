@@ -1428,6 +1428,11 @@ header {
 .news-row.bearish .news-headline { color: var(--bear); }
 .news-row.neutral .news-headline { color: var(--dim);  }
 .news-row.news-alert              { background: rgba(255,179,0,0.06); border-left: 2px solid var(--neutral); }
+
+/* ── Beta View ── */
+body.beta-view .spy-price  { font-size: 24px; }
+.dte-toggle.beta-active    { background: var(--neutral); color: var(--bg); border-color: var(--neutral); }
+.ai-quick-toggle.beta-paused { border-color: var(--bear); color: var(--bear); }
 </style>
 </head>
 <body>
@@ -5258,28 +5263,43 @@ document.addEventListener('DOMContentLoaded', function() {
 // ── News Config (Settings page) ───────────────────────────────────────────────
 let _newsConfigFeeds = [];  // current feed list; mutated by add/remove before save
 
+// Helper: get news field by ID, falling back to *2 variant (News tab)
+function _newsEl(id) {
+  return document.getElementById(id) || document.getElementById(id + '2');
+}
+
 function loadNewsConfig() {
   fetch(`${API}/news/config`)
     .then(r => r.json())
     .then(nc => {
       _newsConfigFeeds = (nc.feeds || []).map(f => Object.assign({}, f));
       _renderFeedsList();
-      document.getElementById('news_keywords').value          = nc.keywords          || '';
-      document.getElementById('news_blocked_keywords').value  = nc.negative_keywords || '';
-      document.getElementById('news_alert_keywords').value    = nc.alert_keywords    || '';
-      document.getElementById('news_bullish_words').value     = nc.bullish_words     || '';
-      document.getElementById('news_bearish_words').value     = nc.bearish_words     || '';
-      document.getElementById('news_max_age_hours').value     = nc.max_age_hours     ?? 4;
-      document.getElementById('news_max_headlines').value     = nc.max_headlines     ?? 25;
+      // Set both primary and *2 fields so both tabs stay in sync
+      ['', '2'].forEach(suffix => {
+        const el = id => document.getElementById(id + suffix);
+        if (el('news_keywords'))         el('news_keywords').value         = nc.keywords          || '';
+        if (el('news_blocked_keywords')) el('news_blocked_keywords').value = nc.negative_keywords || '';
+        if (el('news_alert_keywords'))   el('news_alert_keywords').value   = nc.alert_keywords    || '';
+        if (el('news_bullish_words'))    el('news_bullish_words').value    = nc.bullish_words     || '';
+        if (el('news_bearish_words'))    el('news_bearish_words').value    = nc.bearish_words     || '';
+        if (el('news_max_age_hours'))    el('news_max_age_hours').value    = nc.max_age_hours     ?? 4;
+        if (el('news_max_headlines'))    el('news_max_headlines').value    = nc.max_headlines     ?? 25;
+      });
     })
     .catch(() => {});
 }
 
 function _renderFeedsList() {
-  const container = document.getElementById('newsFeedsList');
+  // Target whichever feed list container exists (system tab or news tab)
+  const container = document.getElementById('newsFeedsList')
+                 || document.getElementById('newsFeedsListNews');
   if (!container) return;
+  // Also update the other container if it exists
+  const container2 = document.getElementById('newsFeedsListNews')
+                  || document.getElementById('newsFeedsList');
   if (!_newsConfigFeeds.length) {
     container.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:4px 0">No feeds configured.</div>';
+    if (container2 && container2 !== container) container2.innerHTML = container.innerHTML;
     return;
   }
   container.innerHTML = _newsConfigFeeds.map((f, i) => {
@@ -5303,6 +5323,7 @@ function _renderFeedsList() {
         onclick="removeNewsFeed(${i})">REMOVE</button>
     </div>`;
   }).join('');
+  if (container2 && container2 !== container) container2.innerHTML = container.innerHTML;
 }
 
 function _collectFeedsFromDom() {
@@ -5313,8 +5334,8 @@ function _collectFeedsFromDom() {
 }
 
 function addNewsFeed() {
-  const nameEl = document.getElementById('news_new_name');
-  const urlEl  = document.getElementById('news_new_url');
+  const nameEl = _newsEl('news_new_name');
+  const urlEl  = _newsEl('news_new_url');
   const name   = (nameEl.value || '').trim();
   const url    = (urlEl.value  || '').trim();
   if (!name || !url) {
@@ -5337,15 +5358,15 @@ function removeNewsFeed(idx) {
 
 function saveNewsConfig() {
   const feeds    = _collectFeedsFromDom();
-  const keywords         = (document.getElementById('news_keywords').value         || '').trim();
-  const blockedKeywords  = (document.getElementById('news_blocked_keywords').value || '').trim();
-  const alertKeywords    = (document.getElementById('news_alert_keywords').value   || '').trim();
-  const bullishWords     = (document.getElementById('news_bullish_words').value    || '').trim();
-  const bearishWords     = (document.getElementById('news_bearish_words').value    || '').trim();
-  const maxAge           = parseInt(document.getElementById('news_max_age_hours').value)  || 4;
-  const maxH             = parseInt(document.getElementById('news_max_headlines').value)  || 25;
+  const keywords        = (_newsEl('news_keywords')?.value         || '').trim();
+  const blockedKeywords = (_newsEl('news_blocked_keywords')?.value || '').trim();
+  const alertKeywords   = (_newsEl('news_alert_keywords')?.value   || '').trim();
+  const bullishWords    = (_newsEl('news_bullish_words')?.value    || '').trim();
+  const bearishWords    = (_newsEl('news_bearish_words')?.value    || '').trim();
+  const maxAge          = parseInt(_newsEl('news_max_age_hours')?.value)  || 4;
+  const maxH            = parseInt(_newsEl('news_max_headlines')?.value)  || 25;
 
-  const status = document.getElementById('newsSaveStatus');
+  const status = _newsEl('newsSaveStatus');
   status.textContent = 'Saving…';
   status.className   = 'save-status show';
 
