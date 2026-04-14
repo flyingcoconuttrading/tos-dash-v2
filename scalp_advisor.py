@@ -505,14 +505,16 @@ class ScalpAdvisor:
                 # Change #6 — gate first N minutes
                 if in_gate:
                     continue
-                #Suppress candidates in PINNED + no clear trend
-                if trend in ("Choppy", "CHOPPY", "choppy"):
+                # In TRENDING regime, Choppy = no edge. In PINNED, Choppy is
+                # normal mean-reversion — allow through when gate is off or PINNED.
+                if trend in ("Choppy", "CHOPPY", "choppy") and self._cfg.get("no_trade_gate", True) and gex_negative:
                     continue
                 # Block TRANSITION regime — GEX near zero, no directional anchor
                 if ms is not None and getattr(ms, "regime", "") == "TRANSITION":
                     continue
                 # Direction alignment — only surface trades that match structural lean
-                if self._cfg.get("no_trade_gate", True) and ms_cl is not None:
+                # Only apply when no_trade_gate is enabled AND we are in TRENDING regime
+                if self._cfg.get("no_trade_gate", True) and ms_cl is not None and gex_negative:
                     if s_lean == "Bear" and opt_type == "Call":
                         continue   # structure bearish — no calls
                     if s_lean == "Bull" and opt_type == "Put":

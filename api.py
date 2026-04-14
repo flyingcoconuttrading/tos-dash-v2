@@ -236,7 +236,7 @@ DEFAULT_CONFIG = {
     "max_mark":              2.00,
     "briefing_delta_min":    0.35,
     "briefing_delta_max":    0.50,
-    "pinned_allowed_trends":  ["Downtrend"],
+    "pinned_allowed_trends":  ["Uptrend", "Downtrend", "Choppy"],
     "pinned_max_score":       60,
     "max_surface_score":      66,
     "paper_stop_pct_pinned":  0.20,
