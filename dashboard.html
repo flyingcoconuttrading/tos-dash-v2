@@ -1448,6 +1448,9 @@ header {
     <button class="dte-toggle dte-active" id="dteBtn0" onclick="setDTE('0DTE')">0DTE</button>
     <button class="dte-toggle" id="dteBtn1" onclick="setDTE('1DTE')">1DTE</button>
     <button class="ai-quick-toggle" id="aiQuickToggle" onclick="quickToggleAI()">AI</button>
+    <button class="ai-quick-toggle" id="aiPauseAllBtn" onclick="toggleAIPauseAll()" title="Pause all AI calls — commentary + advisor stop, data feed continues">AI PAUSE</button>
+    <button class="dte-toggle" id="betaViewBtn" onclick="toggleBetaView()" title="Toggle Beta View layout">BETA VIEW</button>
+    <a href="http://127.0.0.1:8003/" target="_blank" style="font-family:var(--mono);font-size:9px;letter-spacing:0.10em;padding:3px 8px;border-radius:2px;border:1px solid var(--border);color:var(--muted);text-decoration:none;transition:all 0.15s;" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">BACKTESTING ↗</a>
     <div class="status-dot" id="statusDot"></div>
     <span class="status-txt" id="statusTxt">CONNECTING</span>
     <div class="ai-call-dot" id="aiCallDot" title="AI API calls"></div>
@@ -1979,21 +1982,23 @@ header {
 <!-- ══ SETTINGS PAGE ══ -->
 <div class="page" id="pageSettings">
   <div class="settings-page">
-    <!-- ── AI Settings Advisor ── -->
+    <!-- ── AI Settings Advisor — moved to backtesting dashboard ── -->
     <div class="advisor-panel" id="advisorPanel">
       <div class="advisor-header">
         <span class="advisor-title">⚡ AI SETTINGS ADVISOR</span>
-        <button class="advisor-btn" id="advisorBtn" onclick="runSettingsAdvisor()">
-          REFRESH ANALYSIS
-        </button>
+        <a href="http://127.0.0.1:8003/" target="_blank" class="advisor-btn" style="text-decoration:none">
+          OPEN BACKTESTING →
+        </a>
       </div>
       <div class="advisor-body" id="advisorBody">
-        <span class="advisor-no-key">Open Settings to load analysis…</span>
+        <span class="advisor-no-key">AI Settings Advisor has moved to the Backtesting Dashboard → Advisor tab.</span>
       </div>
     </div>
     <div class="settings-tabs">
       <button class="stab-btn stab-active" id="stab-trading" onclick="showSettingsTab('trading')">Trading</button>
       <button class="stab-btn" id="stab-system" onclick="showSettingsTab('system')">System</button>
+      <button class="stab-btn" id="stab-news" onclick="showSettingsTab('news')">News</button>
+      <button class="stab-btn" id="stab-health" onclick="showSettingsTab('health')">Health</button>
     </div>
 
     <!-- ══ TRADING PANE ══ -->
@@ -2577,6 +2582,103 @@ header {
 
     </div><!-- end spane-system -->
 
+    <!-- ══ NEWS PANE ══ -->
+    <div class="spane" id="spane-news">
+      <div class="settings-card" style="grid-column:1/-1">
+        <div class="settings-card-title">News Feeds</div>
+        <div id="newsFeedsListNews" style="margin-bottom:8px"></div>
+        <div style="border-top:1px solid var(--border);margin:10px 0 8px;padding-top:10px">
+          <div class="settings-card-title" style="font-size:10px;margin-bottom:8px">Add Custom RSS Feed</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <span class="field-desc">Name</span>
+              <input class="field-input" id="news_new_name2" type="text" placeholder="e.g. Bloomberg" style="max-width:160px">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:200px">
+              <span class="field-desc">RSS URL</span>
+              <input class="field-input" id="news_new_url2" type="text" placeholder="https://feeds.example.com/rss">
+            </div>
+            <button class="btn btn-secondary" style="font-size:9px;padding:5px 14px;align-self:flex-end"
+                    onclick="addNewsFeed2()">+ ADD</button>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);margin:10px 0 8px;padding-top:10px">
+          <div class="settings-card-title" style="font-size:10px;margin-bottom:8px">Filter &amp; Limits</div>
+          <div class="field-row" style="align-items:flex-start">
+            <span class="field-label" style="padding-top:4px">SHOW ONLY</span>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <textarea class="field-input" id="news_keywords2" rows="2"
+                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
+              <span class="field-desc">Pipe-separated keywords.</span>
+            </div>
+          </div>
+          <div class="field-row" style="align-items:flex-start;margin-top:6px">
+            <span class="field-label" style="padding-top:4px">BLOCKED</span>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <textarea class="field-input" id="news_blocked_keywords2" rows="2"
+                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
+            </div>
+          </div>
+          <div class="field-row" style="align-items:flex-start;margin-top:6px">
+            <span class="field-label" style="padding-top:4px">⚡ ALERTS</span>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <textarea class="field-input" id="news_alert_keywords2" rows="2"
+                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
+              <span class="field-desc">Triggers beep + flash (e.g. MOC|halt|FOMC).</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:4px">
+            <div class="field-row" style="flex:0 0 auto">
+              <span class="field-label">MAX AGE hrs</span>
+              <input class="field-input" id="news_max_age_hours2" type="number" min="1" max="24" step="1" style="max-width:60px">
+            </div>
+            <div class="field-row" style="flex:0 0 auto">
+              <span class="field-label">MAX HEADLINES</span>
+              <input class="field-input" id="news_max_headlines2" type="number" min="5" max="50" step="5" style="max-width:60px">
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+          <button class="btn btn-primary" style="font-size:10px" onclick="saveNewsConfig2()">SAVE NEWS SETTINGS</button>
+          <span class="save-status" id="newsSaveStatus2"></span>
+        </div>
+      </div>
+    </div><!-- end spane-news -->
+
+    <!-- ══ HEALTH PANE ══ -->
+    <div class="spane" id="spane-health">
+      <div class="settings-card" style="grid-column:1/-1">
+        <div class="settings-card-title" style="display:flex;justify-content:space-between;align-items:center">
+          System Health
+          <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
+                  onclick="loadSystemHealth()">↺ Refresh</button>
+        </div>
+        <div id="systemHealthBody" style="font-size:11px"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn btn-secondary" style="font-size:9px"
+                  onclick="restartAllSubprocesses()">↺ Restart All Subprocesses</button>
+          <button class="btn btn-secondary" style="font-size:9px;color:var(--bear);border-color:var(--bear)"
+                  onclick="confirmStopApi()">⏹ Stop API</button>
+        </div>
+      </div>
+      <div class="settings-card" style="grid-column:1/-1">
+        <div class="settings-card-title" style="display:flex;justify-content:space-between;align-items:center">
+          Data Health
+          <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
+                  onclick="loadDataHealth()">↺ Refresh</button>
+        </div>
+        <div id="dataHealthBody" style="font-size:11px;color:var(--muted)">Loading…</div>
+      </div>
+      <div class="settings-card" style="grid-column:1/-1">
+        <div class="settings-card-title" style="display:flex;justify-content:space-between;align-items:center">
+          Config Change History
+          <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
+                  onclick="loadConfigHistory()">↺ Refresh</button>
+        </div>
+        <div id="configHistoryBody" style="font-size:11px;color:var(--muted)">Loading…</div>
+      </div>
+    </div><!-- end spane-health -->
+
     <div class="settings-footer">
       <button class="btn btn-primary" onclick="saveSettings()">APPLY &amp; RESTART</button>
       <button class="btn btn-danger" onclick="restartWriter()">RESTART WRITER</button>
@@ -2647,6 +2749,191 @@ let _retryMax          = 3;      // max auto-retry attempts
 let _retryTimeout      = null;   // setTimeout handle for next retry
 let _audioCtx          = null;   // Web Audio context for beep
 
+// ── Beta View ─────────────────────────────────────────────────────────────────
+let _betaView = localStorage.getItem('betaView') === 'true';
+if (_betaView) document.body.classList.add('beta-view');
+
+function toggleBetaView() {
+  _betaView = !_betaView;
+  document.body.classList.toggle('beta-view', _betaView);
+  localStorage.setItem('betaView', _betaView);
+  const btn = document.getElementById('betaViewBtn');
+  if (btn) btn.classList.toggle('beta-active', _betaView);
+}
+
+// ── AI Pause All ───────────────────────────────────────────────────────────────
+let _aiGlobalPaused = localStorage.getItem('ai_global_paused') === 'true';
+
+function toggleAIPauseAll() {
+  _aiGlobalPaused = !_aiGlobalPaused;
+  localStorage.setItem('ai_global_paused', _aiGlobalPaused ? 'true' : 'false');
+  _aiCommentaryPaused = _aiGlobalPaused;
+  if (!_aiGlobalPaused) _advisorLastCall = 0;
+  _updateAIPauseAllBtn();
+}
+
+function _updateAIPauseAllBtn() {
+  const btn = document.getElementById('aiPauseAllBtn');
+  if (!btn) return;
+  if (_aiGlobalPaused) {
+    btn.textContent    = 'AI PAUSED';
+    btn.style.borderColor = 'var(--bear)';
+    btn.style.color       = 'var(--bear)';
+  } else {
+    btn.textContent    = 'AI PAUSE';
+    btn.style.borderColor = '';
+    btn.style.color       = '';
+  }
+}
+(function(){ _updateAIPauseAllBtn(); })();
+
+// ── System Health ─────────────────────────────────────────────────────────────
+async function loadSystemHealth() {
+  const el = document.getElementById('systemHealthBody');
+  if (!el) return;
+  try {
+    const d = await fetch(`${API}/system/status`).then(r => r.json());
+    const procs = d.processes || {};
+    const rows = Object.entries(procs).map(([name, p]) => {
+      const dot    = p.alive ? '🟢' : '🔴';
+      const pid    = p.pid   ? `PID ${p.pid}` : '—';
+      const up     = p.uptime || '—';
+      const paused = p.paused ? ' <span style="color:var(--neutral)">(paused)</span>' : '';
+      const url    = p.url   ? `<a href="${p.url}" target="_blank" style="color:var(--accent);font-size:10px">${p.url}</a>` : '';
+      const btns   = name !== 'api' ? `
+        <button class="btn btn-secondary" style="font-size:9px;padding:2px 8px"
+                onclick="processAction('${name}','restart')">↺</button>
+        <button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;color:var(--bear)"
+                onclick="processAction('${name}','stop')">⏹</button>` : '';
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:5px 8px">${dot} <strong>${name}</strong>${paused}</td>
+        <td style="padding:5px 8px;color:var(--muted)">${pid}</td>
+        <td style="padding:5px 8px;color:var(--muted)">${up}</td>
+        <td style="padding:5px 8px">${url}</td>
+        <td style="padding:5px 8px">${btns}</td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Process</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">PID</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Uptime</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">URL</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--border)"></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  } catch(e) {
+    el.innerHTML = `<span style="color:var(--bear)">Error: ${e.message}</span>`;
+  }
+}
+
+async function processAction(name, action) {
+  try {
+    const r = await fetch(`${API}/process/${name}/${action}`, {method:'POST'}).then(r => r.json());
+    setTimeout(loadSystemHealth, 1500);
+    if (r.status === 'stopping') alert('API is shutting down. Restart api.py manually.');
+  } catch(e) { alert(`Error: ${e.message}`); }
+}
+
+async function restartAllSubprocesses() {
+  if (!confirm('Restart all subprocesses (writer, tick recorder, backtest)?')) return;
+  await Promise.all([
+    fetch(`${API}/process/writer/restart`,        {method:'POST'}),
+    fetch(`${API}/process/tick_recorder/restart`, {method:'POST'}),
+    fetch(`${API}/process/backtest/restart`,      {method:'POST'}),
+  ]);
+  setTimeout(loadSystemHealth, 2000);
+}
+
+function confirmStopApi() {
+  if (!confirm('Stop the API server? You will need to restart api.py manually.')) return;
+  fetch(`${API}/process/api/stop`, {method:'POST'}).catch(() => {});
+  setTimeout(() => alert('API stopped. Run: python api.py'), 1500);
+}
+
+// ── Data Health ───────────────────────────────────────────────────────────────
+async function loadDataHealth() {
+  const el = document.getElementById('dataHealthBody');
+  if (!el) return;
+  try {
+    const d = await fetch(`${API}/data/health`).then(r => r.json());
+    const tables = d.tables || {};
+    const now = Date.now();
+    const rows = Object.entries(tables).map(([tbl, info]) => {
+      const latest = info.latest ? new Date(info.latest) : null;
+      const ageMs  = latest ? now - latest.getTime() : null;
+      const ageMin = ageMs  ? Math.floor(ageMs / 60000) : null;
+      let freshness = '—', color = 'var(--muted)';
+      if (ageMin !== null) {
+        if (ageMin < 5)       { freshness = `${ageMin}m ago`;              color = 'var(--bull)'; }
+        else if (ageMin < 60) { freshness = `${ageMin}m ago`;              color = 'var(--neutral)'; }
+        else                  { freshness = `${Math.floor(ageMin/60)}h ago`; color = 'var(--bear)'; }
+      }
+      const err = info.error ? `<span style="color:var(--bear);font-size:10px"> ⚠ ${info.error}</span>` : '';
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:5px 8px;font-family:var(--mono);font-size:11px">${tbl}</td>
+        <td style="padding:5px 8px;color:var(--muted);font-size:10px">${info.db||''}</td>
+        <td style="padding:5px 8px;text-align:right">${(info.count||0).toLocaleString()}</td>
+        <td style="padding:5px 8px;color:${color}">${freshness}${err}</td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Table</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">DB</th>
+        <th style="text-align:right;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Rows</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Freshness</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="font-size:10px;color:var(--muted);margin-top:6px">Updated ${new Date(d.timestamp).toLocaleTimeString()}</div>`;
+  } catch(e) {
+    el.innerHTML = `<span style="color:var(--bear)">Error: ${e.message}</span>`;
+  }
+}
+
+// ── Config History ─────────────────────────────────────────────────────────────
+async function loadConfigHistory() {
+  const el = document.getElementById('configHistoryBody');
+  if (!el) return;
+  try {
+    const d = await fetch(`${API}/config/history?limit=30`).then(r => r.json());
+    const rows = d.history || [];
+    if (!rows.length) {
+      el.innerHTML = '<span style="color:var(--muted)">No config changes recorded yet.</span>';
+      return;
+    }
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Time</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Source</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Changes</th>
+      </tr></thead>
+      <tbody>${rows.map(r => {
+        const t   = r.changed_at ? new Date(r.changed_at).toLocaleString() : '--';
+        const src = r.source || 'manual';
+        const srcColor = src==='advisor'?'var(--neutral)':src==='startup'?'var(--muted)':'var(--accent)';
+        const keys = Array.isArray(r.changed_keys) ? r.changed_keys : [];
+        const oldV = r.old_values || {};
+        const newV = r.new_values || {};
+        const changes = keys.map(k =>
+          `<span style="color:var(--dim)">${k}:</span> `+
+          `<span style="color:var(--bear)">${oldV[k]??'—'}</span>`+
+          ` → <span style="color:var(--bull)">${newV[k]??'—'}</span>`
+        ).join('<br>');
+        return `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:5px 8px;color:var(--muted);white-space:nowrap;vertical-align:top">${t}</td>
+          <td style="padding:5px 8px;vertical-align:top"><span style="color:${srcColor};font-weight:600;font-size:10px;text-transform:uppercase">${src}</span></td>
+          <td style="padding:5px 8px;line-height:1.7">${changes}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  } catch(e) {
+    el.innerHTML = `<span style="color:var(--bear)">Error: ${e.message}</span>`;
+  }
+}
+
 // ── Page nav ──────────────────────────────────────────────────────────────────
 let chartTick = -1;
 let chartInterval = null;
@@ -2659,7 +2946,6 @@ function showPage(name) {
   document.querySelector(`[onclick="showPage('${name}')"]`).classList.add('active');
   if (name === 'settings') {
     loadSettings();
-    runSettingsAdvisor();
   }
   if (name === 'chain') {
     renderChain();
@@ -3791,12 +4077,62 @@ function saveSettings() {
 }
 
 function showSettingsTab(tab) {
-  ['trading', 'system'].forEach(t => {
+  ['trading', 'system', 'news', 'health'].forEach(t => {
     const pane = document.getElementById('spane-' + t);
     const btn  = document.getElementById('stab-' + t);
     if (pane) pane.className = 'spane' + (t === tab ? ' spane-active' : '');
     if (btn)  btn.className  = 'stab-btn' + (t === tab ? ' stab-active' : '');
   });
+  if (tab === 'news')   syncNewsTab();
+  if (tab === 'health') { loadSystemHealth(); loadDataHealth(); loadConfigHistory(); }
+}
+
+function syncNewsTab() {
+  const pairs = [
+    ['news_keywords','news_keywords2'],
+    ['news_blocked_keywords','news_blocked_keywords2'],
+    ['news_alert_keywords','news_alert_keywords2'],
+    ['news_max_age_hours','news_max_age_hours2'],
+    ['news_max_headlines','news_max_headlines2'],
+  ];
+  pairs.forEach(([src, dst]) => {
+    const s = document.getElementById(src);
+    const d = document.getElementById(dst);
+    if (s && d) d.value = s.value;
+  });
+  // Sync feed list
+  const srcList = document.getElementById('newsFeedsList');
+  const dstList = document.getElementById('newsFeedsListNews');
+  if (srcList && dstList) dstList.innerHTML = srcList.innerHTML;
+}
+
+function saveNewsConfig2() {
+  const pairs = [
+    ['news_keywords2','news_keywords'],
+    ['news_blocked_keywords2','news_blocked_keywords'],
+    ['news_alert_keywords2','news_alert_keywords'],
+    ['news_max_age_hours2','news_max_age_hours'],
+    ['news_max_headlines2','news_max_headlines'],
+  ];
+  pairs.forEach(([src, dst]) => {
+    const s = document.getElementById(src);
+    const d = document.getElementById(dst);
+    if (s && d) d.value = s.value;
+  });
+  saveNewsConfig();
+  const st = document.getElementById('newsSaveStatus2');
+  if (st) { st.textContent = 'Saved'; setTimeout(() => st.textContent = '', 2000); }
+}
+
+function addNewsFeed2() {
+  const n = document.getElementById('news_new_name2');
+  const u = document.getElementById('news_new_url2');
+  if (n && u) {
+    document.getElementById('news_new_name').value = n.value;
+    document.getElementById('news_new_url').value  = u.value;
+    addNewsFeed();
+    n.value = ''; u.value = '';
+  }
 }
 
 function restartWriter() {
@@ -4589,145 +4925,7 @@ Rules:
 - Never recommend a direction that contradicts the SETTING DIRECTION RULES above`;
 
 async function runSettingsAdvisor() {
-  const bodyEl = document.getElementById('advisorBody');
-  const btn    = document.getElementById('advisorBtn');
-  const apiKey = window._cfgAnthropicKey || '';
-  const cooldownMin = parseInt(localStorage.getItem('advisor_interval') || '10');
-  const cooldownMs  = cooldownMin * 60 * 1000;
-  const now         = Date.now();
-  if (now - _advisorLastCall < cooldownMs) {
-    // Still within cooldown — just show last result without re-calling
-    return;
-  }
-
-  if (_isStale || _disconnectTime) {
-    bodyEl.className = 'advisor-body';
-    bodyEl.innerHTML = '<span class="advisor-no-key">\u26a0\ufe0f Data stale or disconnected — reconnect before running advisor.</span>';
-    return;
-  }
-
-  if (!apiKey) {
-    bodyEl.className   = 'advisor-body';
-    bodyEl.innerHTML   = '<span class="advisor-no-key">No API key set — add key in AI Assistant section below.</span>';
-    return;
-  }
-
-  bodyEl.className   = 'advisor-body loading';
-  bodyEl.textContent = 'Fetching config and performance data…';
-  btn.disabled       = true;
-
-  try {
-    // Fetch config and ideas in parallel
-    const [cfgResp, ideasResp] = await Promise.all([
-      fetch(`${API}/config`),
-      fetch(`${API}/ideas`),
-    ]);
-    const cfg   = await cfgResp.json();
-    const ideas = await ideasResp.json();
-
-    // Build performance summary from stats
-    const stats = ideas.stats || {};
-    const rows  = ideas.rows  || [];
-
-    // Today's ideas
-    const today     = new Date().toISOString().slice(0, 10);
-    const todayRows = rows.filter(r => (r.surfaced_at || '').startsWith(today));
-    const todayDone = todayRows.filter(r => r.paper_exit_reason);
-    const todayStops    = todayDone.filter(r => r.paper_exit_reason === 'STOP').length;
-    const todayTargets  = todayDone.filter(r => (r.paper_exit_reason || '').startsWith('TARGET')).length;
-    const todayAvgPnl   = todayDone.length
-      ? (todayDone.reduce((s, r) => s + (r.paper_pnl_pct || 0), 0) / todayDone.length).toFixed(1)
-      : 'n/a';
-
-    // Recent 50 ideas paper stats
-    const recent = rows.slice(0, 50).filter(r => r.paper_exit_reason);
-    const recentStops   = recent.filter(r => r.paper_exit_reason === 'STOP').length;
-    const recentTargets = recent.filter(r => (r.paper_exit_reason || '').startsWith('TARGET')).length;
-    const recentAvgPnl  = recent.length
-      ? (recent.reduce((s, r) => s + (r.paper_pnl_pct || 0), 0) / recent.length).toFixed(1)
-      : 'n/a';
-
-    // Score band breakdown from recent
-    const bands = {'<58':[], '58-62':[], '62-66':[], '66+':[]};
-    recent.forEach(r => {
-      const sc = r.entry_score || 0;
-      const b  = sc < 58 ? '<58' : sc < 62 ? '58-62' : sc < 66 ? '62-66' : '66+';
-      bands[b].push(r.paper_pnl_pct || 0);
-    });
-    const bandSummary = Object.entries(bands).map(([b, pnls]) =>
-      pnls.length ? `${b}: n=${pnls.length} avg=${(pnls.reduce((a,b)=>a+b,0)/pnls.length).toFixed(1)}%` : null
-    ).filter(Boolean).join(' | ');
-
-    // By regime
-    const regimes = {};
-    recent.forEach(r => {
-      const reg = r.entry_regime || 'UNKNOWN';
-      if (!regimes[reg]) regimes[reg] = [];
-      regimes[reg].push(r.paper_pnl_pct || 0);
-    });
-    const regimeSummary = Object.entries(regimes).map(([reg, pnls]) =>
-      `${reg}: n=${pnls.length} avg=${(pnls.reduce((a,b)=>a+b,0)/pnls.length).toFixed(1)}%`
-    ).join(' | ');
-
-    // Hit rates from stats
-    const hit1m  = stats['1m']?.hit_rate?.toFixed(1)  ?? 'n/a';
-    const hit5m  = stats['5m']?.hit_rate?.toFixed(1)  ?? 'n/a';
-    const hit10m = stats['10m']?.hit_rate?.toFixed(1) ?? 'n/a';
-
-    // Build prompt
-    const prompt = `CURRENT CONFIG (key settings):
-confirm_ticks=${cfg.confirm_ticks}  confirm_ticks_surge=${cfg.confirm_ticks_surge}
-drop_threshold=${cfg.drop_threshold}  max_surface_score=${cfg.max_surface_score}
-min_delta=${cfg.min_delta}  min_mark=${cfg.min_mark}
-paper_stop_pct=${cfg.paper_stop_pct}  paper_stop_pct_pinned=${cfg.paper_stop_pct_pinned}
-paper_target_1_pct=${cfg.paper_target_1_pct}  paper_target_2_pct=${cfg.paper_target_2_pct}
-pinned_max_score=${cfg.pinned_max_score}  pinned_allowed_trends=${JSON.stringify(cfg.pinned_allowed_trends)}
-open_gate_minutes=${cfg.open_gate_minutes}  idea_cooldown_min=${cfg.idea_cooldown_min}
-structure_gate_scanner=${cfg.structure_gate_scanner}
-momentum_short_ticks=${cfg.momentum_short_ticks}  momentum_medium_ticks=${cfg.momentum_medium_ticks}
-
-HISTORICAL PERFORMANCE (last 500 ideas):
-Hit rates: 1m=${hit1m}%  5m=${hit5m}%  10m=${hit10m}%
-Score bands (paper PnL): ${bandSummary}
-By regime: ${regimeSummary}
-
-RECENT 50 IDEAS:
-Targets=${recentTargets}  Stops=${recentStops}  AvgPnL=${recentAvgPnl}%
-
-TODAY (${today}):
-Ideas=${todayDone.length}  Targets=${todayTargets}  Stops=${todayStops}  AvgPnL=${todayAvgPnl}%
-
-Based on this data, what settings changes would improve performance?`;
-
-    bodyEl.className   = 'advisor-body loading';
-    bodyEl.textContent = 'Analyzing with Claude…';
-
-    const reply = await _callClaude(
-      [{ role: 'user', content: prompt }],
-      400,
-      ADVISOR_SYSTEM_PROMPT   // override system prompt
-    );
-
-    // Render bullets
-    const lines = reply.split('\n').map(l => l.trim()).filter(Boolean);
-    bodyEl.className = 'advisor-body';
-    bodyEl.innerHTML = lines.map(line => {
-      // Strip leading bullet chars
-      const text = line.replace(/^[-•*·]\s*/, '');
-      return `<div class="advisor-bullet">
-        <span class="advisor-bullet-dot">▸</span>
-        <span>${text}</span>
-      </div>`;
-    }).join('');
-
-    _advisorLastCall = Date.now();
-
-  } catch(err) {
-    bodyEl.className   = 'advisor-body error';
-    bodyEl.textContent = `Error: ${err.message}`;
-  } finally {
-    btn.disabled = false;
-  }
+  // Advisor moved to backtesting dashboard — http://127.0.0.1:8003
 }
 
 let _aiFirstSnap = true;
