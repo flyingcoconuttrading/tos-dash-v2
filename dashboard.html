@@ -1428,56 +1428,6 @@ header {
 .news-row.bearish .news-headline { color: var(--bear); }
 .news-row.neutral .news-headline { color: var(--dim);  }
 .news-row.news-alert              { background: rgba(255,179,0,0.06); border-left: 2px solid var(--neutral); }
-
-/* ── Beta View ────────────────────────────────────────────────────────────── */
-.beta-only  { display: none !important; }
-.beta-hide  { }
-
-body.beta-view .beta-only  { display: flex !important; }
-body.beta-view .beta-only.block { display: block !important; }
-body.beta-view .beta-hide  { display: none !important; }
-
-/* Tighten key levels rows */
-body.beta-view .level-row  { padding: 3px 0; }
-
-/* Smaller SPY price */
-body.beta-view .spy-price  { font-size: 24px; }
-body.beta-view .spy-price-block { min-width: 120px; }
-
-/* Inline live prices in beta price hero */
-.beta-live-prices {
-  display: none;
-  align-items: center;
-  gap: 16px;
-  margin-left: 4px;
-}
-body.beta-view .beta-live-prices { display: flex !important; }
-.beta-price-item { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-.beta-price-lbl  { font-family: var(--mono); font-size: 8px; color: var(--muted); letter-spacing: 0.10em; }
-.beta-price-val  { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--text); }
-
-/* Spread warning */
-.spread-warning {
-  display: none;
-  font-family: var(--mono); font-size: 11px;
-}
-body.beta-view .spread-warning { display: block !important; }
-.spread-warning.tight { color: var(--muted); }
-.spread-warning.wide  { color: var(--neutral); font-weight: 700; }
-
-/* Change from open */
-.change-from-open {
-  display: none;
-  font-family: var(--mono); font-size: 13px; font-weight: 700;
-  align-self: flex-end; margin-bottom: 2px;
-}
-body.beta-view .change-from-open { display: block !important; }
-.change-from-open.pos { color: var(--bull); }
-.change-from-open.neg { color: var(--bear); }
-.change-from-open.flat { color: var(--muted); }
-
-/* BETA VIEW button active state */
-.dte-toggle.beta-active { background: var(--neutral); color: var(--bg); border-color: var(--neutral); }
 </style>
 </head>
 <body>
@@ -1498,13 +1448,10 @@ body.beta-view .change-from-open { display: block !important; }
     <button class="dte-toggle dte-active" id="dteBtn0" onclick="setDTE('0DTE')">0DTE</button>
     <button class="dte-toggle" id="dteBtn1" onclick="setDTE('1DTE')">1DTE</button>
     <button class="ai-quick-toggle" id="aiQuickToggle" onclick="quickToggleAI()">AI</button>
-    <button class="ai-quick-toggle" id="aiPauseAllBtn" onclick="toggleAIPauseAll()" title="Pause all AI calls — commentary + advisor stop, data feed continues">AI PAUSE</button>
     <div class="status-dot" id="statusDot"></div>
     <span class="status-txt" id="statusTxt">CONNECTING</span>
     <div class="ai-call-dot" id="aiCallDot" title="AI API calls"></div>
     <span class="ai-call-label" id="aiCallLabel">AI 0</span>
-    <button class="dte-toggle" id="betaViewBtn" onclick="toggleBetaView()" title="Toggle Beta View layout">BETA VIEW</button>
-    <a href="http://127.0.0.1:8003/" target="_blank" style="font-family:var(--mono);font-size:9px;letter-spacing:0.10em;padding:3px 8px;border-radius:2px;border:1px solid var(--border);color:var(--muted);text-decoration:none;transition:all 0.15s;" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">BACKTESTING ↗</a>
     <span class="version-tag">v2.1</span>
     <span class="ts" id="tsEl">--</span>
   </div>
@@ -1535,17 +1482,11 @@ body.beta-view .change-from-open { display: block !important; }
       <div class="spy-price flat" id="spyPrice">--</div>
       <div id="priceTypeLabel" style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:0.10em;text-align:center">LAST</div>
     </div>
-    <!-- Beta: change from open -->
-    <div class="change-from-open flat" id="changeFromOpen">--</div>
-    <!-- Beta: spread warning (replaces bid/ask) -->
-    <div class="spread-warning tight" id="spreadWarning">SPREAD --</div>
-    <!-- Default: bid/ask -->
-    <div class="meta-group beta-hide" id="bidAskGroup">
+    <div class="meta-group">
       <div class="meta-label">BID / ASK</div>
       <div class="meta-val" id="bidAsk">-- / --</div>
     </div>
-    <!-- Default: max pain (hidden in beta — shown in key levels instead) -->
-    <div class="meta-group beta-hide" id="maxPainGroup">
+    <div class="meta-group">
       <div class="meta-label">MAX PAIN</div>
       <div class="meta-val accent" id="maxPain">--</div>
     </div>
@@ -1553,17 +1494,9 @@ body.beta-view .change-from-open { display: block !important; }
       <div class="meta-label">EXPIRY</div>
       <div class="meta-val" id="expiry">--</div>
     </div>
-    <!-- Default: feed tick counter (hidden in beta — not a trading signal) -->
-    <div class="meta-group beta-hide" id="tickGroup">
+    <div class="meta-group">
       <div class="meta-label">TICK</div>
       <div class="meta-val" id="tickEl">--</div>
-    </div>
-    <!-- Beta: live prices inline -->
-    <div class="beta-live-prices">
-      <div class="beta-price-item"><span class="beta-price-lbl">QQQ</span><span class="beta-price-val" id="betaQqq">--</span></div>
-      <div class="beta-price-item"><span class="beta-price-lbl">/ES</span><span class="beta-price-val" id="betaEs">--</span></div>
-      <div class="beta-price-item"><span class="beta-price-lbl">/NQ</span><span class="beta-price-val" id="betaNq">--</span></div>
-      <div class="beta-price-item"><span class="beta-price-lbl">IWM</span><span class="beta-price-val" id="betaIwm">--</span></div>
     </div>
     <div class="bias-block">
       <div class="bias-pill neutral" id="biasPill">--</div>
@@ -1577,11 +1510,6 @@ body.beta-view .change-from-open { display: block !important; }
     <!-- Left: Levels -->
     <div class="panel">
       <div class="panel-title">Key Levels</div>
-      <!-- Beta view: Max Pain shown here instead of price hero -->
-      <div class="level-row beta-only block" id="maxPainKLRow">
-        <span class="level-name">MAX PAIN</span>
-        <span class="level-val accent" id="maxPainKL">--</span>
-      </div>
       <div class="level-row"><span class="level-name">CALL WALL</span><span class="level-val bull" id="callWall">--</span></div>
       <div class="level-row"><span class="level-name">PUT WALL</span><span class="level-val bear" id="putWall">--</span></div>
       <div class="level-row"><span class="level-name">GEX ANCHOR</span><span class="level-val accent" id="gexAnchor">--</span></div>
@@ -2066,8 +1994,6 @@ body.beta-view .change-from-open { display: block !important; }
     <div class="settings-tabs">
       <button class="stab-btn stab-active" id="stab-trading" onclick="showSettingsTab('trading')">Trading</button>
       <button class="stab-btn" id="stab-system" onclick="showSettingsTab('system')">System</button>
-      <button class="stab-btn" id="stab-news" onclick="showSettingsTab('news')">News</button>
-      <button class="stab-btn" id="stab-health" onclick="showSettingsTab('health')">Health</button>
     </div>
 
     <!-- ══ TRADING PANE ══ -->
@@ -2575,9 +2501,10 @@ body.beta-view .change-from-open { display: block !important; }
               <div class="toggle-track"></div>
               <div class="toggle-knob"></div>
             </label>
+            <span class="toggle-label" id="testModeLabel">OFF</span>
           </div>
         </div>
-        <div class="field-row">
+        <div class="field-row" id="testDateRow" style="opacity:0.3;pointer-events:none">
           <span class="field-label">OVERRIDE DATE</span>
           <div style="display:flex;flex-direction:column;gap:2px;flex:1">
             <input class="field-input" id="cfg_test_date" type="text" placeholder="YYYY-MM-DD">
@@ -2648,214 +2575,7 @@ body.beta-view .change-from-open { display: block !important; }
         </div>
       </div>
 
-      <!-- ── NEWS FEEDS ── -->
-      <div class="settings-card" style="grid-column:1/-1">
-        <div class="settings-card-title">News Feeds</div>
-
-        <!-- Feed list — populated by loadNewsConfig() -->
-        <div id="newsFeedsList" style="margin-bottom:8px"></div>
-
-        <!-- Add custom feed -->
-        <div style="border-top:1px solid var(--border);margin:10px 0 8px;padding-top:10px">
-          <div class="settings-card-title" style="font-size:10px;margin-bottom:8px">Add Custom RSS Feed</div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-            <div style="display:flex;flex-direction:column;gap:3px">
-              <span class="field-desc">Name</span>
-              <input class="field-input" id="news_new_name" type="text" placeholder="e.g. Bloomberg" style="max-width:160px">
-            </div>
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:200px">
-              <span class="field-desc">RSS URL</span>
-              <input class="field-input" id="news_new_url" type="text" placeholder="https://feeds.example.com/rss">
-            </div>
-            <button class="btn btn-secondary" style="font-size:9px;padding:5px 14px;align-self:flex-end" onclick="addNewsFeed()">+ ADD</button>
-          </div>
-        </div>
-
-        <!-- Filter & limits -->
-        <div style="border-top:1px solid var(--border);margin:10px 0 8px;padding-top:10px">
-          <div class="settings-card-title" style="font-size:10px;margin-bottom:8px">Filter &amp; Limits</div>
-          <div class="field-row" style="align-items:flex-start">
-            <span class="field-label" style="padding-top:4px">SHOW ONLY</span>
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
-              <textarea class="field-input" id="news_keywords" rows="2"
-                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
-              <span class="field-desc">Pipe-separated keywords. Only show headlines matching at least one.</span>
-            </div>
-          </div>
-          <div class="field-row" style="align-items:flex-start;margin-top:6px">
-            <span class="field-label" style="padding-top:4px">BLOCKED</span>
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
-              <textarea class="field-input" id="news_blocked_keywords" rows="2"
-                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
-              <span class="field-desc">Pipe-separated keywords. Always hide headlines matching these.</span>
-            </div>
-          </div>
-          <div class="field-row" style="align-items:flex-start;margin-top:6px">
-            <span class="field-label" style="padding-top:4px">⚡ ALERTS</span>
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
-              <textarea class="field-input" id="news_alert_keywords" rows="2"
-                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
-              <span class="field-desc">Pipe-separated keywords. Triggers beep + flash (e.g. MOC|halt|FOMC).</span>
-            </div>
-          </div>
-          <div class="field-row" style="align-items:flex-start;margin-top:6px">
-            <span class="field-label" style="padding-top:4px">BULLISH WORDS</span>
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
-              <input class="field-input" id="news_bullish_words" type="text"
-                style="width:100%;font-family:var(--mono);font-size:10px">
-              <span class="field-desc">Pipe-separated words for green highlight.</span>
-            </div>
-          </div>
-          <div class="field-row" style="align-items:flex-start;margin-top:6px">
-            <span class="field-label" style="padding-top:4px">BEARISH WORDS</span>
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
-              <input class="field-input" id="news_bearish_words" type="text"
-                style="width:100%;font-family:var(--mono);font-size:10px">
-              <span class="field-desc">Pipe-separated words for red highlight.</span>
-            </div>
-          </div>
-          <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:4px">
-            <div class="field-row" style="flex:0 0 auto">
-              <span class="field-label">MAX AGE hrs</span>
-              <input class="field-input" id="news_max_age_hours" type="number" min="1" max="24" step="1" style="max-width:60px">
-            </div>
-            <div class="field-row" style="flex:0 0 auto">
-              <span class="field-label">MAX HEADLINES</span>
-              <input class="field-input" id="news_max_headlines" type="number" min="5" max="50" step="5" style="max-width:60px">
-            </div>
-          </div>
-        </div>
-
-        <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
-          <button class="btn btn-primary" style="font-size:10px" onclick="saveNewsConfig()">SAVE NEWS SETTINGS</button>
-          <span class="save-status" id="newsSaveStatus"></span>
-        </div>
-      </div>
-
-      <!-- ── CONFIG HISTORY ── -->
-      <div class="settings-card" style="grid-column:1/-1">
-        <div class="settings-card-title" style="display:flex;justify-content:space-between;align-items:center">
-          Config Change History
-          <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
-                  onclick="loadConfigHistory()">↺ Refresh</button>
-        </div>
-        <div id="configHistoryBody" style="font-size:11px;color:var(--muted)">
-          Loading…
-        </div>
-      </div>
-
     </div><!-- end spane-system -->
-
-    <!-- ══ NEWS PANE ══ -->
-    <div class="spane" id="spane-news">
-      <div class="settings-card" style="grid-column:1/-1">
-        <div class="settings-card-title">News Feeds</div>
-        <div id="newsFeedsListNews" style="margin-bottom:8px"></div>
-        <div style="border-top:1px solid var(--border);margin:10px 0 8px;padding-top:10px">
-          <div class="settings-card-title" style="font-size:10px;margin-bottom:8px">Add Custom RSS Feed</div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-            <div style="display:flex;flex-direction:column;gap:3px">
-              <span class="field-desc">Name</span>
-              <input class="field-input" id="news_new_name2" type="text" placeholder="e.g. Bloomberg" style="max-width:160px">
-            </div>
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:200px">
-              <span class="field-desc">RSS URL</span>
-              <input class="field-input" id="news_new_url2" type="text" placeholder="https://feeds.example.com/rss">
-            </div>
-            <button class="btn btn-secondary" style="font-size:9px;padding:5px 14px;align-self:flex-end"
-                    onclick="addNewsFeed2()">+ ADD</button>
-          </div>
-        </div>
-        <div style="border-top:1px solid var(--border);margin:10px 0 8px;padding-top:10px">
-          <div class="settings-card-title" style="font-size:10px;margin-bottom:8px">Filter &amp; Limits</div>
-          <div class="field-row" style="align-items:flex-start">
-            <span class="field-label" style="padding-top:4px">SHOW ONLY</span>
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
-              <textarea class="field-input" id="news_keywords2" rows="2"
-                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
-              <span class="field-desc">Pipe-separated keywords. Only show headlines matching at least one.</span>
-            </div>
-          </div>
-          <div class="field-row" style="align-items:flex-start;margin-top:6px">
-            <span class="field-label" style="padding-top:4px">BLOCKED</span>
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
-              <textarea class="field-input" id="news_blocked_keywords2" rows="2"
-                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
-              <span class="field-desc">Pipe-separated keywords. Always hide headlines matching these.</span>
-            </div>
-          </div>
-          <div class="field-row" style="align-items:flex-start;margin-top:6px">
-            <span class="field-label" style="padding-top:4px">⚡ ALERTS</span>
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
-              <textarea class="field-input" id="news_alert_keywords2" rows="2"
-                style="width:100%;resize:vertical;font-family:var(--mono);font-size:10px"></textarea>
-              <span class="field-desc">Triggers beep + flash (e.g. MOC|halt|FOMC).</span>
-            </div>
-          </div>
-          <div class="field-row" style="align-items:flex-start;margin-top:6px">
-            <span class="field-label" style="padding-top:4px">BULLISH WORDS</span>
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
-              <input class="field-input" id="news_bullish_words2" type="text"
-                style="width:100%;font-family:var(--mono);font-size:10px">
-              <span class="field-desc">Pipe-separated words for green highlight.</span>
-            </div>
-          </div>
-          <div class="field-row" style="align-items:flex-start;margin-top:6px">
-            <span class="field-label" style="padding-top:4px">BEARISH WORDS</span>
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
-              <input class="field-input" id="news_bearish_words2" type="text"
-                style="width:100%;font-family:var(--mono);font-size:10px">
-              <span class="field-desc">Pipe-separated words for red highlight.</span>
-            </div>
-          </div>
-          <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:4px">
-            <div class="field-row" style="flex:0 0 auto">
-              <span class="field-label">MAX AGE hrs</span>
-              <input class="field-input" id="news_max_age_hours2" type="number" min="1" max="24" step="1" style="max-width:60px">
-            </div>
-            <div class="field-row" style="flex:0 0 auto">
-              <span class="field-label">MAX HEADLINES</span>
-              <input class="field-input" id="news_max_headlines2" type="number" min="5" max="50" step="5" style="max-width:60px">
-            </div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
-          <button class="btn btn-primary" style="font-size:10px" onclick="saveNewsConfig2()">SAVE NEWS SETTINGS</button>
-          <span class="save-status" id="newsSaveStatus2"></span>
-        </div>
-      </div>
-    </div><!-- end spane-news -->
-
-    <!-- ══ HEALTH PANE ══ -->
-    <div class="spane" id="spane-health">
-
-      <!-- System Health -->
-      <div class="settings-card" style="grid-column:1/-1">
-        <div class="settings-card-title" style="display:flex;justify-content:space-between;align-items:center">
-          System Health
-          <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
-                  onclick="loadSystemHealth()">↺ Refresh</button>
-        </div>
-        <div id="systemHealthBody" style="font-size:11px"></div>
-        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-          <button class="btn btn-secondary" style="font-size:9px"
-                  onclick="restartAll()">↺ Restart All Subprocesses</button>
-          <button class="btn btn-secondary" style="font-size:9px;color:var(--bear);border-color:var(--bear)"
-                  onclick="confirmStopApi()">⏹ Stop API</button>
-        </div>
-      </div>
-
-      <!-- Data Health -->
-      <div class="settings-card" style="grid-column:1/-1">
-        <div class="settings-card-title" style="display:flex;justify-content:space-between;align-items:center">
-          Data Health
-          <button class="btn btn-secondary" style="font-size:9px;padding:3px 10px"
-                  onclick="loadDataHealth()">↺ Refresh</button>
-        </div>
-        <div id="dataHealthBody" style="font-size:11px;color:var(--muted)">Loading…</div>
-      </div>
-
-    </div><!-- end spane-health -->
 
     <div class="settings-footer">
       <button class="btn btn-primary" onclick="saveSettings()">APPLY &amp; RESTART</button>
@@ -2927,247 +2647,6 @@ let _retryMax          = 3;      // max auto-retry attempts
 let _retryTimeout      = null;   // setTimeout handle for next retry
 let _audioCtx          = null;   // Web Audio context for beep
 
-// ── Beta View ─────────────────────────────────────────────────────────────────
-let _betaView      = localStorage.getItem('betaView') === 'true';
-let _openPrice     = null;
-let _openPriceSet  = false;
-let _openPriceDate = '';
-
-// Apply saved preference on load
-if (_betaView) {
-  document.body.classList.add('beta-view');
-}
-
-function toggleBetaView() {
-  _betaView = !_betaView;
-  document.body.classList.toggle('beta-view', _betaView);
-  localStorage.setItem('betaView', _betaView);
-  const btn = document.getElementById('betaViewBtn');
-  if (btn) btn.classList.toggle('beta-active', _betaView);
-}
-
-// Call on page load to sync button state
-(function() {
-  const btn = document.getElementById('betaViewBtn');
-  if (btn && _betaView) btn.classList.add('beta-active');
-})();
-
-function _updateBetaElements(snap) {
-  if (!snap) return;
-  const price = snap.price;
-
-  // Open price tracking — set on first tick at/after 09:30 ET each day
-  const today = new Date().toISOString().slice(0, 10);
-  if (_openPriceDate !== today) {
-    // New day — reset
-    _openPrice     = null;
-    _openPriceSet  = false;
-    _openPriceDate = today;
-  }
-  if (!_openPriceSet && price && price > 0) {
-    const now = new Date();
-    const etOffset = now.getTimezoneOffset() + 240; // rough ET offset
-    const etHour   = now.getHours() - Math.floor(etOffset / 60);
-    const etMin    = now.getMinutes();
-    if (etHour > 9 || (etHour === 9 && etMin >= 30)) {
-      _openPrice    = price;
-      _openPriceSet = true;
-    }
-  }
-
-  // Change from open
-  const coEl = document.getElementById('changeFromOpen');
-  if (coEl) {
-    if (_openPrice && price && price > 0) {
-      const chg = price - _openPrice;
-      const sign = chg >= 0 ? '+' : '';
-      coEl.textContent = `${sign}$${chg.toFixed(2)}`;
-      coEl.className = 'change-from-open ' + (chg > 0 ? 'pos' : chg < 0 ? 'neg' : 'flat');
-    } else {
-      coEl.textContent = '--';
-      coEl.className = 'change-from-open flat';
-    }
-  }
-
-  // Spread warning
-  const swEl = document.getElementById('spreadWarning');
-  if (swEl && snap.bid != null && snap.ask != null) {
-    const spread = snap.ask - snap.bid;
-    const isWide = spread > 0.05;
-    swEl.textContent = `SPREAD $${spread.toFixed(2)}${isWide ? ' ⚠' : ''}`;
-    swEl.className = 'spread-warning ' + (isWide ? 'wide' : 'tight');
-  }
-
-  // Beta live prices
-  const bq = document.getElementById('betaQqq');
-  const be = document.getElementById('betaEs');
-  const bn = document.getElementById('betaNq');
-  const bi = document.getElementById('betaIwm');
-  if (bq) bq.textContent = snap.qqq  != null ? snap.qqq.toFixed(2)  : '--';
-  if (be) be.textContent = snap.es_last != null ? snap.es_last.toFixed(0) : '--';
-  if (bn) bn.textContent = snap.nq   != null ? snap.nq.toFixed(0)   : '--';
-  if (bi) bi.textContent = snap.iwm  != null ? snap.iwm.toFixed(2)  : '--';
-
-  // Max pain mirrored in key levels for beta view
-  const mpKL = document.getElementById('maxPainKL');
-  if (mpKL) mpKL.textContent = f0(snap.max_pain);
-}
-
-// ── System Health ─────────────────────────────────────────────────────────────
-async function loadSystemHealth() {
-  const el = document.getElementById('systemHealthBody');
-  if (!el) return;
-  try {
-    const d = await fetch(`${API}/system/status`).then(r => r.json());
-    const procs = d.processes || {};
-    const rows  = Object.entries(procs).map(([name, p]) => {
-      const dot   = p.alive ? '🟢' : '🔴';
-      const pid   = p.pid   ? `PID ${p.pid}` : '—';
-      const up    = p.uptime || '—';
-      const paused = p.paused ? ' <span style="color:var(--neutral)">(paused)</span>' : '';
-      const url   = p.url    ? `<a href="${p.url}" target="_blank" style="color:var(--accent);font-size:10px">${p.url}</a>` : '';
-      const btns  = name !== 'api' ? `
-        <button class="btn btn-secondary" style="font-size:9px;padding:2px 8px"
-                onclick="processAction('${name}','restart')">↺</button>
-        <button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;color:var(--bear)"
-                onclick="processAction('${name}','stop')">⏹</button>` : '';
-      return `<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:5px 8px">${dot} <strong>${name}</strong>${paused}</td>
-        <td style="padding:5px 8px;color:var(--muted)">${pid}</td>
-        <td style="padding:5px 8px;color:var(--muted)">${up}</td>
-        <td style="padding:5px 8px">${url}</td>
-        <td style="padding:5px 8px">${btns}</td>
-      </tr>`;
-    }).join('');
-    el.innerHTML = `<table style="width:100%;border-collapse:collapse">
-      <thead><tr>
-        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Process</th>
-        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">PID</th>
-        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Uptime</th>
-        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">URL</th>
-        <th style="padding:4px 8px;border-bottom:1px solid var(--border)"></th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-  } catch(e) {
-    el.innerHTML = `<span style="color:var(--bear)">Error: ${e.message}</span>`;
-  }
-}
-
-async function processAction(name, action) {
-  try {
-    const r = await fetch(`${API}/process/${name}/${action}`, {method:'POST'}).then(r => r.json());
-    setTimeout(loadSystemHealth, 1500);
-    if (r.status === 'stopping') {
-      alert('API is shutting down. Restart api.py manually.');
-    }
-  } catch(e) {
-    alert(`Error: ${e.message}`);
-  }
-}
-
-async function restartAll() {
-  if (!confirm('Restart all subprocesses (writer, tick recorder, backtest)?')) return;
-  await Promise.all([
-    fetch(`${API}/process/writer/restart`,       {method:'POST'}),
-    fetch(`${API}/process/tick_recorder/restart`,{method:'POST'}),
-    fetch(`${API}/process/backtest/restart`,     {method:'POST'}),
-  ]);
-  setTimeout(loadSystemHealth, 2000);
-}
-
-function confirmStopApi() {
-  if (!confirm('Stop the API server? You will need to restart api.py manually.')) return;
-  fetch(`${API}/process/api/stop`, {method:'POST'}).catch(() => {});
-  setTimeout(() => alert('API stopped. Run: python api.py'), 1500);
-}
-
-// ── Data Health ───────────────────────────────────────────────────────────────
-async function loadDataHealth() {
-  const el = document.getElementById('dataHealthBody');
-  if (!el) return;
-  try {
-    const d = await fetch(`${API}/data/health`).then(r => r.json());
-    const tables = d.tables || {};
-    const now    = Date.now();
-    const rows   = Object.entries(tables).map(([tbl, info]) => {
-      const latest = info.latest ? new Date(info.latest) : null;
-      const ageMs  = latest ? now - latest.getTime() : null;
-      const ageMin = ageMs  ? Math.floor(ageMs / 60000) : null;
-      let freshness = '—';
-      let color     = 'var(--muted)';
-      if (ageMin !== null) {
-        if (ageMin < 5)   { freshness = `${ageMin}m ago`;  color = 'var(--bull)'; }
-        else if (ageMin < 60) { freshness = `${ageMin}m ago`; color = 'var(--neutral)'; }
-        else { const h = Math.floor(ageMin/60); freshness = `${h}h ago`; color = 'var(--bear)'; }
-      }
-      const err = info.error ? `<span style="color:var(--bear);font-size:10px"> ⚠ ${info.error}</span>` : '';
-      return `<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:5px 8px;font-family:var(--mono);font-size:11px">${tbl}</td>
-        <td style="padding:5px 8px;color:var(--muted);font-size:10px">${info.db || ''}</td>
-        <td style="padding:5px 8px;text-align:right">${(info.count||0).toLocaleString()}</td>
-        <td style="padding:5px 8px;color:${color}">${freshness}${err}</td>
-      </tr>`;
-    }).join('');
-    el.innerHTML = `<table style="width:100%;border-collapse:collapse">
-      <thead><tr>
-        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Table</th>
-        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">DB</th>
-        <th style="text-align:right;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Rows</th>
-        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Freshness</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div style="font-size:10px;color:var(--muted);margin-top:6px">
-      Updated ${new Date(d.timestamp).toLocaleTimeString()}
-    </div>`;
-  } catch(e) {
-    el.innerHTML = `<span style="color:var(--bear)">Error: ${e.message}</span>`;
-  }
-}
-
-// ── Config History ────────────────────────────────────────────────────────────
-async function loadConfigHistory() {
-  const el = document.getElementById('configHistoryBody');
-  if (!el) return;
-  try {
-    const d = await fetch(`${API}/config/history?limit=30`).then(r => r.json());
-    const rows = d.history || [];
-    if (!rows.length) {
-      el.innerHTML = '<span style="color:var(--muted)">No config changes recorded yet.</span>';
-      return;
-    }
-    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:11px">
-      <thead><tr>
-        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Time</th>
-        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Source</th>
-        <th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Changes</th>
-      </tr></thead>
-      <tbody>${rows.map(r => {
-        const t = r.changed_at ? new Date(r.changed_at).toLocaleString() : '--';
-        const src = r.source || 'manual';
-        const srcColor = src === 'advisor' ? 'var(--neutral)' : src === 'startup' ? 'var(--muted)' : 'var(--accent)';
-        const keys = Array.isArray(r.changed_keys) ? r.changed_keys : [];
-        const oldV = r.old_values || {};
-        const newV = r.new_values || {};
-        const changes = keys.map(k =>
-          `<span style="color:var(--dim)">${k}:</span> `+
-          `<span style="color:var(--bear)">${oldV[k] ?? '—'}</span>`+
-          ` → <span style="color:var(--bull)">${newV[k] ?? '—'}</span>`
-        ).join('<br>');
-        const note = r.note && r.source !== 'startup' ? `<div style="color:var(--muted);font-size:10px;margin-top:2px">${r.note}</div>` : '';
-        return `<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:5px 8px;color:var(--muted);white-space:nowrap;vertical-align:top">${t}</td>
-          <td style="padding:5px 8px;vertical-align:top"><span style="color:${srcColor};font-weight:600;font-size:10px;text-transform:uppercase">${src}</span></td>
-          <td style="padding:5px 8px;line-height:1.7">${changes}${note}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table>`;
-  } catch(e) {
-    el.innerHTML = `<span style="color:var(--bear)">Error: ${e.message}</span>`;
-  }
-}
-
 // ── Page nav ──────────────────────────────────────────────────────────────────
 let chartTick = -1;
 let chartInterval = null;
@@ -3181,7 +2660,6 @@ function showPage(name) {
   if (name === 'settings') {
     loadSettings();
     runSettingsAdvisor();
-    loadConfigHistory();
   }
   if (name === 'chain') {
     renderChain();
@@ -3349,7 +2827,6 @@ function update(snap) {
   renderBriefing(snap);
   updateTickVix(snap);
   updatePaperBalance(snap);
-  _updateBetaElements(snap);
 
   // Converter widget
   updateConverter(snap);
@@ -3529,7 +3006,8 @@ function renderBriefing(snap) {
     row.style.cursor = 'copy';
     row.title = `Click to copy ${c.symbol}`;
     row.onclick = () => {
-      navigator.clipboard?.writeText(c.symbol).catch(() => {});
+      const text = `${c.symbol}  $${f2(c.mark)}`;
+      navigator.clipboard?.writeText(text).catch(() => {});
       const orig = row.style.outline;
       row.style.outline = '2px solid var(--accent)';
       setTimeout(() => { row.style.outline = orig; }, 600);
@@ -3881,8 +3359,8 @@ function _doRender() {
             style="cursor:pointer;font-size:12px;user-select:none;color:${pinColor}"
             title="${c._pinned?'Unpin':'Pin'}">${pinIcon}</span></td>
           <td style="font-size:9px;cursor:pointer;color:var(--text);font-weight:600"
-            onclick="event.ctrlKey ? prefillTrade('${c.symbol}','${c.side}',${c.strike||0},${getLast(c.symbol,lastChainData)||0}) : (navigator.clipboard?.writeText('${c.symbol}').catch(()=>{}), this.style.outline='1px solid var(--accent)', setTimeout(()=>this.style.outline='',600))"
-            title="Click to copy symbol · Ctrl+Click to add trade">${c.symbol||'--'}</td>
+            onclick="prefillTrade('${c.symbol}','${c.side}',${c.strike||0},${getLast(c.symbol,lastChainData)||0})"
+            title="${isTrackedOnly ? 'Tracked (on cooldown)' : 'Click to add trade'}">${c.symbol||'--'}</td>
           <td><span class="side-c ${c.side}">${c.side||'--'}</span></td>
           <td>${f0(c.strike)}</td>
           <td style="${lastCol}">${f2(last)}</td>
@@ -4185,10 +3663,11 @@ function loadSettings() {
       document.getElementById('cfg_test_mode').checked      = cfg.test_mode || false;
       document.getElementById('cfg_test_date').value        = cfg.test_date || '';
       toggleTestDate();
-      // AI key — always read from config.json (stored server-side in .env)
-      document.getElementById('cfg_ai_api_key').value = cfg.anthropic_api_key || '';
-      // Cache API key in window for commentary/advisor use
-      window._cfgAnthropicKey = cfg.anthropic_api_key || '';
+      // AI key — always read from config.json (backend source of truth)
+      const _cfgKey = cfg.anthropic_api_key || '';
+      document.getElementById('cfg_ai_api_key').value = _cfgKey;
+      // Cache for commentary/advisor use
+      window._cfgAnthropicKey = _cfgKey;
       const aiOn = localStorage.getItem('ai_enabled') !== 'false';
       document.getElementById('cfg_ai_enabled').checked = aiOn;
       document.getElementById('aiEnabledLabel').textContent = aiOn ? 'ON' : 'OFF';
@@ -4275,13 +3754,16 @@ function saveSettings() {
     alpaca_api_key:    get('cfg_alpaca_api_key').value.trim()    || null,
     alpaca_secret_key: get('cfg_alpaca_secret_key').value.trim() || null,
   };
-  // AI key — save to config.json (persisted server-side in .env)
+  // AI key — save to config.json (server-side persistence)
   const aiKey = get('cfg_ai_api_key').value.trim();
-  if (aiKey) cfg.anthropic_api_key = aiKey;
+  if (aiKey) {
+    cfg.anthropic_api_key = aiKey;
+    window._cfgAnthropicKey = aiKey;
+  }
   localStorage.setItem('ai_enabled', get('cfg_ai_enabled').checked ? 'true' : 'false');
   const aiInterval = parseInt(get('cfg_ai_interval').value) || 5;
   localStorage.setItem('ai_commentary_interval', String(aiInterval));
-  // Fix: save advisor interval to localStorage so it persists
+  // Fix: persist advisor interval
   const advisorInterval = parseInt(get('cfg_advisor_interval').value) || 10;
   localStorage.setItem('advisor_interval', String(advisorInterval));
   applyAIEnabled();
@@ -4308,63 +3790,13 @@ function saveSettings() {
   });
 }
 
-function showSettingsTab(name) {
-  ['trading','system','news','health'].forEach(t => {
-    document.getElementById('stab-'+t)?.classList.toggle('stab-active', t===name);
-    document.getElementById('spane-'+t)?.classList.toggle('spane-active', t===name);
+function showSettingsTab(tab) {
+  ['trading', 'system'].forEach(t => {
+    const pane = document.getElementById('spane-' + t);
+    const btn  = document.getElementById('stab-' + t);
+    if (pane) pane.className = 'spane' + (t === tab ? ' spane-active' : '');
+    if (btn)  btn.className  = 'stab-btn' + (t === tab ? ' stab-active' : '');
   });
-  if (name === 'news')   syncNewsTab();
-  if (name === 'health') { loadSystemHealth(); loadDataHealth(); }
-}
-
-function syncNewsTab() {
-  // Mirror values from system tab news fields to news tab fields
-  const pairs = [
-    ['news_keywords','news_keywords2'],
-    ['news_blocked_keywords','news_blocked_keywords2'],
-    ['news_alert_keywords','news_alert_keywords2'],
-    ['news_bullish_words','news_bullish_words2'],
-    ['news_bearish_words','news_bearish_words2'],
-    ['news_max_age_hours','news_max_age_hours2'],
-    ['news_max_headlines','news_max_headlines2'],
-  ];
-  pairs.forEach(([src, dst]) => {
-    const s = document.getElementById(src);
-    const d = document.getElementById(dst);
-    if (s && d) d.value = s.value;
-  });
-}
-
-function saveNewsConfig2() {
-  // Sync news tab fields back to system tab fields, then call saveNewsConfig
-  const pairs = [
-    ['news_keywords2','news_keywords'],
-    ['news_blocked_keywords2','news_blocked_keywords'],
-    ['news_alert_keywords2','news_alert_keywords'],
-    ['news_bullish_words2','news_bullish_words'],
-    ['news_bearish_words2','news_bearish_words'],
-    ['news_max_age_hours2','news_max_age_hours'],
-    ['news_max_headlines2','news_max_headlines'],
-  ];
-  pairs.forEach(([src, dst]) => {
-    const s = document.getElementById(src);
-    const d = document.getElementById(dst);
-    if (s && d) d.value = s.value;
-  });
-  saveNewsConfig();
-  const st = document.getElementById('newsSaveStatus2');
-  if (st) { st.textContent = 'Saved'; setTimeout(() => st.textContent = '', 2000); }
-}
-
-function addNewsFeed2() {
-  const n = document.getElementById('news_new_name2');
-  const u = document.getElementById('news_new_url2');
-  if (n && u) {
-    document.getElementById('news_new_name').value = n.value;
-    document.getElementById('news_new_url').value  = u.value;
-    addNewsFeed();
-    n.value = ''; u.value = '';
-  }
 }
 
 function restartWriter() {
@@ -5157,12 +4589,9 @@ Rules:
 - Never recommend a direction that contradicts the SETTING DIRECTION RULES above`;
 
 async function runSettingsAdvisor() {
-  if (isAIPausedAll()) return;
   const bodyEl = document.getElementById('advisorBody');
   const btn    = document.getElementById('advisorBtn');
-  const apiKey = (window._cfgAnthropicKey || localStorage.getItem('ai_api_key') || '');
-
-  // Cooldown — don't re-call if opened within advisor_interval minutes
+  const apiKey = window._cfgAnthropicKey || '';
   const cooldownMin = parseInt(localStorage.getItem('advisor_interval') || '10');
   const cooldownMs  = cooldownMin * 60 * 1000;
   const now         = Date.now();
@@ -5326,17 +4755,6 @@ function _updateAIQuickToggle() {
   btn.textContent = on ? 'AI ON' : 'AI OFF';
 }
 
-let _aiPausedAll = false;
-function toggleAIPauseAll() {
-  _aiPausedAll = !_aiPausedAll;
-  const btn = document.getElementById('aiPauseAllBtn');
-  if (btn) {
-    btn.className = _aiPausedAll ? 'ai-quick-toggle ai-on' : 'ai-quick-toggle';
-    btn.textContent = _aiPausedAll ? 'AI PAUSED' : 'AI PAUSE';
-  }
-}
-function isAIPausedAll() { return _aiPausedAll; }
-
 function applyAIEnabled() {
   const enabled = localStorage.getItem('ai_enabled') !== 'false';
   const cb = document.getElementById('cfg_ai_enabled');
@@ -5411,7 +4829,7 @@ function _buildCompactContext(snap) {
 }
 
 async function _callClaude(messages, maxTokens = 300, systemPrompt = null) {
-  const apiKey = (window._cfgAnthropicKey || localStorage.getItem('ai_api_key') || '');
+  const apiKey = window._cfgAnthropicKey || localStorage.getItem('ai_api_key') || '';
   if (!apiKey) throw new Error('NO_KEY');
   if (_isStale || _disconnectTime) throw new Error('STALE');
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -5486,14 +4904,13 @@ function _majorChange(snap) {
 // Auto-commentary
 async function refreshAICommentary(force = false) {
   if (localStorage.getItem('ai_enabled') === 'false') return;
-  if (isAIPausedAll()) return;
   if (!force && _aiCommentaryPaused) return;
   const now = Date.now();
   const intervalMs = (parseInt(localStorage.getItem('ai_commentary_interval')) || 5) * 60000;
   const timerDue = now - _aiLastRefresh >= intervalMs;
   const changed  = _majorChange(_chainSnap);
   if (!force && !timerDue && !changed) return;
-  const apiKey = (window._cfgAnthropicKey || localStorage.getItem('ai_api_key') || '');
+  const apiKey = window._cfgAnthropicKey || localStorage.getItem('ai_api_key') || '';
   const textEl = document.getElementById('aiCommentaryText');
   const ageEl  = document.getElementById('aiCommentaryAge');
   if (!textEl) return;
@@ -5576,7 +4993,7 @@ async function sendAIChat() {
   if (!input) return;
   const text = input.value.trim();
   if (!text) return;
-  const apiKey = (window._cfgAnthropicKey || localStorage.getItem('ai_api_key') || '');
+  const apiKey = window._cfgAnthropicKey || localStorage.getItem('ai_api_key') || '';
   if (!apiKey) {
     _appendChatMsg('sys', 'Add your API key in Settings to use AI Chat.');
     return;

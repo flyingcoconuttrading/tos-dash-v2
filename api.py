@@ -1613,17 +1613,22 @@ def get_moc_events(limit: int = 50):
 @app.get("/data/health")
 def data_health():
     """Return row counts and latest timestamps for all tables."""
+    # Per-table timestamp column names
+    TABLE_TS = {
+        "ideas":              "surfaced_at",
+        "surface_candidates": "surfaced_at",
+        "idea_tick_history":  "tick_time",
+        "backtest_runs":      "run_at",
+        "config_history":     "changed_at",
+        "moc_events":         "published_at",
+        "market_events":      "event_time",
+    }
     results = {}
-    # ideas.duckdb tables
-    for table in ("ideas", "surface_candidates", "idea_tick_history",
-                  "backtest_runs", "config_history", "moc_events", "market_events"):
+    for table, ts_col in TABLE_TS.items():
         try:
             rows = idea_logger.query_raw(f"""
                 SELECT COUNT(*) AS n,
-                       MAX(CAST(
-                           COALESCE(surfaced_at, changed_at, run_at, event_time,
-                                    recorded_at, created_at) AS VARCHAR
-                       )) AS latest
+                       MAX(CAST({ts_col} AS VARCHAR)) AS latest
                 FROM {table}
             """)
             r = rows[0] if rows else {}
