@@ -1,5 +1,6 @@
 """
 api.py — tos-dash-v2 API + process manager.
+Version: v2.50.0
 
 Single entry point: python api.py
   - Manages spy_writer.py as a subprocess
@@ -724,6 +725,11 @@ def build_snapshot() -> dict:
                     continue
                 filtered.append(_c)
             candidates = filtered
+
+        # Block Puts in TRENDING + Downtrend — H-002 data: -8.7% avg PnL, 73% stop rate
+        # Calls in Downtrend already blocked in scalp_advisor.py line 493
+        if ms is not None and ms.regime == "TRENDING" and ms.trend in ("Downtrend", "DOWNTREND", "downtrend"):
+            candidates = [c for c in candidates if c.option_type != "Put"]
 
         # Log all surfaced candidates for backtesting
         idea_logger.log_surface_candidates(

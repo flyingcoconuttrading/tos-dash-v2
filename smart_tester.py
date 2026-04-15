@@ -1,6 +1,6 @@
 """
 smart_tester.py — Autonomous backtesting agent for tos-dash-v2.
-Version: v2.49.2
+Version: v2.50.0
 
 All DuckDB queries route through api.py (port 8001) HTTP endpoints.
 No direct DuckDB access — avoids Windows file lock conflicts.
@@ -188,6 +188,47 @@ HYPOTHESIS_PROMPTS = {
         "Identify optimal VIX range for entries. "
         "Flag PRELIMINARY if n<10 per bucket. Save a finding."
     ),
+    "H-006": (
+        "Validate H-006: ADD breadth at entry predicts outcome. "
+        "Query spy_ticks joined to ideas on DATE(recorded_at)=DATE(surfaced_at) "
+        "using the closest tick before surfaced_at. "
+        "Bucket add_val at entry: <-850, -850 to -500, -500 to 0, 0 to 500, 500 to 850, >850. "
+        "Show n, avg_pnl_pct, win_rate per bucket. "
+        "Test whether high ADD (>+850) improves win rate for Calls, "
+        "and low ADD (<-850) improves win rate for Puts. "
+        "Flag n<10 per bucket as PRELIMINARY. Save a finding."
+    ),
+    "H-007": (
+        "Validate H-007: TRIN at entry predicts Call performance. "
+        "Query spy_ticks joined to ideas on DATE(recorded_at)=DATE(surfaced_at) "
+        "using the closest tick before surfaced_at. "
+        "Bucket trin_val: <0.5, 0.5-0.8, 0.8-1.2, 1.2-2.0, >2.0. "
+        "Show n, avg_pnl_pct, win_rate per bucket, broken down by option_type. "
+        "TRIN < 0.8 = buying pressure (bullish). TRIN > 1.2 = selling pressure (bearish). "
+        "Identify if low TRIN predicts better Call performance. "
+        "Flag n<10 per bucket as PRELIMINARY. Save a finding."
+    ),
+    "H-008": (
+        "Validate H-008: TRINQ at entry predicts QQQ-correlated moves. "
+        "Query spy_ticks joined to ideas on DATE(recorded_at)=DATE(surfaced_at) "
+        "using the closest tick before surfaced_at. "
+        "Bucket trinq_val: <0.5, 0.5-0.8, 0.8-1.2, 1.2-2.0, >2.0. "
+        "Show n, avg_pnl_pct, win_rate per bucket, broken down by option_type. "
+        "Compare TRINQ vs TRIN predictive power side by side. "
+        "Flag n<10 per bucket as PRELIMINARY. Save a finding."
+    ),
+    "H-009": (
+        "Validate H-009: Signal conflict analysis — when trend disagrees with regime. "
+        "Query ideas where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "Define conflict: entry_regime=TRENDING but entry_trend=Uptrend (GEX says down, trend says up), "
+        "or entry_regime=PINNED but entry_trend=Downtrend or Uptrend (GEX anchored but trending). "
+        "Compare conflict trades vs fully aligned trades: n, avg_pnl_pct, win_rate, stop_rate. "
+        "Break down by which signal was correct (did price follow regime or trend?). "
+        "Flag n<10 per group as PRELIMINARY. "
+        "Recommend whether to trust regime or trend when they conflict, "
+        "and which score weights to adjust. Save a finding."
+    ),
     "MOC": (
         "Analyze MOC precursor patterns. "
         "First query moc_events table for all recorded MOC events. "
@@ -245,7 +286,42 @@ HYPOTHESIS_PROMPTS = {
         "where paper_exit_reason IS NOT NULL "
         "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
         "Report top performing regime+trend combination and recommended config changes. "
-        "Save as a separate finding."
+        "Save as a separate finding.\n\n"
+
+        "H-006: ADD breadth at entry predicts outcome. "
+        "Query spy_ticks joined to ideas on DATE(recorded_at)=DATE(surfaced_at) "
+        "using the closest tick before surfaced_at. "
+        "Bucket add_val at entry: <-850, -850 to -500, -500 to 0, 0 to 500, 500 to 850, >850. "
+        "Show n, avg_pnl_pct, win_rate per bucket. "
+        "Test whether high ADD (>+850) improves win rate for Calls, "
+        "and low ADD (<-850) improves win rate for Puts. "
+        "Flag n<10 per bucket as PRELIMINARY. Save a finding.\n\n"
+
+        "H-007: TRIN at entry predicts Call performance. "
+        "Query spy_ticks joined to ideas on DATE(recorded_at)=DATE(surfaced_at) "
+        "using the closest tick before surfaced_at. "
+        "Bucket trin_val: <0.5, 0.5-0.8, 0.8-1.2, 1.2-2.0, >2.0. "
+        "Show n, avg_pnl_pct, win_rate per bucket, broken down by option_type. "
+        "TRIN < 0.8 = buying pressure (bullish). TRIN > 1.2 = selling pressure (bearish). "
+        "Identify if low TRIN predicts better Call performance. "
+        "Flag n<10 per bucket as PRELIMINARY. Save a finding.\n\n"
+
+        "H-008: TRINQ at entry predicts QQQ-correlated moves. "
+        "Query spy_ticks joined to ideas on DATE(recorded_at)=DATE(surfaced_at) "
+        "using the closest tick before surfaced_at. "
+        "Bucket trinq_val: <0.5, 0.5-0.8, 0.8-1.2, 1.2-2.0, >2.0. "
+        "Show n, avg_pnl_pct, win_rate per bucket, broken down by option_type. "
+        "Compare TRINQ vs TRIN predictive power side by side. "
+        "Flag n<10 per bucket as PRELIMINARY. Save a finding.\n\n"
+
+        "H-009: Signal conflict analysis — when trend disagrees with regime. "
+        "Query ideas where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "Define conflict: entry_regime=TRENDING but entry_trend=Uptrend, "
+        "or entry_regime=PINNED but entry_trend=Downtrend or Uptrend. "
+        "Compare conflict trades vs fully aligned trades: n, avg_pnl_pct, win_rate, stop_rate. "
+        "Flag n<10 per group as PRELIMINARY. "
+        "Recommend whether to trust regime or trend when they conflict. Save a finding."
     ),
 }
 
