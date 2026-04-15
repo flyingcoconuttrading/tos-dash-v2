@@ -305,6 +305,30 @@ async def save_moc_event(request: Request):
         return r.json()
 
 
+@app.post("/tick-recorder/pause")
+async def pause_tick_recorder():
+    """Proxy to api.py tick recorder pause."""
+    async with httpx.AsyncClient() as client:
+        r = await client.post(f"{API_BASE}/tick-recorder/pause", timeout=5.0)
+        return r.json()
+
+
+@app.post("/tick-recorder/resume")
+async def resume_tick_recorder():
+    """Proxy to api.py tick recorder resume."""
+    async with httpx.AsyncClient() as client:
+        r = await client.post(f"{API_BASE}/tick-recorder/resume", timeout=5.0)
+        return r.json()
+
+
+@app.get("/tick-recorder/status")
+async def tick_recorder_status():
+    """Proxy to api.py tick recorder status."""
+    async with httpx.AsyncClient() as client:
+        r = await client.get(f"{API_BASE}/tick-recorder/status", timeout=5.0)
+        return r.json()
+
+
 @app.post("/pattern")
 async def pattern(request: Request):
     body = await request.json()

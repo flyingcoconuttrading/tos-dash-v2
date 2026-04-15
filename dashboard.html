@@ -1437,7 +1437,7 @@ body.beta-view .dash-grid,
 body.beta-view .price-hero,
 body.beta-view .ai-commentary,
 body.beta-view #marketContextBar,
-body.beta-view .news-panel { display: none !important; }
+body.beta-view .news-panel { display: block; }
 
 #betaDash {
   display: none;
@@ -1627,7 +1627,7 @@ body.beta-view #tickEl     { display: none; }
     <span class="status-txt" id="statusTxt">CONNECTING</span>
     <div class="ai-call-dot" id="aiCallDot" title="AI API calls"></div>
     <span class="ai-call-label" id="aiCallLabel">AI 0</span>
-    <span class="version-tag">v2.51.0</span>
+    <span class="version-tag">v2.51.2</span>
     <span class="ts" id="tsEl">--</span>
   </div>
 </header>
@@ -3229,7 +3229,7 @@ function _renderBeta(snap) {
   // Checklist grid
   if ($('bChecklistGrid') && cl.items) {
     $('bChecklistGrid').innerHTML = cl.items.slice(0,6).map(i =>
-      `<div style="display:flex;justify-content:space-between"><span>${i.label||''}</span><span style="color:${i.score>0?'var(--bull)':i.score<0?'var(--bear)':'var(--muted)'}">${i.score>0?'+':'''}${i.score||0}%</span></div>`
+      `<div style="display:flex;justify-content:space-between"><span>${i.label||''}</span><span style="color:${i.score>0?'var(--bull)':i.score<0?'var(--bear)':'var(--muted)'}">${i.score>0?'+':''}${i.score||0}%</span></div>`
     ).join('');
   }
 
@@ -4480,8 +4480,8 @@ function loadSettings() {
       toggleTestDate();
       // AI key — always read from config.json (backend source of truth)
       const _cfgKey = cfg.anthropic_api_key || '';
-      document.getElementById('cfg_ai_api_key').value = _cfgKey;
-      // Cache for commentary/advisor use
+      document.getElementById('cfg_ai_api_key').value = _cfgKey ? '••••••••••••••••••••' : '';
+      // Cache for commentary/advisor use — use actual key not masked display value
       window._cfgAnthropicKey = _cfgKey;
       const aiOn = localStorage.getItem('ai_enabled') !== 'false';
       document.getElementById('cfg_ai_enabled').checked = aiOn;

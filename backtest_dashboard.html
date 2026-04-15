@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v2.50.1 -->
+<!-- v2.51.2 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -601,6 +601,9 @@ function handleEvent(ev) {
     case 'tool_call':
       addLog(`→ ${ev.tool}(${JSON.stringify(ev.input || {}).slice(0,80)}…)`, 'log-tool');
       document.getElementById('currentAction').textContent = `Tool: ${ev.tool}`;
+      _iterCount = ev.iteration || _iterCount + 1;
+      updateProgress(_iterCount / _maxIter * 100);
+      document.getElementById('iterBadge').textContent = `${_iterCount} / ${_maxIter}`;
       break;
     case 'tool_result':
       addLog(`  ✓ ${(JSON.stringify(ev.result || '')).slice(0,100)}`, 'log-result');

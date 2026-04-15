@@ -1,6 +1,6 @@
 """
 smart_tester.py — Autonomous backtesting agent for tos-dash-v2.
-Version: v2.50.0
+Version: v2.51.2
 
 All DuckDB queries route through api.py (port 8001) HTTP endpoints.
 No direct DuckDB access — avoids Windows file lock conflicts.
@@ -22,9 +22,10 @@ from typing import Callable, Optional
 import requests
 import anthropic
 
-THIS_DIR    = Path(__file__).parent
-CONFIG_FILE = THIS_DIR / "config.json"
-API_BASE    = "http://127.0.0.1:8001"
+THIS_DIR      = Path(__file__).parent
+CONFIG_FILE   = THIS_DIR / "config.json"
+API_BASE      = "http://127.0.0.1:8001"
+BACKTEST_BASE = "http://127.0.0.1:8003"
 
 
 def load_config() -> dict:
@@ -387,11 +388,33 @@ def _simulate_filter(params: dict, label: str, date_from: Optional[str] = None) 
         return {"error": str(e), "trace": traceback.format_exc()}
 
 
+def _pause_tick_recorder() -> None:
+    """Pause tick recorder to release ticks.duckdb lock."""
+    try:
+        requests.post(f"{BACKTEST_BASE}/tick-recorder/pause", timeout=5)
+        import time; time.sleep(1.5)  # wait for lock release
+    except Exception:
+        pass
+
+
+def _resume_tick_recorder() -> None:
+    """Resume tick recorder after ticks.duckdb query."""
+    try:
+        requests.post(f"{BACKTEST_BASE}/tick-recorder/resume", timeout=5)
+    except Exception:
+        pass
+
+
 def _dispatch(name: str, inp: dict, prompt: str = "") -> dict:
     if name == "query_ideas_db":
         return _api_query(inp["sql"], "ideas")
     if name == "query_ticks_db":
-        return _api_query(inp["sql"], "ticks")
+        _pause_tick_recorder()
+        try:
+            result = _api_query(inp["sql"], "ticks")
+        finally:
+            _resume_tick_recorder()
+        return result
     if name == "simulate_filter":
         return _simulate_filter(inp["params"], inp["label"], inp.get("date_from"))
     if name == "pattern_scan":
