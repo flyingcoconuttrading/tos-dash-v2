@@ -1,6 +1,6 @@
 """
 api.py — tos-dash-v2 API + process manager.
-Version: v2.50.0
+Version: v2.50.2
 
 Single entry point: python api.py
   - Manages spy_writer.py as a subprocess
@@ -713,10 +713,16 @@ def build_snapshot() -> dict:
             )
 
         # TICK directional filter — remove candidates that chase TICK extremes
+        # Wall touch candidates are exempt — they are mean reversion plays at GEX walls
+        # and are intentionally entered when TICK is at extremes (bounce setups)
         _tick_extreme = cfg.get("tick_extreme_threshold", 500)
         if ntick is not None and abs(ntick) > _tick_extreme and candidates:
             filtered = []
             for _c in candidates:
+                _is_wall_touch = any("WALL TOUCH" in r for r in (_c.reasons or []))
+                if _is_wall_touch:
+                    filtered.append(_c)
+                    continue
                 if _c.option_type == "Call" and ntick < -_tick_extreme:
                     logger.debug("TICK filter: blocked Call %s (TICK=%d)", _c.symbol, ntick)
                     continue
