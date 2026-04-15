@@ -963,6 +963,7 @@ async function runAdvisor() {
       fetch('/findings?limit=10').then(r => r.json()),
       fetch('/config').then(r => r.json()),
     ]);
+    window._cfgAnthropicKey = cfg.anthropic_api_key || '';
 
     const o = metrics.overall || {};
     const f = findings.findings || [];
@@ -1278,6 +1279,7 @@ End with a one-sentence overall assessment of system health.`;
 
 // ── Init ───────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
+  fetch('/config').then(r=>r.json()).then(cfg=>{ window._cfgAnthropicKey = cfg.anthropic_api_key || ''; });
   loadMetrics();
   loadFindings();
   // Pre-fill today's date in MOC form
