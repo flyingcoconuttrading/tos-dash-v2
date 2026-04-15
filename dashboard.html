@@ -1431,6 +1431,166 @@ header {
 
 /* ── Beta View ── */
 .dte-toggle.beta-active    { background: var(--neutral); color: var(--bg,#0a0a0f); border-color: var(--neutral); }
+
+body.beta-view #betaDash   { display: flex; }
+body.beta-view .dash-grid,
+body.beta-view .price-hero,
+body.beta-view .ai-commentary,
+body.beta-view #marketContextBar,
+body.beta-view .news-panel { display: none !important; }
+
+#betaDash {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  background: var(--bg, #0a0a0f);
+  font-family: var(--mono);
+}
+.b-topbar {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  flex-shrink: 0;
+}
+.b-spy {
+  padding: 8px 14px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 100px;
+}
+.b-spy-price {
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.1;
+}
+.b-spy-sub { font-size: 10px; color: var(--bull); }
+.b-items { display: flex; flex: 1; align-items: stretch; }
+.b-ti {
+  padding: 6px 12px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.b-ti:last-child { border-right: none; margin-left: auto; border-left: 1px solid var(--border); }
+.b-tl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
+.b-tv { font-size: 13px; font-weight: 500; color: var(--text); }
+.b-ctx {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  flex-shrink: 0;
+}
+.b-score {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 3px;
+  background: #d2992222;
+  color: #d29922;
+  border: 1px solid #d2992244;
+  letter-spacing: .4px;
+}
+.b-cond { font-size: 12px; color: var(--muted); flex: 1; }
+.b-body {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 1px;
+  background: var(--border);
+  flex: 1;
+  overflow: hidden;
+}
+.b-col { background: var(--panel); padding: 10px; overflow-y: auto; }
+.b-sl {
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  margin-bottom: 8px;
+}
+.b-kv { display: flex; justify-content: space-between; margin-bottom: 5px; }
+.b-kk { font-size: 11px; color: var(--muted); }
+.b-kv-v { font-size: 11px; color: var(--text); font-weight: 500; }
+.b-div { border-top: 1px solid var(--border); margin: 8px 0; }
+.b-right { background: var(--panel); display: flex; flex-direction: column; padding: 10px; gap: 8px; overflow-y: auto; }
+.b-wide {
+  background: var(--bg, #0a0a0f);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.b-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.b-no-trade {
+  background: rgba(248,81,73,.08);
+  color: var(--bear);
+  border: 1px solid rgba(248,81,73,.25);
+  border-radius: 3px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 500;
+}
+.b-brief-text { font-size: 11px; color: var(--muted); line-height: 1.6; margin-bottom: 6px; }
+.b-watch-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+.b-watch-sym-c { font-size: 12px; font-weight: 500; color: var(--bull); cursor: copy; }
+.b-watch-sym-p { font-size: 12px; font-weight: 500; color: var(--bear); cursor: copy; }
+.b-watch-meta { font-size: 10px; color: var(--muted); margin-bottom: 6px; }
+.b-copy-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 9px;
+  cursor: pointer;
+  font-family: var(--mono);
+}
+.b-copy-btn:hover { color: var(--text); border-color: var(--accent); }
+.b-struct-panel { border-left: 1px solid var(--border); padding-left: 12px; }
+.b-sbar { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.b-strack { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.b-sfill { height: 100%; border-radius: 2px; transition: width .3s, background .3s; }
+.b-ai {
+  background: var(--bg, #0a0a0f);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px;
+  flex-shrink: 0;
+}
+.b-ai-label { font-size: 9px; color: var(--accent); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
+.b-ai-text { font-size: 11px; color: var(--dim, #8b949e); line-height: 1.7; }
+.b-cands-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
+.b-paper {
+  display: flex;
+  justify-content: space-between;
+  background: var(--bg, #0a0a0f);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+}
+.b-bottom {
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  font-size: 11px;
+}
+.b-active-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
 .ai-quick-toggle.ai-paused { border-color: var(--bear); color: var(--bear); }
 
 body.beta-view .spy-price  { font-size: 22px; }
@@ -1461,13 +1621,13 @@ body.beta-view #tickEl     { display: none; }
     <button class="dte-toggle" id="dteBtn1" onclick="setDTE('1DTE')">1DTE</button>
     <button class="ai-quick-toggle" id="aiQuickToggle" onclick="quickToggleAI()">AI</button>
     <button class="ai-quick-toggle" id="aiPauseAllBtn" onclick="toggleAIPauseAll()" title="Pause all AI calls — commentary + advisor stop, data feed continues">AI PAUSE</button>
-    <button class="dte-toggle" id="betaViewBtn" onclick="toggleBetaView()" title="Toggle Beta View layout">BETA VIEW</button>
+    <button class="dte-toggle" id="betaViewBtn" onclick="toggleBetaView()" title="Toggle Beta View layout">Beta</button>
     <a href="http://127.0.0.1:8003/" target="_blank" style="font-family:var(--mono);font-size:9px;letter-spacing:0.10em;padding:3px 8px;border-radius:2px;border:1px solid var(--border);color:var(--muted);text-decoration:none;transition:all 0.15s;" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">BACKTESTING ↗</a>
     <div class="status-dot" id="statusDot"></div>
     <span class="status-txt" id="statusTxt">CONNECTING</span>
     <div class="ai-call-dot" id="aiCallDot" title="AI API calls"></div>
     <span class="ai-call-label" id="aiCallLabel">AI 0</span>
-    <span class="version-tag">v2.1</span>
+    <span class="version-tag">v2.51.0</span>
     <span class="ts" id="tsEl">--</span>
   </div>
 </header>
@@ -1773,6 +1933,113 @@ body.beta-view #tickEl     { display: none; }
   </div>
 
   <!-- ── News Panel ── -->
+  <!-- ══ BETA LAYOUT ══ -->
+  <div id="betaDash">
+    <div class="b-topbar">
+      <div class="b-spy">
+        <div class="b-spy-price" id="bSpyPrice">--</div>
+        <div class="b-spy-sub" id="bSpySub">SPY</div>
+      </div>
+      <div class="b-items">
+        <div class="b-ti"><div class="b-tl">TICK</div><div class="b-tv" id="bTick">--</div></div>
+        <div class="b-ti"><div class="b-tl">VIX</div><div class="b-tv" id="bVix">--</div></div>
+        <div class="b-ti"><div class="b-tl">TRIN/Q</div><div class="b-tv" id="bTrinq">--</div></div>
+        <div class="b-ti"><div class="b-tl">ADD</div><div class="b-tv" id="bAdd">--</div></div>
+        <div class="b-ti"><div class="b-tl">/ES</div><div class="b-tv" id="bEs">--</div></div>
+        <div class="b-ti"><div class="b-tl">QQQ</div><div class="b-tv" id="bQqq">--</div></div>
+        <div class="b-ti"><div class="b-tl">IWM</div><div class="b-tv" id="bIwm">--</div></div>
+        <div class="b-ti">
+          <div class="b-tl">Net GEX</div><div class="b-tv" id="bGex" style="color:var(--accent)">--</div>
+          <div class="b-tl" style="margin-top:3px">Net DEX</div><div class="b-tv" id="bDex" style="color:var(--bear)">--</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="b-ctx">
+      <span class="b-score" id="bScore">--</span>
+      <span class="b-cond" id="bCond">Waiting for data…</span>
+    </div>
+
+    <div class="b-body">
+      <div class="b-col">
+        <div class="b-sl">Key levels</div>
+        <div class="b-kv"><span class="b-kk">Call wall</span><span class="b-kv-v" id="bCallWall" style="color:var(--bull)">--</span></div>
+        <div class="b-kv"><span class="b-kk">Put wall</span><span class="b-kv-v" id="bPutWall" style="color:var(--bear)">--</span></div>
+        <div class="b-kv"><span class="b-kk">GEX anchor</span><span class="b-kv-v" id="bGexAnchor" style="color:var(--accent)">--</span></div>
+        <div class="b-kv"><span class="b-kk">Invalidation</span><span class="b-kv-v" id="bInvalidation">--</span></div>
+        <div class="b-div"></div>
+        <div class="b-sl">Regime metrics</div>
+        <div class="b-kv"><span class="b-kk">Max pain</span><span class="b-kv-v" id="bMaxPain">--</span></div>
+        <div class="b-kv"><span class="b-kk">Above max pain</span><span class="b-kv-v" id="bAboveMaxPain">--</span></div>
+        <div class="b-kv"><span class="b-kk">Snap direction</span><span class="b-kv-v" id="bSnapDir">--</span></div>
+        <div class="b-kv"><span class="b-kk">Snap level</span><span class="b-kv-v" id="bSnapLevel">--</span></div>
+        <div class="b-div"></div>
+        <div class="b-sl">Structure</div>
+        <div style="font-size:11px;font-weight:500;margin-bottom:6px" id="bStructSummary">--</div>
+        <div class="b-sbar">
+          <span style="font-size:9px;color:var(--bear)">Bear</span>
+          <div class="b-strack"><div class="b-sfill" id="bStructFill" style="width:50%;background:var(--muted)"></div></div>
+          <span style="font-size:9px;color:var(--bull)">Bull</span>
+        </div>
+      </div>
+
+      <div class="b-right">
+        <div class="b-wide">
+          <div>
+            <div class="b-card-head">
+              <span class="b-sl" style="margin-bottom:0">Trade briefing</span>
+              <span class="b-no-trade" id="bStatus">--</span>
+            </div>
+            <div class="b-brief-text" id="bReason">--</div>
+            <div class="b-div"></div>
+            <div class="b-sl" style="margin-bottom:6px">Watch call</div>
+            <div class="b-watch-row">
+              <span class="b-watch-sym-c" id="bWatchCallSym">--</span>
+              <button class="b-copy-btn" onclick="_bCopy('bWatchCallSym')">copy</button>
+            </div>
+            <div class="b-watch-meta" id="bWatchCallMeta">--</div>
+            <div class="b-div"></div>
+            <div class="b-sl" style="margin-bottom:6px">Watch put</div>
+            <div class="b-watch-row">
+              <span class="b-watch-sym-p" id="bWatchPutSym">--</span>
+              <button class="b-copy-btn" onclick="_bCopy('bWatchPutSym')">copy</button>
+            </div>
+            <div class="b-watch-meta" id="bWatchPutMeta">--</div>
+          </div>
+          <div class="b-struct-panel">
+            <div class="b-sl">Resistance · Support</div>
+            <div class="b-kv"><span class="b-kk">Call wall</span><span class="b-kv-v" id="bCWDist" style="color:var(--bull)">--</span></div>
+            <div class="b-kv"><span class="b-kk">Put wall</span><span class="b-kv-v" id="bPWDist" style="color:var(--bear)">--</span></div>
+            <div class="b-div"></div>
+            <div class="b-sl">Checklist</div>
+            <div id="bChecklistGrid" style="font-size:11px;color:var(--muted);line-height:1.8">--</div>
+          </div>
+        </div>
+
+        <div class="b-ai" id="bAiPanel">
+          <div class="b-ai-label">AI context</div>
+          <div class="b-ai-text" id="bAiText">Add API key in Settings to enable AI commentary.</div>
+        </div>
+
+        <div>
+          <div class="b-cands-label">Scalp candidates</div>
+          <div class="b-paper">
+            <div><div class="b-tl">Paper balance</div><div class="b-tv" id="bPaperBal" style="color:var(--bull)">--</div></div>
+            <div style="text-align:center"><div class="b-tl">Day P&amp;L</div><div class="b-tv" id="bDayPnl">--</div></div>
+            <div style="text-align:right"><div class="b-tl">Trades</div><div class="b-tv" id="bTrades">0T 0W 0L</div></div>
+          </div>
+          <div id="bCandidates" style="font-size:11px;color:var(--muted);text-align:center;padding:16px 0">No candidates</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="b-bottom">
+      <span class="b-active-label">Active trades</span>
+      <span id="bActiveTrades" style="color:var(--muted)">No active trades</span>
+    </div>
+  </div>
+  <!-- ══ END BETA LAYOUT ══ -->
+
   <div class="news-panel" id="newsPanel">
     <div class="news-toggle" onclick="toggleNews()">
       <span class="news-toggle-label" id="newsToggleLabel">⚡ NEWS ▼</span>
@@ -2871,6 +3138,7 @@ function updateMarketContext(snap) {
 }
 
 // ── Beta View ─────────────────────────────────────────────────────────────────
+let _lastSnap  = null;
 let _betaView = localStorage.getItem('betaView') === 'true';
 if (_betaView) document.body.classList.add('beta-view');
 
@@ -2880,6 +3148,128 @@ function toggleBetaView() {
   localStorage.setItem('betaView', _betaView);
   const btn = document.getElementById('betaViewBtn');
   if (btn) btn.classList.toggle('beta-active', _betaView);
+  if (_betaView && _lastSnap) _renderBeta(_lastSnap);
+}
+
+function _bCopy(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const sym = el.textContent.trim();
+  if (!sym || sym === '--') return;
+  navigator.clipboard?.writeText(sym).catch(() => {});
+  const orig = el.style.outline;
+  el.style.outline = '2px solid var(--accent)';
+  setTimeout(() => { el.style.outline = orig; }, 600);
+}
+
+function _renderBeta(snap) {
+  if (!snap || !_betaView) return;
+  const ms  = snap.market_structure || {};
+  const bf  = snap.briefing         || {};
+  const f0  = v => v != null ? Math.round(v) : '--';
+  const f2  = v => v != null ? v.toFixed(2) : '--';
+  const fB  = v => { if (v == null) return '--'; const a = Math.abs(v); return (a >= 1e9 ? (v/1e9).toFixed(2)+'B' : a >= 1e6 ? (v/1e6).toFixed(0)+'M' : v.toFixed(0)); };
+  const $   = id => document.getElementById(id);
+
+  // Top bar
+  const price = snap.price;
+  if ($('bSpyPrice')) $('bSpyPrice').textContent = price != null ? price.toFixed(2) : '--';
+  if ($('bSpySub'))   $('bSpySub').textContent   = snap.symbol || 'SPY';
+  if ($('bTick'))     $('bTick').textContent     = snap.ntick != null ? snap.ntick : '--';
+  if ($('bVix'))      $('bVix').textContent      = snap.vix?.last != null ? snap.vix.last.toFixed(2) : '--';
+  if ($('bTrinq'))    $('bTrinq').textContent    = snap.trinq != null ? snap.trinq.toFixed(2) : '--';
+  if ($('bAdd'))      $('bAdd').textContent      = snap.add   != null ? snap.add   : '--';
+  if ($('bEs'))       $('bEs').textContent       = snap.es_last  != null ? snap.es_last.toFixed(2)  : '--';
+  if ($('bQqq'))      $('bQqq').textContent      = snap.qqq      != null ? snap.qqq.toFixed(2)      : '--';
+  if ($('bIwm'))      $('bIwm').textContent      = snap.iwm      != null ? snap.iwm.toFixed(2)      : '--';
+
+  const gex = ms.net_gex || 0;
+  const dex = ms.net_dex || 0;
+  if ($('bGex')) { $('bGex').textContent = fB(gex) + ' ' + (ms.regime || ''); $('bGex').style.color = gex < 0 ? 'var(--bear)' : 'var(--accent)'; }
+  if ($('bDex')) { $('bDex').textContent = fB(dex) + ' ' + (dex > 0 ? 'Bearish' : 'Bullish'); $('bDex').style.color = dex > 0 ? 'var(--bear)' : 'var(--bull)'; }
+
+  // Context bar — mirror scalpScore + scalpCondition
+  const scoreEl = $('scalpScore');
+  const condEl  = $('scalpCondition');
+  if ($('bScore') && scoreEl) $('bScore').textContent = scoreEl.textContent;
+  if ($('bCond')  && condEl)  $('bCond').textContent  = condEl.textContent;
+
+  // Key levels
+  if ($('bCallWall'))      $('bCallWall').textContent      = f0(ms.call_wall);
+  if ($('bPutWall'))       $('bPutWall').textContent       = f0(ms.put_wall);
+  if ($('bGexAnchor'))     $('bGexAnchor').textContent     = f2(ms.gex_anchor);
+  if ($('bInvalidation'))  $('bInvalidation').textContent  = ms.invalidation || '--';
+
+  // Regime metrics
+  if ($('bMaxPain'))       $('bMaxPain').textContent       = '$' + f0(snap.max_pain);
+  if ($('bSnapLevel'))     $('bSnapLevel').textContent     = ms.snap_level != null ? '$' + f2(ms.snap_level) : 'Out of range';
+  if ($('bSnapDir'))       { $('bSnapDir').textContent = ms.snap_direction ? ms.snap_direction + ' DEX' : '--'; $('bSnapDir').style.color = ms.snap_direction === 'Below' ? 'var(--bear)' : 'var(--bull)'; }
+  if ($('bAboveMaxPain') && snap.max_pain != null && price != null) {
+    const diff = price - snap.max_pain;
+    $('bAboveMaxPain').textContent = (diff >= 0 ? '+' : '') + '$' + f2(diff);
+    $('bAboveMaxPain').style.color = diff >= 0 ? 'var(--bear)' : 'var(--bull)';
+  }
+
+  // Resistance/support distances
+  if ($('bCWDist') && ms.call_wall != null && price != null) $('bCWDist').textContent = '$' + f0(ms.call_wall) + ' (+$' + f2(ms.call_wall - price) + ')';
+  if ($('bPWDist') && ms.put_wall  != null && price != null) $('bPWDist').textContent = '$' + f0(ms.put_wall)  + ' (-$' + f2(price - ms.put_wall)  + ')';
+
+  // Structure
+  const cl = ms.checklist || {};
+  const lean = bf.structural_lean || 'Mixed';
+  const conf = bf.structural_conf || '';
+  if ($('bStructSummary')) { $('bStructSummary').textContent = lean + (conf ? ' · ' + conf : ''); $('bStructSummary').style.color = lean === 'Bull' ? 'var(--bull)' : lean === 'Bear' ? 'var(--bear)' : 'var(--muted)'; }
+  if ($('bStructFill')) {
+    const score = cl.score != null ? cl.score : 50;
+    const pct = Math.max(0, Math.min(100, score));
+    $('bStructFill').style.width = pct + '%';
+    $('bStructFill').style.background = pct > 60 ? 'var(--bull)' : pct < 40 ? 'var(--bear)' : 'var(--muted)';
+  }
+
+  // Checklist grid
+  if ($('bChecklistGrid') && cl.items) {
+    $('bChecklistGrid').innerHTML = cl.items.slice(0,6).map(i =>
+      `<div style="display:flex;justify-content:space-between"><span>${i.label||''}</span><span style="color:${i.score>0?'var(--bull)':i.score<0?'var(--bear)':'var(--muted)'}">${i.score>0?'+':'''}${i.score||0}%</span></div>`
+    ).join('');
+  }
+
+  // Trade briefing
+  const active = bf.trade_active;
+  if ($('bStatus')) {
+    if (!active) { $('bStatus').textContent = 'No trade'; $('bStatus').style.color = 'var(--bear)'; }
+    else { $('bStatus').textContent = lean === 'Bull' ? '▲ Calls' : lean === 'Bear' ? '▼ Puts' : '◈ Mixed'; $('bStatus').style.color = lean === 'Bull' ? 'var(--bull)' : lean === 'Bear' ? 'var(--bear)' : 'var(--muted)'; }
+  }
+  if ($('bReason')) $('bReason').textContent = bf.no_trade_reason || (bf.regime ? bf.regime + ' · ' + bf.trend : '--');
+
+  // Watch contracts
+  const wc = bf.best_call;
+  const wp = bf.best_put;
+  if ($('bWatchCallSym')) $('bWatchCallSym').textContent = wc?.symbol || '--';
+  if ($('bWatchCallMeta')) $('bWatchCallMeta').textContent = wc ? `Δ${f2(wc.delta)}  IV ${wc.iv||'--'}%  $${f2(wc.mark)}` : '--';
+  if ($('bWatchPutSym'))  $('bWatchPutSym').textContent  = wp?.symbol || '--';
+  if ($('bWatchPutMeta')) $('bWatchPutMeta').textContent = wp ? `Δ${f2(wp.delta)}  IV ${wp.iv||'--'}%  $${f2(wp.mark)}` : '--';
+
+  // AI context — mirror commentary bar text
+  const aiText = $('aiCommentaryText');
+  if ($('bAiText') && aiText) $('bAiText').textContent = aiText.textContent;
+
+  // Paper balance
+  const ps = snap.paper_stats || {};
+  if ($('bPaperBal')) $('bPaperBal').textContent = ps.balance != null ? '$' + ps.balance.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}) : '--';
+  if ($('bDayPnl')) { const d = ps.day_pnl; $('bDayPnl').textContent = d != null ? (d>=0?'+':'')+('$'+Math.abs(d).toLocaleString()) : '--'; $('bDayPnl').style.color = d >= 0 ? 'var(--bull)' : 'var(--bear)'; }
+  if ($('bTrades') && ps) $('bTrades').textContent = `${ps.total||0}T ${ps.wins||0}W ${ps.losses||0}L`;
+
+  // Candidates — mirror existing candidates list
+  const candEl = $('candidatesEl');
+  if ($('bCandidates') && candEl) {
+    $('bCandidates').innerHTML = candEl.innerHTML || '<div style="text-align:center;padding:16px 0;color:var(--muted)">No candidates</div>';
+  }
+
+  // Active trades — mirror active trades el
+  const activeEl = $('activeTradesEl');
+  if ($('bActiveTrades') && activeEl) {
+    $('bActiveTrades').innerHTML = activeEl.innerHTML || 'No active trades';
+  }
 }
 
 // ── AI Pause All ───────────────────────────────────────────────────────────────
@@ -3250,6 +3640,8 @@ function update(snap) {
   updateTickVix(snap);
   updatePaperBalance(snap);
   updateMarketContext(snap);
+  _lastSnap = snap;
+  if (_betaView) _renderBeta(snap);
 
   // Converter widget
   updateConverter(snap);
@@ -3429,7 +3821,7 @@ function renderBriefing(snap) {
     row.style.cursor = 'copy';
     row.title = `Click to copy ${c.symbol}`;
     row.onclick = () => {
-      const text = `${c.symbol}  $${f2(c.mark)}`;
+      const text = c.symbol;
       navigator.clipboard?.writeText(text).catch(() => {});
       const orig = row.style.outline;
       row.style.outline = '2px solid var(--accent)';
