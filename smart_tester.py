@@ -1,6 +1,6 @@
 """
 smart_tester.py — Autonomous backtesting agent for tos-dash-v2.
-Version: v2.49.1
+Version: v2.49.2
 
 All DuckDB queries route through api.py (port 8001) HTTP endpoints.
 No direct DuckDB access — avoids Windows file lock conflicts.
@@ -199,12 +199,53 @@ HYPOTHESIS_PROMPTS = {
         "Save a finding with the dual-threshold pattern and confidence level."
     ),
     "ALL": (
-        "Run H-001 through H-005 in order. Do NOT check backtest_runs for existing findings — "
-        "always run every hypothesis fresh regardless of what is already saved. "
-        "Save a new finding for each hypothesis. "
-        "End with a system health summary covering: total trades, win rate, "
-        "top performing regime+trend combination, recommended config changes. "
-        "Save the summary as a separate finding."
+        "Run each of the following hypotheses in order. Do NOT check backtest_runs for existing "
+        "findings — always run every hypothesis fresh regardless of what is already saved. "
+        "Save a new finding for each. End with a system health summary as a separate finding.\n\n"
+
+        "H-001: Score band edge. Query ideas where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "Bucket entry_score into <50, 50-54, 54-58, 58-62, 62-66, 66+. "
+        "Show n, avg_pnl_pct, win_rate for each band. "
+        "Flag any band with n<10 as PRELIMINARY. "
+        "Save a finding with verdict SUPPORTS/REFUTES/INCONCLUSIVE.\n\n"
+
+        "H-002: PINNED vs TRENDING regime performance. "
+        "Query ideas where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "Compare entry_regime=PINNED vs TRENDING: n, avg_pnl_pct, win_rate, stop_rate. "
+        "Also break down by entry_trend within each regime. "
+        "Flag n<20 per regime as PRELIMINARY. Save a finding.\n\n"
+
+        "H-003: TICK at entry predicts outcome. "
+        "Query ideas where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "Bucket entry_tick: <-500, -500 to -200, -200 to 0, 0 to 200, 200 to 500, >500. "
+        "Show n, avg_pnl_pct, win_rate per bucket. "
+        "Show what the current ±500 TICK filter is actually blocking. "
+        "Recommend tighter or wider threshold based on data. "
+        "Flag n<10 per bucket as PRELIMINARY. Save a finding.\n\n"
+
+        "H-004: Calls vs Puts performance. "
+        "Query ideas where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "Compare option_type=Call vs Put: n, avg_pnl_pct, win_rate, stop_rate, avg_entry_score. "
+        "Break down by regime (PINNED/TRENDING) for each type. "
+        "Flag PRELIMINARY if n<20 per type. Save a finding.\n\n"
+
+        "H-005: VIX level at entry. "
+        "Query ideas where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "Bucket entry_vix: <15, 15-20, 20-25, 25-30, >30. "
+        "Show n, avg_pnl_pct, win_rate per bucket. "
+        "Identify optimal VIX range for entries. "
+        "Flag PRELIMINARY if n<10 per bucket. Save a finding.\n\n"
+
+        "System Health Summary: Query total trades, win rate, avg_pnl_pct, total_net from ideas "
+        "where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "Report top performing regime+trend combination and recommended config changes. "
+        "Save as a separate finding."
     ),
 }
 
