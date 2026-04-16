@@ -1437,7 +1437,7 @@ body.beta-view .dash-grid,
 body.beta-view .price-hero,
 body.beta-view .ai-commentary,
 body.beta-view #marketContextBar,
-body.beta-view .news-panel { display: block; }
+body.beta-view #snapBanner { display: none !important; }
 
 #betaDash {
   display: none;
@@ -1593,13 +1593,11 @@ body.beta-view .news-panel { display: block; }
 .b-active-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
 .ai-quick-toggle.ai-paused { border-color: var(--bear); color: var(--bear); }
 
-body.beta-view .spy-price  { font-size: 22px; }
-body.beta-view #bidAsk     { display: none; }
-body.beta-view #maxPain    { display: none; }
-body.beta-view #tickEl     { display: none; }
 
-/* Market context bar always visible */
+
+/* Market context bar always visible (hidden in beta view) */
 #marketContextBar { display: flex; }
+body.beta-view #marketContextBar { display: none !important; }
 </style>
 </head>
 <body>
@@ -1627,7 +1625,7 @@ body.beta-view #tickEl     { display: none; }
     <span class="status-txt" id="statusTxt">CONNECTING</span>
     <div class="ai-call-dot" id="aiCallDot" title="AI API calls"></div>
     <span class="ai-call-label" id="aiCallLabel">AI 0</span>
-    <span class="version-tag">v2.51.2</span>
+    <span class="version-tag">v2.51.3</span>
     <span class="ts" id="tsEl">--</span>
   </div>
 </header>
