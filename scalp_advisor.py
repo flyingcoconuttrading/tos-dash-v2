@@ -23,6 +23,7 @@ Hard filters (contract excluded entirely if any fail):
   - spread_pct <= 50%
 
 Underlying direction is derived from a rolling price history (last DIRECTION_TICKS prices).
+Version: v2.52.1
 """
 
 from collections import deque

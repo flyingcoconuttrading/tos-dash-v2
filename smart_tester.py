@@ -1,6 +1,6 @@
 """
 smart_tester.py — Autonomous backtesting agent for tos-dash-v2.
-Version: v2.51.2
+Version: v2.52.1
 
 All DuckDB queries route through api.py (port 8001) HTTP endpoints.
 No direct DuckDB access — avoids Windows file lock conflicts.
@@ -230,6 +230,19 @@ HYPOTHESIS_PROMPTS = {
         "Recommend whether to trust regime or trend when they conflict, "
         "and which score weights to adjust. Save a finding."
     ),
+    "H-010": (
+        "Validate H-010: MTF alignment from tos-api improves win rate. "
+        "Query ideas where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "This hypothesis cannot be fully validated from ideas.duckdb alone — "
+        "entry_regime and entry_trend are the closest proxies for MTF alignment. "
+        "Use TRENDING+Uptrend as a proxy for ALIGNED_BULLISH, "
+        "TRENDING+Downtrend as ALIGNED_BEARISH, PINNED+Choppy as RANGING. "
+        "Compare avg_pnl_pct, win_rate, stop_rate across these alignment proxies. "
+        "Flag all groups with n<20 as PRELIMINARY. "
+        "Note: full H-010 validation requires tos-api bridge data in entry columns. "
+        "Save a finding with current proxy results and data requirements."
+    ),
     "MOC": (
         "Analyze MOC precursor patterns. "
         "First query moc_events table for all recorded MOC events. "
@@ -322,7 +335,16 @@ HYPOTHESIS_PROMPTS = {
         "or entry_regime=PINNED but entry_trend=Downtrend or Uptrend. "
         "Compare conflict trades vs fully aligned trades: n, avg_pnl_pct, win_rate, stop_rate. "
         "Flag n<10 per group as PRELIMINARY. "
-        "Recommend whether to trust regime or trend when they conflict. Save a finding."
+        "Recommend whether to trust regime or trend when they conflict. Save a finding.\n\n"
+
+        "H-010: MTF alignment proxy analysis. "
+        "Query ideas where paper_exit_reason IS NOT NULL "
+        "and EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) BETWEEN 9 AND 16. "
+        "Use entry_regime+entry_trend as MTF alignment proxy: "
+        "TRENDING+Uptrend=ALIGNED_BULLISH, TRENDING+Downtrend=ALIGNED_BEARISH, "
+        "PINNED+Choppy=RANGING. "
+        "Compare avg_pnl_pct, win_rate, stop_rate across alignment proxies. "
+        "Flag n<20 as PRELIMINARY. Save a finding."
     ),
 }
 
