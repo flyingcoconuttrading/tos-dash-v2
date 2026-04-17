@@ -1,6 +1,7 @@
 # tos-dash-v2/idea_logger.py
 """
 IdeaLogger - full lifecycle tracking for scalp advisor ideas.
+Version: v2.54.0
 ACTIVE -> WEAKENING -> CONFIRMED -> INVALIDATED / EXPIRED
 
 Invalidation rules (priority order):
@@ -32,7 +33,7 @@ import logging.handlers
 import duckdb
 import threading
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -289,16 +290,19 @@ class IdeaLogger:
                                 evidence: dict = None, recommendation: str = "",
                                 trade_count: int = None, date_range: str = None,
                                 prompt: str = "") -> int:
-        """Write a backtesting finding to backtest_runs. Returns new row id."""
+        """Write a backtesting finding to backtest_runs. Returns new row id.
+        run_at stored as naive UTC so the HTML layer can treat it as UTC and
+        convert to the viewer's local time via toLocaleString()."""
         import json as _json
+        run_at_utc = datetime.now(timezone.utc).replace(tzinfo=None)
         with self._lock:
             cur = self._conn.execute("""
                 INSERT INTO backtest_runs
                     (run_at, hypothesis, verdict, summary, evidence,
                      recommendation, trade_count, date_range, prompt)
-                VALUES (CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
-            """, [hypothesis, verdict, summary,
+            """, [run_at_utc, hypothesis, verdict, summary,
                   _json.dumps(evidence or {}),
                   recommendation or "", trade_count, date_range, prompt])
             row_id = cur.fetchone()[0]
