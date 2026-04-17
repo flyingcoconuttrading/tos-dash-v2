@@ -207,6 +207,11 @@ header {
   border-bottom-color: var(--bear);
   color: var(--bear);
 }
+.disconnect-banner.after-hours {
+  background: rgba(210,153,34,0.15);
+  border-bottom-color: rgba(210,153,34,0.6);
+  color: #d29922;
+}
 .disconnect-msg  { flex: 1; }
 .disconnect-timer { font-size: 13px; font-weight: 700; color: var(--bear); }
 .disconnect-retry { font-size: 10px; color: rgba(255,107,122,0.7); }
@@ -1626,7 +1631,7 @@ body.beta-view #marketContextBar { display: none !important; }
     <span class="status-txt" id="statusTxt">CONNECTING</span>
     <div class="ai-call-dot" id="aiCallDot" title="AI API calls"></div>
     <span class="ai-call-label" id="aiCallLabel">AI 0</span>
-    <span class="version-tag">v2.52.0</span>
+    <span class="version-tag">v2.53.0</span>
     <span class="ts" id="tsEl">--</span>
   </div>
 </header>
@@ -3041,6 +3046,15 @@ let _dteMode = '0DTE';   // '0DTE' or '1DTE'
 // Disconnect tracking
 let _disconnectTime    = null;   // Date when disconnect first detected
 let _disconnectTimer   = null;   // setInterval handle for elapsed counter
+function _isMarketHours() {
+  const now = new Date();
+  const et  = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const h   = et.getHours();
+  const m   = et.getMinutes();
+  const mins = h * 60 + m;
+  return mins >= 9 * 60 && mins <= 16 * 60 + 30;  // 9:00 AM — 4:30 PM ET
+}
+
 let _retryCount        = 0;      // current reconnect attempt number
 let _retryMax          = 3;      // max auto-retry attempts
 let _retryTimeout      = null;   // setTimeout handle for next retry
@@ -3516,9 +3530,17 @@ function update(snap) {
   // Fires even when ticks advance, catching scenarios the tick-advance check misses
   if (snap.rtd_stale && !_isStale) {
     _isStale = true;
-    showDisconnectBanner();
     const _staleMsg = document.getElementById('disconnectMsg');
-    if (_staleMsg) _staleMsg.textContent = '⚠️  DATA STALE — RTD not feeding';
+    if (_isMarketHours()) {
+      showDisconnectBanner();
+      if (_staleMsg) _staleMsg.textContent = '⚠️  DATA STALE — RTD not feeding';
+    } else {
+      const banner = document.getElementById('disconnectBanner');
+      if (banner) banner.className = 'disconnect-banner after-hours show';
+      if (_staleMsg) _staleMsg.textContent = '⚠  Data may be stale — market closed';
+      const retryEl = document.getElementById('disconnectRetry');
+      if (retryEl) retryEl.textContent = '';
+    }
   } else if (!snap.rtd_stale && _isStale) {
     _isStale = false;
     hideDisconnectBanner();
@@ -4271,7 +4293,7 @@ function showDisconnectBanner() {
   if (_disconnectTime) return;   // already showing
   _disconnectTime = new Date();
   _retryCount     = 0;
-  _beepDisconnect();
+  if (_isMarketHours()) _beepDisconnect();
 
   const banner   = document.getElementById('disconnectBanner');
   const msgEl    = document.getElementById('disconnectMsg');
@@ -4313,9 +4335,17 @@ function _startStaleChecker() {
                       age > _staleThreshMs;
     if (!_isStale && tickStale) {
       _isStale = true;
-      showDisconnectBanner();
       const msgEl = document.getElementById('disconnectMsg');
-      if (msgEl) msgEl.textContent = '\u26a0\ufe0f  DATA STALE \u2014 TOS not feeding';
+      if (_isMarketHours()) {
+        showDisconnectBanner();
+        if (msgEl) msgEl.textContent = '\u26a0\ufe0f  DATA STALE \u2014 TOS not feeding';
+      } else {
+        const banner = document.getElementById('disconnectBanner');
+        if (banner) banner.className = 'disconnect-banner after-hours show';
+        if (msgEl) msgEl.textContent = '\u26a0  Data may be stale \u2014 market closed';
+        const retryEl = document.getElementById('disconnectRetry');
+        if (retryEl) retryEl.textContent = '';
+      }
     } else if (_isStale && age <= _staleThreshMs) {
       _isStale = false;
       hideDisconnectBanner();
