@@ -603,6 +603,34 @@ class ScalpAdvisor:
                     penalty = min((spread_pct - self.MAX_SPREAD_PCT) / self.MAX_SPREAD_PCT, 1.0)
                     raw_score *= (1 - penalty * 0.5)
 
+                # ── SPY context adjustments (from tos-api bridge) ────────────────
+                spy_ctx = self._cfg.get("_spy_context", {})
+                if spy_ctx.get("available"):
+                    bias         = spy_ctx.get("trade_bias",    "NEUTRAL")
+                    mtf          = spy_ctx.get("mtf_alignment", "RANGING")
+                    adx          = float(spy_ctx.get("daily_adx", 25) or 25)
+                    _ot_lower    = str(opt_type).lower()
+
+                    # Wrong-direction suppression
+                    if bias == "LONG_ONLY"  and _ot_lower == "put":
+                        raw_score *= 0.80
+                    if bias == "SHORT_ONLY" and _ot_lower == "call":
+                        raw_score *= 0.80
+
+                    # Partial suppression for preferred bias
+                    if bias == "LONG_PREFERRED"  and _ot_lower == "put":
+                        raw_score *= 0.90
+                    if bias == "SHORT_PREFERRED" and _ot_lower == "call":
+                        raw_score *= 0.90
+
+                    # MTF conflict penalty
+                    if mtf == "CONFLICT":
+                        raw_score *= 0.90
+
+                    # ADX choppy penalty
+                    if adx < 20:
+                        raw_score *= 0.90
+
                 this_tick_scores[sym] = (raw_score, {
                     "symbol": sym, "strike": strike, "option_type": opt_type,
                     "direction": "Bullish" if opt_type == "Call" else "Bearish",

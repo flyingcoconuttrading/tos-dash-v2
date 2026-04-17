@@ -1,6 +1,6 @@
 """
 api.py — tos-dash-v2 API + process manager.
-Version: v2.50.2
+Version: v2.52.0
 
 Single entry point: python api.py
   - Manages spy_writer.py as a subprocess
@@ -79,11 +79,13 @@ import market_structure as ms_mod
 from volume_tracker import VolumeTracker
 from scalp_advisor import ScalpAdvisor
 from channel_advisor import ChannelAdvisor
+import spy_context as _spy_context
 import news_fetcher
 
 volume_tracker  = VolumeTracker()
 scalp_advisor   = ScalpAdvisor()
 channel_advisor = ChannelAdvisor()
+_spy_context.start()
 cfg_snapshot    = {}   # latest config, shared with idea_logger
 _last_snapshot: dict = {}   # cached by tick_loop; served by GET /snapshot
 _last_tick_seen: int   = -1
@@ -697,6 +699,7 @@ def build_snapshot() -> dict:
                 "_ntick":         ntick or 0,
                 "_vix":           vix_raw or 0,
                 "_channel":       channel_advisor.to_dict(),
+                "_spy_context":   _spy_context.get_spy_context(),
             }
             candidates = scalp_advisor.get_recommendations(
                 data           = data,
@@ -1507,6 +1510,12 @@ def backtest_status():
         "pid":     backtest_proc.pid if backtest_alive() else None,
         "url":     "http://127.0.0.1:8003/",
     }
+
+
+@app.get("/spy-context")
+def spy_context_status():
+    """Returns current SPY context from tos-api bridge."""
+    return _spy_context.get_status()
 
 
 # ── System health endpoints ────────────────────────────────────────────────────
