@@ -1,6 +1,6 @@
 """
 api.py — tos-dash-v2 API + process manager.
-Version: v2.54.0
+Version: v2.55.0
 
 Single entry point: python api.py
   - Manages spy_writer.py as a subprocess
@@ -40,6 +40,7 @@ from pydantic import BaseModel
 THIS_DIR    = Path(__file__).parent
 WRITER_SCRIPT = THIS_DIR / "spy_writer.py"
 TICK_RECORDER_SCRIPT  = THIS_DIR / "tick_recorder.py"
+GEX_RECORDER_SCRIPT   = THIS_DIR / "gex_recorder.py"
 BACKTEST_SCRIPT       = THIS_DIR / "backtest_dashboard.py"
 CONFIG_FILE = THIS_DIR / "config.json"
 PRICE_FILE  = THIS_DIR / "spy_price.json"
@@ -240,6 +241,7 @@ DEFAULT_CONFIG = {
     "briefing_delta_min":    0.35,
     "briefing_delta_max":    0.50,
     "pinned_allowed_trends":  ["Uptrend", "Downtrend", "Choppy"],
+    "gex_recorder_enabled":   True,
     "pinned_max_score":       60,
     "max_surface_score":      66,
     "paper_stop_pct_pinned":  0.20,
@@ -392,6 +394,47 @@ def stop_tick_recorder():
         tick_recorder_proc = None
         try:
             (THIS_DIR / "tick_recorder.stop").unlink(missing_ok=True)
+        except Exception:
+            pass
+
+# ── GEX recorder process manager ──────────────────────────────────────────────
+gex_recorder_proc: Optional[subprocess.Popen] = None
+gex_recorder_lock = threading.Lock()
+
+def start_gex_recorder():
+    global gex_recorder_proc
+    if not GEX_RECORDER_SCRIPT.exists():
+        return
+    with gex_recorder_lock:
+        if gex_recorder_proc and gex_recorder_proc.poll() is None:
+            return
+        try:
+            gex_recorder_proc = subprocess.Popen(
+                [sys.executable, str(GEX_RECORDER_SCRIPT)],
+                stderr=None,
+                stdout=subprocess.DEVNULL,
+                cwd=str(THIS_DIR),
+            )
+            logger.info(f"GEX recorder started (PID {gex_recorder_proc.pid})")
+            _record_start("gex_recorder")
+        except Exception as e:
+            logger.warning(f"GEX recorder start failed: {e}")
+
+def stop_gex_recorder():
+    global gex_recorder_proc
+    with gex_recorder_lock:
+        if gex_recorder_proc and gex_recorder_proc.poll() is None:
+            try:
+                (THIS_DIR / "gex_recorder.stop").write_text("stop")
+            except Exception:
+                pass
+            try:
+                gex_recorder_proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                gex_recorder_proc.kill()
+        gex_recorder_proc = None
+        try:
+            (THIS_DIR / "gex_recorder.stop").unlink(missing_ok=True)
         except Exception:
             pass
 
@@ -1152,6 +1195,8 @@ async def startup():
     cfg = load_config()
     if cfg.get("tick_history_enabled", True):
         start_tick_recorder()
+    if cfg.get("gex_recorder_enabled", True):
+        start_gex_recorder()
     start_backtest_dashboard()
     asyncio.create_task(tick_loop())
     asyncio.create_task(_watchdog())
@@ -1167,6 +1212,7 @@ async def startup():
 async def shutdown():
     stop_writer()
     stop_tick_recorder()
+    stop_gex_recorder()
     stop_backtest_dashboard()
     news_fetcher.stop()
 
@@ -1410,6 +1456,93 @@ async def backtest_ticks_query_async(request: Request):
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(None, lambda: backtest_ticks_query(body))
     return result
+
+
+@app.post("/backtest/gex-snapshot-write")
+async def gex_snapshot_write(request: Request):
+    """Write a single GEX snapshot row via idea_logger. Called by gex_recorder.py."""
+    body = await request.json()
+    try:
+        idea_logger.write_gex_snapshot(body)
+        return {"saved": True}
+    except Exception as e:
+        return {"saved": False, "error": str(e)}
+
+
+@app.get("/gex/baseline")
+async def gex_baseline(symbol: str = "SPY", minute_of_day: Optional[int] = None,
+                        window_minutes: int = 5, days: int = 20):
+    """Return baseline stats for net_gex / net_dex at a given minute of day,
+    computed over the trailing N calendar days (weekends naturally excluded
+    since no rows are written then).
+
+    Params:
+      symbol         — ticker (default SPY)
+      minute_of_day  — minute 0–1440, e.g. 9:30 ET = 570. If None, uses current ET minute.
+      window_minutes — +/- window around minute_of_day to aggregate (default 5)
+      days           — trailing calendar days of history (default 20)
+    """
+    from datetime import datetime as _dt, timedelta as _td
+    from zoneinfo import ZoneInfo as _ZI
+    if minute_of_day is None:
+        _now = _dt.now(_ZI("America/New_York"))
+        minute_of_day = _now.hour * 60 + _now.minute
+    lo = max(0, minute_of_day - window_minutes)
+    hi = min(1440, minute_of_day + window_minutes)
+    cutoff = (_dt.now() - _td(days=days)).date().isoformat()
+
+    sql = f"""
+        SELECT COUNT(*)                               AS n,
+               AVG(net_gex)                           AS avg_net_gex,
+               MEDIAN(net_gex)                        AS median_net_gex,
+               QUANTILE_CONT(ABS(net_gex), 0.90)      AS p90_abs_net_gex,
+               STDDEV_POP(net_gex)                    AS stddev_net_gex,
+               AVG(net_dex)                           AS avg_net_dex,
+               MEDIAN(net_dex)                        AS median_net_dex,
+               QUANTILE_CONT(ABS(net_dex), 0.90)      AS p90_abs_net_dex,
+               COUNT(DISTINCT date)                   AS days_covered
+        FROM gex_snapshots
+        WHERE symbol = '{symbol.replace("'", "")}'
+          AND minute_of_day BETWEEN {lo} AND {hi}
+          AND date >= DATE '{cutoff}'
+    """
+    try:
+        df = idea_logger._conn.execute(sql).fetchdf()
+        row = df.to_dict("records")[0] if len(df) else {}
+        return {
+            "symbol": symbol,
+            "minute_of_day": minute_of_day,
+            "window_minutes": window_minutes,
+            "days": days,
+            "baseline": row,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/gex-recorder/pause")
+def gex_recorder_pause():
+    try:
+        (THIS_DIR / "gex_recorder.pause").write_text("pause")
+        return {"paused": True}
+    except Exception as e:
+        return {"paused": False, "error": str(e)}
+
+
+@app.post("/gex-recorder/resume")
+def gex_recorder_resume():
+    try:
+        (THIS_DIR / "gex_recorder.pause").unlink(missing_ok=True)
+        return {"resumed": True}
+    except Exception as e:
+        return {"resumed": False, "error": str(e)}
+
+
+@app.get("/gex-recorder/status")
+def gex_recorder_status():
+    running = gex_recorder_proc is not None and gex_recorder_proc.poll() is None
+    paused  = (THIS_DIR / "gex_recorder.pause").exists()
+    return {"running": running, "paused": paused}
 
 
 @app.post("/backtest/finding")

@@ -1,7 +1,7 @@
 # tos-dash-v2/idea_logger.py
 """
 IdeaLogger - full lifecycle tracking for scalp advisor ideas.
-Version: v2.54.0
+Version: v2.55.0
 ACTIVE -> WEAKENING -> CONFIRMED -> INVALIDATED / EXPIRED
 
 Invalidation rules (priority order):
@@ -285,6 +285,27 @@ class IdeaLogger:
                 self._conn.commit()
         except Exception as e:
             self._log.warning("log_config_change failed: %s", e)
+
+    def write_gex_snapshot(self, row: dict) -> bool:
+        """Insert one GEX snapshot row. Called via api.py /backtest/gex-snapshot-write."""
+        with self._lock:
+            self._conn.execute("""
+                INSERT INTO gex_snapshots
+                  (recorded_at, date, minute_of_day, symbol, spy_price, vix,
+                   net_gex, net_dex, gex_anchor, max_pain, call_wall, put_wall,
+                   regime, trend)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, [
+                row.get("recorded_at"), row.get("date"), row.get("minute_of_day"),
+                row.get("symbol") or "SPY",
+                row.get("spy_price"), row.get("vix"),
+                row.get("net_gex"), row.get("net_dex"),
+                row.get("gex_anchor"), row.get("max_pain"),
+                row.get("call_wall"), row.get("put_wall"),
+                row.get("regime") or "", row.get("trend") or "",
+            ])
+            self._conn.commit()
+        return True
 
     def write_backtest_finding(self, hypothesis: str, verdict: str, summary: str,
                                 evidence: dict = None, recommendation: str = "",
@@ -1404,6 +1425,34 @@ class IdeaLogger:
         self._conn.execute("CREATE INDEX IF NOT EXISTS idx_cfg_history_time ON config_history(changed_at)")
 
         # Backtesting findings table
+        self._conn.execute("CREATE SEQUENCE IF NOT EXISTS gex_snapshots_seq START 1")
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS gex_snapshots (
+                id             INTEGER DEFAULT nextval('gex_snapshots_seq') PRIMARY KEY,
+                recorded_at    TIMESTAMP NOT NULL,
+                date           DATE      NOT NULL,
+                minute_of_day  INTEGER   NOT NULL,
+                symbol         VARCHAR   NOT NULL,
+                spy_price      DOUBLE,
+                vix            DOUBLE,
+                net_gex        DOUBLE,
+                net_dex        DOUBLE,
+                gex_anchor     DOUBLE,
+                max_pain       DOUBLE,
+                call_wall      DOUBLE,
+                put_wall       DOUBLE,
+                regime         VARCHAR,
+                trend          VARCHAR
+            )
+        """)
+        self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_gex_snap_symbol_date
+              ON gex_snapshots(symbol, date)
+        """)
+        self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_gex_snap_symbol_min
+              ON gex_snapshots(symbol, minute_of_day)
+        """)
         self._conn.execute("CREATE SEQUENCE IF NOT EXISTS backtest_runs_seq START 1")
         self._conn.execute("""
             CREATE TABLE IF NOT EXISTS backtest_runs (
