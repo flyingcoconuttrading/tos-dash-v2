@@ -1,7 +1,7 @@
 # tos-dash-v2/idea_logger.py
 """
 IdeaLogger - full lifecycle tracking for scalp advisor ideas.
-Version: v2.56.1
+Version: v2.56.2
 ACTIVE -> WEAKENING -> CONFIRMED -> INVALIDATED / EXPIRED
 
 Invalidation rules (priority order):
@@ -630,35 +630,36 @@ class IdeaLogger:
     def cleanup_outside_market_hours_v2(self) -> int:
         """
         Extended cleanup — deletes rows with surfaced_at outside 09:30–16:00 ET.
-        Uses EXTRACT against TIMESTAMP type. Cascades to idea_tick_history and
-        surface_candidates. Note: this uses naive datetime hour/minute — your
-        ideas.surfaced_at is stored in local server time, so 09:30 here means
-        09:30 server-local. If the server runs in ET this matches market hours
-        directly. If not, adjust the WHERE clause accordingly.
+        `ideas.surfaced_at` is VARCHAR (ISO-8601 string). We CAST to TIMESTAMP
+        before calling EXTRACT. DuckDB coerces well-formed ISO strings cleanly.
+        Uses naive local hour/minute — server must be running in ET for this
+        to match market hours. Cascades to idea_tick_history (CAST on join key)
+        and surface_candidates (column is TIMESTAMP there, CAST is a no-op).
         """
-        where_clause = """
-            EXTRACT(HOUR FROM surfaced_at) < 9
-            OR (EXTRACT(HOUR FROM surfaced_at) = 9 AND EXTRACT(MINUTE FROM surfaced_at) < 30)
-            OR EXTRACT(HOUR FROM surfaced_at) >= 16
+        ideas_where = """
+            EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) < 9
+            OR (EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) = 9
+                AND EXTRACT(MINUTE FROM CAST(surfaced_at AS TIMESTAMP)) < 30)
+            OR EXTRACT(HOUR FROM CAST(surfaced_at AS TIMESTAMP)) >= 16
         """
         with self._lock:
             n_iters = 0
             try:
                 row = self._conn.execute(f"""
-                    SELECT COUNT(*) AS n FROM ideas WHERE {where_clause}
+                    SELECT COUNT(*) AS n FROM ideas WHERE {ideas_where}
                 """).fetchone()
                 n_iters = int(row[0]) if row else 0
                 self._log.info("cleanup_outside_market_hours_v2: will delete %d ideas", n_iters)
                 if n_iters > 0:
                     self._conn.execute(f"""
                         DELETE FROM idea_tick_history
-                        WHERE idea_id IN (SELECT id FROM ideas WHERE {where_clause})
+                        WHERE idea_id IN (SELECT id FROM ideas WHERE {ideas_where})
                     """)
                     self._conn.execute(f"""
-                        DELETE FROM surface_candidates WHERE {where_clause}
+                        DELETE FROM surface_candidates WHERE {ideas_where}
                     """)
                     self._conn.execute(f"""
-                        DELETE FROM ideas WHERE {where_clause}
+                        DELETE FROM ideas WHERE {ideas_where}
                     """)
                     self._conn.commit()
                     self._log.info("cleanup_outside_market_hours_v2: deleted %d ideas + children", n_iters)
