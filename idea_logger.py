@@ -1,7 +1,7 @@
 # tos-dash-v2/idea_logger.py
 """
 IdeaLogger - full lifecycle tracking for scalp advisor ideas.
-Version: v2.56.0
+Version: v2.56.1
 ACTIVE -> WEAKENING -> CONFIRMED -> INVALIDATED / EXPIRED
 
 Invalidation rules (priority order):
@@ -629,48 +629,36 @@ class IdeaLogger:
 
     def cleanup_outside_market_hours_v2(self) -> int:
         """
-        Extended cleanup — deletes rows with surfaced_at outside 09:30–16:00.
-        Uses substring matching because surfaced_at is stored as ISO-8601 TEXT
-        (format: 'YYYY-MM-DDTHH:MM:SS'), which sorts lexicographically the same
-        as chronologically so SUBSTRING-based comparisons are safe.
-        Cascades to idea_tick_history and surface_candidates.
+        Extended cleanup — deletes rows with surfaced_at outside 09:30–16:00 ET.
+        Uses EXTRACT against TIMESTAMP type. Cascades to idea_tick_history and
+        surface_candidates. Note: this uses naive datetime hour/minute — your
+        ideas.surfaced_at is stored in local server time, so 09:30 here means
+        09:30 server-local. If the server runs in ET this matches market hours
+        directly. If not, adjust the WHERE clause accordingly.
+        """
+        where_clause = """
+            EXTRACT(HOUR FROM surfaced_at) < 9
+            OR (EXTRACT(HOUR FROM surfaced_at) = 9 AND EXTRACT(MINUTE FROM surfaced_at) < 30)
+            OR EXTRACT(HOUR FROM surfaced_at) >= 16
         """
         with self._lock:
             n_iters = 0
             try:
-                row = self._conn.execute("""
-                    SELECT COUNT(*) AS n FROM ideas
-                    WHERE SUBSTRING(surfaced_at, 12, 2) < '09'
-                       OR (SUBSTRING(surfaced_at, 12, 2) = '09'
-                           AND SUBSTRING(surfaced_at, 15, 2) < '30')
-                       OR SUBSTRING(surfaced_at, 12, 2) >= '16'
+                row = self._conn.execute(f"""
+                    SELECT COUNT(*) AS n FROM ideas WHERE {where_clause}
                 """).fetchone()
                 n_iters = int(row[0]) if row else 0
                 self._log.info("cleanup_outside_market_hours_v2: will delete %d ideas", n_iters)
                 if n_iters > 0:
-                    self._conn.execute("""
+                    self._conn.execute(f"""
                         DELETE FROM idea_tick_history
-                        WHERE idea_id IN (
-                            SELECT id FROM ideas
-                            WHERE SUBSTRING(surfaced_at, 12, 2) < '09'
-                               OR (SUBSTRING(surfaced_at, 12, 2) = '09'
-                                   AND SUBSTRING(surfaced_at, 15, 2) < '30')
-                               OR SUBSTRING(surfaced_at, 12, 2) >= '16'
-                        )
+                        WHERE idea_id IN (SELECT id FROM ideas WHERE {where_clause})
                     """)
-                    self._conn.execute("""
-                        DELETE FROM surface_candidates
-                        WHERE SUBSTRING(surfaced_at, 12, 2) < '09'
-                           OR (SUBSTRING(surfaced_at, 12, 2) = '09'
-                               AND SUBSTRING(surfaced_at, 15, 2) < '30')
-                           OR SUBSTRING(surfaced_at, 12, 2) >= '16'
+                    self._conn.execute(f"""
+                        DELETE FROM surface_candidates WHERE {where_clause}
                     """)
-                    self._conn.execute("""
-                        DELETE FROM ideas
-                        WHERE SUBSTRING(surfaced_at, 12, 2) < '09'
-                           OR (SUBSTRING(surfaced_at, 12, 2) = '09'
-                               AND SUBSTRING(surfaced_at, 15, 2) < '30')
-                           OR SUBSTRING(surfaced_at, 12, 2) >= '16'
+                    self._conn.execute(f"""
+                        DELETE FROM ideas WHERE {where_clause}
                     """)
                     self._conn.commit()
                     self._log.info("cleanup_outside_market_hours_v2: deleted %d ideas + children", n_iters)

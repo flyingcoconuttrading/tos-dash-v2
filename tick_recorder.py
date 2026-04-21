@@ -1,6 +1,6 @@
 """
 tick_recorder.py — Independent tick history recorder for tos-dash-v2.
-Version: v2.50.0
+Version: v2.56.1
 
 Reads spy_price.json and option_chain.json on each poll cycle and appends
 rows to a DuckDB replay database. Designed to be managed as a subprocess by
@@ -118,20 +118,21 @@ def _open_db() -> duckdb.DuckDBPyConnection:
 PRICE_FILE = THIS_DIR / "spy_price.json"
 CHAIN_FILE = THIS_DIR / "option_chain.json"
 
-# ── Market hours check ─────────────────────────────────────────────────────────
-def _is_market_hours() -> bool:
-    """Return True if current ET time is within market hours.
-    0DTE: 9:30-16:00. 1DTE: 9:30-16:15."""
+# ── Capture window check ──────────────────────────────────────────────────────
+def _in_capture_window() -> bool:
+    """Return True if current ET time is within the configured tick-capture window.
+    Defaults to 04:00–20:00 ET (full extended session).
+    Override via config:
+      tick_capture_open_min   — open minute-of-day (default 240 = 04:00)
+      tick_capture_close_min  — close minute-of-day (default 1200 = 20:00)
+    Weekends are always closed."""
     now_et = datetime.now(ZoneInfo("America/New_York"))
-    market_open = now_et.hour > 9 or (now_et.hour == 9 and now_et.minute >= 30)
-    dte_mode = cfg.get("expiry_date")  # if expiry_date set = 1DTE mode
-    if dte_mode:
-        # 1DTE — close at 16:15
-        market_close = now_et.hour < 16 or (now_et.hour == 16 and now_et.minute <= 15)
-    else:
-        # 0DTE — close at 16:00
-        market_close = now_et.hour < 16
-    return market_open and market_close
+    if now_et.weekday() >= 5:
+        return False
+    mins = now_et.hour * 60 + now_et.minute
+    open_min  = int(cfg.get("tick_capture_open_min",  4 * 60))    # 04:00 ET
+    close_min = int(cfg.get("tick_capture_close_min", 20 * 60))   # 20:00 ET
+    return open_min <= mins < close_min
 
 # ── Main loop ──────────────────────────────────────────────────────────────────
 print(f"[tick_recorder] Starting — db={DUCKDB_PATH}  poll={POLL_MS}ms", file=sys.stderr)
@@ -169,8 +170,8 @@ try:
                 time.sleep(1.0)
                 continue
 
-        # Market hours gate: 9:30–16:00 ET only
-        if not _is_market_hours():
+        # Extended-hours capture gate (default 04:00–20:00 ET)
+        if not _in_capture_window():
             time.sleep(max(0.0, POLL_SEC - (time.perf_counter() - t0)))
             continue
 

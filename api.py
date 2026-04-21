@@ -1,6 +1,6 @@
 """
 api.py — tos-dash-v2 API + process manager.
-Version: v2.56.0
+Version: v2.56.1
 
 Single entry point: python api.py
   - Manages spy_writer.py as a subprocess
@@ -79,17 +79,29 @@ from gamma_chart import calculate_max_pain, calculate_walls
 import market_structure as ms_mod
 
 
-def _is_market_hours_et() -> tuple[bool, str]:
+def _is_market_hours_et(cfg: dict = None) -> tuple[bool, str]:
     """Return (in_hours, reason_string) using America/New_York.
-    Market hours: Mon–Fri 09:30–16:00 ET. Weekends = closed."""
+    Window depends on DTE mode and config:
+      0DTE: 09:30–16:00 ET
+      1DTE+: 09:30–16:15 ET
+    Premarket (pre-09:30) is blocked unless config['allow_premarket_surfacing'] is True.
+    Weekends = always closed."""
+    cfg = cfg or {}
     now_et = datetime.now(ZoneInfo("America/New_York"))
     if now_et.weekday() >= 5:
         return False, f"weekend ({now_et.strftime('%A')})"
     mins = now_et.hour * 60 + now_et.minute
+
+    # 1DTE+ uses extended close at 16:15
+    is_1dte_plus = bool(cfg.get("expiry_date"))
+    close_min    = 16 * 60 + 15 if is_1dte_plus else 16 * 60
+
     if mins < 9 * 60 + 30:
+        if cfg.get("allow_premarket_surfacing", False):
+            return True, f"premarket allowed ({now_et.strftime('%H:%M ET')})"
         return False, f"premarket ({now_et.strftime('%H:%M ET')})"
-    if mins >= 16 * 60:
-        return False, f"after-hours ({now_et.strftime('%H:%M ET')})"
+    if mins >= close_min:
+        return False, f"after-hours ({now_et.strftime('%H:%M ET')}, close={close_min//60:02d}:{close_min%60:02d})"
     return True, f"market hours ({now_et.strftime('%H:%M ET')})"
 from volume_tracker import VolumeTracker
 from scalp_advisor import ScalpAdvisor
@@ -774,9 +786,12 @@ def build_snapshot() -> dict:
             logger.debug("SCAN: scalp_advisor returned %d candidates", len(candidates or []))
 
         # ── Market-hours gate ─────────────────────────────────────────────────
-        # Blocks idea surfacing outside 09:30–16:00 ET. test_mode=true bypasses.
+        # Blocks idea surfacing outside the configured market window.
+        # 0DTE: 09:30–16:00 ET. 1DTE+ (expiry_date set): 09:30–16:15 ET.
+        # config['allow_premarket_surfacing']=true allows pre-09:30 surfacing.
+        # test_mode=true bypasses the gate entirely.
         if candidates and not cfg.get("test_mode", False):
-            _in_hours, _hours_reason = _is_market_hours_et()
+            _in_hours, _hours_reason = _is_market_hours_et(cfg)
             if not _in_hours:
                 logger.info("MARKET-HOURS GATE: blocked %d candidates — %s",
                             len(candidates), _hours_reason)
