@@ -21,6 +21,10 @@ from typing import Callable, Optional
 
 import requests
 import anthropic
+import logging
+
+__version__ = "v2.56.0"
+_log = logging.getLogger("tos_dash.smart_tester")
 
 THIS_DIR      = Path(__file__).parent
 CONFIG_FILE   = THIS_DIR / "config.json"
@@ -462,58 +466,113 @@ def run_analysis(prompt: str, callback: Optional[Callable] = None,
     client   = anthropic.Anthropic(api_key=api_key)
     messages = [{"role": "user", "content": prompt}]
     findings = []
+    last_stop_reason = None
 
     def emit(t, d):
         if callback:
             callback(t, d)
         else:
             _print_event(t, d)
+        try:
+            _log.info("SMART_TESTER emit %s %s", t, json.dumps(d, default=str)[:500])
+        except Exception:
+            _log.info("SMART_TESTER emit %s (non-serializable)", t)
 
-    emit("start", {"prompt": prompt, "timestamp": datetime.now().isoformat()})
+    _log.info("=" * 60)
+    _log.info("SMART_TESTER run_analysis START prompt=%s max_iter=%d",
+              (prompt or "")[:200], max_iterations)
+    emit("start", {"prompt": prompt, "timestamp": datetime.now().isoformat(),
+                   "max_iterations": max_iterations})
 
-    for iteration in range(1, max_iterations + 1):
-        response = client.messages.create(
-            model="claude-sonnet-4-20250514", max_tokens=4096,
-            system=SYSTEM_PROMPT, tools=TOOLS, messages=messages)
+    iteration = 0
+    try:
+        for iteration in range(1, max_iterations + 1):
+            _log.info("SMART_TESTER iter %d/%d — calling Claude", iteration, max_iterations)
+            try:
+                response = client.messages.create(
+                    model="claude-sonnet-4-20250514", max_tokens=4096,
+                    system=SYSTEM_PROMPT, tools=TOOLS, messages=messages)
+            except Exception as api_err:
+                _log.exception("SMART_TESTER Anthropic API error on iter %d", iteration)
+                emit("error", {"message": f"Anthropic API error: {api_err}",
+                               "iteration": iteration})
+                emit("done", {"findings": findings, "iterations": iteration,
+                              "error": str(api_err)})
+                return {"findings": findings, "iterations": iteration,
+                        "error": str(api_err)}
 
-        text_blocks = [b for b in response.content if b.type == "text"]
-        tool_blocks = [b for b in response.content if b.type == "tool_use"]
+            last_stop_reason = response.stop_reason
+            _log.info("SMART_TESTER iter %d stop_reason=%s content_blocks=%d",
+                      iteration, last_stop_reason, len(response.content))
+            emit("iteration_meta", {"iteration": iteration,
+                                    "stop_reason": last_stop_reason,
+                                    "n_content_blocks": len(response.content)})
 
-        for b in text_blocks:
-            if b.text.strip():
-                emit("thinking", {"text": b.text, "iteration": iteration})
+            text_blocks = [b for b in response.content if b.type == "text"]
+            tool_blocks = [b for b in response.content if b.type == "tool_use"]
 
-        assistant_msg = []
-        for b in response.content:
-            if b.type == "text":
-                assistant_msg.append({"type": "text", "text": b.text})
-            elif b.type == "tool_use":
-                assistant_msg.append({"type": "tool_use", "id": b.id, "name": b.name, "input": b.input})
-        messages.append({"role": "assistant", "content": assistant_msg})
+            for b in text_blocks:
+                if b.text.strip():
+                    emit("thinking", {"text": b.text, "iteration": iteration})
 
-        if not tool_blocks:
-            if response.stop_reason == "end_turn":
-                emit("done", {"findings": findings, "iterations": iteration})
-                break
-            continue
+            assistant_msg = []
+            for b in response.content:
+                if b.type == "text":
+                    assistant_msg.append({"type": "text", "text": b.text})
+                elif b.type == "tool_use":
+                    assistant_msg.append({"type": "tool_use", "id": b.id,
+                                          "name": b.name, "input": b.input})
+            messages.append({"role": "assistant", "content": assistant_msg})
 
-        tool_results = []
-        for block in tool_blocks:
-            # Check if a stop was requested via the callback channel
-            if callback and hasattr(callback, '_stop_requested') and callback._stop_requested:
-                emit("done", {"findings": findings, "iterations": iteration, "stopped": True})
-                return {"findings": findings, "iterations": iteration, "stopped": True}
-            emit("tool_call", {"tool": block.name, "input": block.input, "iteration": iteration})
-            result = _dispatch(block.name, block.input, prompt)
-            emit("tool_result", {"tool": block.name, "result": result, "iteration": iteration})
-            if block.name == "save_finding":
-                findings.append(block.input)
-                emit("finding", block.input)
-            tool_results.append({"type": "tool_result", "tool_use_id": block.id,
-                                  "content": json.dumps(result, default=str)})
-        messages.append({"role": "user", "content": tool_results})
+            if not tool_blocks:
+                # Terminal conditions:
+                #   end_turn     — normal completion
+                #   max_tokens   — truncated response; nothing more coming
+                #   stop_sequence— shouldn't happen with our prompt
+                # Anything else without tool_blocks is a protocol oddity — still terminate
+                # so we don't spin to max_iterations silently.
+                _log.info("SMART_TESTER iter %d no tool_blocks, terminating (stop_reason=%s)",
+                          iteration, last_stop_reason)
+                emit("done", {"findings": findings, "iterations": iteration,
+                              "stop_reason": last_stop_reason})
+                return {"findings": findings, "iterations": iteration,
+                        "stop_reason": last_stop_reason}
 
-    return {"findings": findings, "iterations": iteration}
+            tool_results = []
+            for block in tool_blocks:
+                if callback and hasattr(callback, '_stop_requested') and callback._stop_requested:
+                    _log.info("SMART_TESTER stop requested by caller at iter %d", iteration)
+                    emit("done", {"findings": findings, "iterations": iteration, "stopped": True})
+                    return {"findings": findings, "iterations": iteration, "stopped": True}
+                emit("tool_call", {"tool": block.name, "input": block.input,
+                                   "iteration": iteration})
+                try:
+                    result = _dispatch(block.name, block.input, prompt)
+                except Exception as tool_err:
+                    _log.exception("SMART_TESTER tool dispatch error: %s", block.name)
+                    result = {"error": f"tool dispatch failed: {tool_err}"}
+                emit("tool_result", {"tool": block.name, "result": result,
+                                     "iteration": iteration})
+                if block.name == "save_finding":
+                    findings.append(block.input)
+                    emit("finding", block.input)
+                tool_results.append({"type": "tool_result", "tool_use_id": block.id,
+                                      "content": json.dumps(result, default=str)})
+            messages.append({"role": "user", "content": tool_results})
+
+        # Loop exited by exhausting max_iterations without end_turn
+        _log.warning("SMART_TESTER exhausted max_iterations=%d without end_turn "
+                     "(last_stop_reason=%s)", max_iterations, last_stop_reason)
+        emit("done", {"findings": findings, "iterations": iteration,
+                      "stop_reason": last_stop_reason,
+                      "note": "max_iterations exhausted"})
+        return {"findings": findings, "iterations": iteration,
+                "stop_reason": last_stop_reason}
+    except Exception as outer:
+        _log.exception("SMART_TESTER unexpected error")
+        emit("error", {"message": str(outer), "iteration": iteration})
+        emit("done", {"findings": findings, "iterations": iteration, "error": str(outer)})
+        return {"findings": findings, "iterations": iteration, "error": str(outer)}
 
 
 def _print_event(t, d):

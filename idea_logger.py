@@ -1,7 +1,7 @@
 # tos-dash-v2/idea_logger.py
 """
 IdeaLogger - full lifecycle tracking for scalp advisor ideas.
-Version: v2.55.0
+Version: v2.56.0
 ACTIVE -> WEAKENING -> CONFIRMED -> INVALIDATED / EXPIRED
 
 Invalidation rules (priority order):
@@ -344,6 +344,10 @@ class IdeaLogger:
 
     def process_tick(self, candidates, data, spy_price, spy_vol_rate, spy_vol_ratio, ms, surge_syms,
                      vix_signals=None, ntick=None, channel=None):
+        self._log.debug("process_tick: n_candidates=%d spy=%.2f vol_ratio=%.2f regime=%s trend=%s",
+                        len(candidates or []), spy_price, spy_vol_ratio,
+                        getattr(ms, "regime", None) if ms else None,
+                        getattr(ms, "trend",  None) if ms else None)
         now       = datetime.now()
         self._last_vix_signals = vix_signals or {}
         self._last_ntick       = ntick
@@ -623,6 +627,58 @@ class IdeaLogger:
             spy_vol_ratio,
         )
 
+    def cleanup_outside_market_hours_v2(self) -> int:
+        """
+        Extended cleanup — deletes rows with surfaced_at outside 09:30–16:00.
+        Uses substring matching because surfaced_at is stored as ISO-8601 TEXT
+        (format: 'YYYY-MM-DDTHH:MM:SS'), which sorts lexicographically the same
+        as chronologically so SUBSTRING-based comparisons are safe.
+        Cascades to idea_tick_history and surface_candidates.
+        """
+        with self._lock:
+            n_iters = 0
+            try:
+                row = self._conn.execute("""
+                    SELECT COUNT(*) AS n FROM ideas
+                    WHERE SUBSTRING(surfaced_at, 12, 2) < '09'
+                       OR (SUBSTRING(surfaced_at, 12, 2) = '09'
+                           AND SUBSTRING(surfaced_at, 15, 2) < '30')
+                       OR SUBSTRING(surfaced_at, 12, 2) >= '16'
+                """).fetchone()
+                n_iters = int(row[0]) if row else 0
+                self._log.info("cleanup_outside_market_hours_v2: will delete %d ideas", n_iters)
+                if n_iters > 0:
+                    self._conn.execute("""
+                        DELETE FROM idea_tick_history
+                        WHERE idea_id IN (
+                            SELECT id FROM ideas
+                            WHERE SUBSTRING(surfaced_at, 12, 2) < '09'
+                               OR (SUBSTRING(surfaced_at, 12, 2) = '09'
+                                   AND SUBSTRING(surfaced_at, 15, 2) < '30')
+                               OR SUBSTRING(surfaced_at, 12, 2) >= '16'
+                        )
+                    """)
+                    self._conn.execute("""
+                        DELETE FROM surface_candidates
+                        WHERE SUBSTRING(surfaced_at, 12, 2) < '09'
+                           OR (SUBSTRING(surfaced_at, 12, 2) = '09'
+                               AND SUBSTRING(surfaced_at, 15, 2) < '30')
+                           OR SUBSTRING(surfaced_at, 12, 2) >= '16'
+                    """)
+                    self._conn.execute("""
+                        DELETE FROM ideas
+                        WHERE SUBSTRING(surfaced_at, 12, 2) < '09'
+                           OR (SUBSTRING(surfaced_at, 12, 2) = '09'
+                               AND SUBSTRING(surfaced_at, 15, 2) < '30')
+                           OR SUBSTRING(surfaced_at, 12, 2) >= '16'
+                    """)
+                    self._conn.commit()
+                    self._log.info("cleanup_outside_market_hours_v2: deleted %d ideas + children", n_iters)
+            except Exception as e:
+                self._log.exception("cleanup_outside_market_hours_v2 failed")
+                raise
+        return n_iters
+
     def cleanup_outside_market_hours(self, dte_mode: str = "0DTE") -> int:
         """
         Delete ideas surfaced outside market hours.
@@ -656,6 +712,10 @@ class IdeaLogger:
         """Log all surfaced candidates each tick for backtesting analysis."""
         if not candidates:
             return
+        self._log.debug("log_surface_candidates: writing %d rows spy=%.2f regime=%s trend=%s tick=%s",
+                        len(candidates), spy_price,
+                        getattr(ms, "regime", None) if ms else None,
+                        getattr(ms, "trend",  None) if ms else None, ntick)
         cfg = self._cfg
         if cfg.get("test_mode", False):
             return  # skip during OnDemand replay

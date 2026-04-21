@@ -26,6 +26,8 @@ API_BASE  = "http://127.0.0.1:8001"
 _active_runs: dict[str, asyncio.Queue] = {}
 _completed_runs: dict[str, dict] = {}   # run_id -> final event, kept 30s
 _run_loop: Optional[asyncio.AbstractEventLoop] = None
+_last_run_events: list = []             # full event log of most recent run (capped)
+_LAST_RUN_MAX_EVENTS = 2000             # cap to avoid unbounded memory growth
 
 
 @asynccontextmanager
@@ -187,10 +189,18 @@ async def start_run(request: Request):
     run_id = str(uuid.uuid4())[:8]
     queue  = asyncio.Queue()
     _active_runs[run_id] = queue
+    _last_run_events.clear()
 
     _stop_flag = {"requested": False}
 
     def callback(event_type, data):
+        # Append to diagnostic ring buffer
+        try:
+            _last_run_events.append({"type": event_type, **data})
+            if len(_last_run_events) > _LAST_RUN_MAX_EVENTS:
+                del _last_run_events[0 : len(_last_run_events) - _LAST_RUN_MAX_EVENTS]
+        except Exception:
+            pass
         if _run_loop:
             _run_loop.call_soon_threadsafe(queue.put_nowait, {"type": event_type, **data})
         # Check if a stop sentinel was placed in the queue

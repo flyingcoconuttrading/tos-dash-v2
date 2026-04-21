@@ -1,6 +1,6 @@
 """
 api.py — tos-dash-v2 API + process manager.
-Version: v2.55.0
+Version: v2.56.0
 
 Single entry point: python api.py
   - Manages spy_writer.py as a subprocess
@@ -77,6 +77,20 @@ _load_dotenv()
 # ── Business logic imports ────────────────────────────────────────────────────
 from gamma_chart import calculate_max_pain, calculate_walls
 import market_structure as ms_mod
+
+
+def _is_market_hours_et() -> tuple[bool, str]:
+    """Return (in_hours, reason_string) using America/New_York.
+    Market hours: Mon–Fri 09:30–16:00 ET. Weekends = closed."""
+    now_et = datetime.now(ZoneInfo("America/New_York"))
+    if now_et.weekday() >= 5:
+        return False, f"weekend ({now_et.strftime('%A')})"
+    mins = now_et.hour * 60 + now_et.minute
+    if mins < 9 * 60 + 30:
+        return False, f"premarket ({now_et.strftime('%H:%M ET')})"
+    if mins >= 16 * 60:
+        return False, f"after-hours ({now_et.strftime('%H:%M ET')})"
+    return True, f"market hours ({now_et.strftime('%H:%M ET')})"
 from volume_tracker import VolumeTracker
 from scalp_advisor import ScalpAdvisor
 from channel_advisor import ChannelAdvisor
@@ -757,6 +771,16 @@ def build_snapshot() -> dict:
                 cfg            = _cfg_with_ratio,
                 ms             = ms,
             )
+            logger.debug("SCAN: scalp_advisor returned %d candidates", len(candidates or []))
+
+        # ── Market-hours gate ─────────────────────────────────────────────────
+        # Blocks idea surfacing outside 09:30–16:00 ET. test_mode=true bypasses.
+        if candidates and not cfg.get("test_mode", False):
+            _in_hours, _hours_reason = _is_market_hours_et()
+            if not _in_hours:
+                logger.info("MARKET-HOURS GATE: blocked %d candidates — %s",
+                            len(candidates), _hours_reason)
+                candidates = []
 
         # TICK directional filter — remove candidates that chase TICK extremes
         # Wall touch candidates are exempt — they are mean reversion plays at GEX walls
@@ -786,8 +810,13 @@ def build_snapshot() -> dict:
         # Block all entries in PINNED + Uptrend — H-009 data (n=54): -4.82% avg PnL, 44% win rate
         if ms is not None and ms.regime == "PINNED" and ms.trend in ("Uptrend", "UPTREND", "uptrend"):
             if candidates:
-                logger.debug("PINNED+Uptrend filter: blocked %d candidates", len(candidates))
+                logger.info("PINNED+Uptrend filter: blocked %d candidates", len(candidates))
             candidates = []
+
+        if candidates:
+            logger.info("SURFACE: %d candidates passing all gates — %s",
+                        len(candidates),
+                        ", ".join(f"{c.symbol}:{c.score:.1f}" for c in candidates[:5]))
 
         # Log all surfaced candidates for backtesting
         idea_logger.log_surface_candidates(
@@ -1951,6 +1980,17 @@ def get_charts():
     return {"gex": gex_json, "dex": dex_json, "tick": chain_data.get("tick")}
 
 
+@app.get("/diagnostic/last-run")
+def diagnostic_last_run():
+    """Return the full event log of the most recent smart_tester run.
+    Populated by backtest_dashboard.py. Used to debug 'Analysis complete' with no output."""
+    try:
+        from backtest_dashboard import _last_run_events  # type: ignore
+        return {"events": _last_run_events}
+    except Exception as e:
+        return {"events": [], "error": str(e)}
+
+
 @app.get("/ideas")
 def get_ideas():
     try:
@@ -1966,13 +2006,16 @@ def get_ideas():
 
 @app.post("/ideas/cleanup-hours")
 def cleanup_outside_hours():
-    """Delete ideas surfaced outside market hours (useful after OnDemand testing)."""
+    """Delete ideas surfaced outside market hours (useful after OnDemand testing).
+    Uses the extended cleanup which handles both premarket and after-hours."""
     cfg = load_config()
     dte = _dte_mode
     try:
-        count = idea_logger.cleanup_outside_market_hours(dte_mode=dte)
+        count = idea_logger.cleanup_outside_market_hours_v2()
+        logger.info("CLEANUP-HOURS endpoint: deleted %d ideas", count)
         return {"status": "ok", "deleted": count, "dte_mode": dte}
     except Exception as e:
+        logger.exception("CLEANUP-HOURS endpoint error")
         return {"status": "error", "detail": str(e)}
 
 

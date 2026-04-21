@@ -20,9 +20,12 @@ Checklist factors (weighted 0–100 score):
   7. Candle Structure     5%  — price above/below last 1-min close
 """
 
+import logging
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional
+
+_log = logging.getLogger("tos_dash.market_structure")
 
 
 # ── Regime labels ─────────────────────────────────────────────────────────────
@@ -558,6 +561,10 @@ def analyze(
         regime = REGIME_PINNED
     else:
         regime = REGIME_TRENDING
+    _log.debug("REGIME: %s (net_gex=%.0f net_dex=%.0f snap_lvl=%s snap_dist=%s)",
+               regime, net_gex, net_dex,
+               f"{snap_level:.2f}" if snap_level is not None else "None",
+               f"{snap_distance:.2f}" if snap_distance is not None else "None")
 
     # ── Bias ──────────────────────────────────────────────────────────────────
     mp_distance    = current_price - max_pain

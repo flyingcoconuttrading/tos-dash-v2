@@ -26,8 +26,11 @@ Underlying direction is derived from a rolling price history (last DIRECTION_TIC
 Version: v2.52.1
 """
 
+import logging
 from collections import deque
 from dataclasses import dataclass, field
+
+_log = logging.getLogger("tos_dash.scalp_advisor")
 
 
 # ---------------------------------------------------------------------------
