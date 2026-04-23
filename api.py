@@ -1,6 +1,6 @@
 """
 api.py — tos-dash-v2 API + process manager.
-Version: v2.56.1
+Version: v2.58.0
 
 Single entry point: python api.py
   - Manages spy_writer.py as a subprocess
@@ -820,9 +820,20 @@ def build_snapshot() -> dict:
         # Block Puts in TRENDING + Downtrend — H-002 data: -8.7% avg PnL, 73% stop rate
         # Calls in Downtrend already blocked in scalp_advisor.py line 493
         if ms is not None and ms.regime == "TRENDING" and ms.trend in ("Downtrend", "DOWNTREND", "downtrend"):
+            _n_before = len(candidates)
             candidates = [c for c in candidates if c.option_type != "Put"]
+            _n_blocked = _n_before - len(candidates)
+            if _n_blocked > 0:
+                logger.info("TRENDING+Downtrend filter: blocked %d Put candidates", _n_blocked)
+
+        # Block ALL entries in TRENDING + Choppy — DASH-058 data (n=44): -8.02% avg PnL, 40.9% win rate
+        if ms is not None and ms.regime == "TRENDING" and ms.trend in ("Choppy", "CHOPPY", "choppy"):
+            if candidates:
+                logger.info("TRENDING+Choppy filter: blocked %d candidates", len(candidates))
+            candidates = []
 
         # Block all entries in PINNED + Uptrend — H-009 data (n=54): -4.82% avg PnL, 44% win rate
+        # Reaffirmed at n=422: pattern still losing.
         if ms is not None and ms.regime == "PINNED" and ms.trend in ("Uptrend", "UPTREND", "uptrend"):
             if candidates:
                 logger.info("PINNED+Uptrend filter: blocked %d candidates", len(candidates))
