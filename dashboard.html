@@ -1631,7 +1631,7 @@ body.beta-view #marketContextBar { display: none !important; }
     <span class="status-txt" id="statusTxt">CONNECTING</span>
     <div class="ai-call-dot" id="aiCallDot" title="AI API calls"></div>
     <span class="ai-call-label" id="aiCallLabel">AI 0</span>
-    <span class="version-tag">v2.53.0</span>
+    <span class="version-tag">v2.61.0</span>
     <span class="ts" id="tsEl">--</span>
   </div>
 </header>
@@ -4599,10 +4599,23 @@ function saveSettings() {
     alpaca_secret_key: get('cfg_alpaca_secret_key').value.trim() || null,
   };
   // AI key — save to config.json (server-side persistence)
-  const aiKey = get('cfg_ai_api_key').value.trim();
-  if (aiKey) {
-    cfg.anthropic_api_key = aiKey;
-    window._cfgAnthropicKey = aiKey;
+  // Real Anthropic keys start with 'sk-ant-'. If the field shows the masked
+  // placeholder (bullets) or anything else that's not a real key, keep the
+  // cached value from window._cfgAnthropicKey instead of overwriting.
+  const aiKeyRaw = get('cfg_ai_api_key').value.trim();
+  if (aiKeyRaw && aiKeyRaw.startsWith('sk-ant-')) {
+    // Looks like a real key — user typed/pasted a new one
+    cfg.anthropic_api_key = aiKeyRaw;
+    window._cfgAnthropicKey = aiKeyRaw;
+    console.log('[settings] AI key updated (new key entered)');
+  } else if (window._cfgAnthropicKey && window._cfgAnthropicKey.startsWith('sk-ant-')) {
+    // Field shows mask or junk — preserve the cached real key
+    cfg.anthropic_api_key = window._cfgAnthropicKey;
+    console.log('[settings] AI key preserved from cache (field showed mask)');
+  } else {
+    // No cached real key either — leave config.anthropic_api_key out of the payload
+    // so the server-side default from .env or existing config.json is preserved
+    console.log('[settings] AI key NOT included in save (no real key available)');
   }
   localStorage.setItem('ai_enabled', get('cfg_ai_enabled').checked ? 'true' : 'false');
   const aiInterval = parseInt(get('cfg_ai_interval').value) || 5;
