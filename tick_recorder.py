@@ -113,10 +113,22 @@ def _open_db() -> duckdb.DuckDBPyConnection:
             open_interest INTEGER
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS equity_ticks (
+            recorded_at  TIMESTAMP NOT NULL,
+            date         DATE NOT NULL,
+            symbol       TEXT NOT NULL,
+            last         DOUBLE,
+            bid          DOUBLE,
+            ask          DOUBLE,
+            volume       DOUBLE
+        )
+    """)
     return conn
 
-PRICE_FILE = THIS_DIR / "spy_price.json"
-CHAIN_FILE = THIS_DIR / "option_chain.json"
+PRICE_FILE  = THIS_DIR / "spy_price.json"
+CHAIN_FILE  = THIS_DIR / "option_chain.json"
+EQUITY_FILE = THIS_DIR / "equity_ticks.json"
 
 # ── Capture window check ──────────────────────────────────────────────────────
 def _in_capture_window() -> bool:
@@ -244,6 +256,30 @@ try:
                      vega, iv, volume, open_interest)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, chain_rows)
+
+            # Write equity constituent rows
+            try:
+                equity_data = json.loads(EQUITY_FILE.read_text())
+                equity_rows = []
+                for entry in equity_data.get("equities", []):
+                    if entry.get("last") is None and entry.get("bid") is None:
+                        continue
+                    equity_rows.append((
+                        recorded_at, date_str,
+                        entry["symbol"],
+                        entry.get("last"),
+                        entry.get("bid"),
+                        entry.get("ask"),
+                        entry.get("volume"),
+                    ))
+                if equity_rows:
+                    db_conn.executemany("""
+                        INSERT INTO equity_ticks
+                        (recorded_at, date, symbol, last, bid, ask, volume)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, equity_rows)
+            except Exception:
+                pass  # equity_ticks.json absent until writer first tick
 
         except Exception as e:
             print(f"[tick_recorder] Write error: {e}", file=sys.stderr)

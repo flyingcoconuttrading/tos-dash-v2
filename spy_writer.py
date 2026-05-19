@@ -60,6 +60,12 @@ IWM_SYMBOL    = "IWM"
 NQ_SYMBOL     = "/NQ:XCME"
 COMPANION_QTS = [QuoteType.LAST]   # only need LAST for ratio tracking
 
+EQUITY_SYMBOLS = [
+    "NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "AVGO",
+    "GOOG", "META", "TSLA", "BRK/B", "JPM", "LLY",
+]
+EQUITY_QTS = [QuoteType.LAST, QuoteType.BID, QuoteType.ASK, QuoteType.VOLUME]
+
 OPTION_QTS = [
     QuoteType.LAST, QuoteType.BID, QuoteType.ASK, QuoteType.MARK,
     QuoteType.VOLUME, QuoteType.OPEN_INT,
@@ -166,6 +172,16 @@ for sym in (VIX_SYMBOL, NTICK_SYMBOL, TRIN_SYMBOL, TRINQ_SYMBOL, ADD_SYMBOL, QQQ
             print(f"[writer] Warning: could not subscribe {sym}: {e}",
                   file=sys.stderr)
 print(f"[writer] Subscribed to VIX, TICK, TRIN, ADD, QQQ, IWM, NQ (LAST only)",
+      file=sys.stderr)
+
+# ── Subscribe to equity constituents (LAST/BID/ASK/VOLUME) ───────────────────
+for sym in EQUITY_SYMBOLS:
+    for qt in EQUITY_QTS:
+        try:
+            client.subscribe(qt, sym)
+        except Exception as e:
+            print(f"[writer] Warning: could not subscribe {sym}/{qt}: {e}", file=sys.stderr)
+print(f"[writer] Subscribed to {len(EQUITY_SYMBOLS)} equity constituents (LAST/BID/ASK/VOLUME)",
       file=sys.stderr)
 
 # ── Wait for initial price ────────────────────────────────────────────────────
@@ -316,6 +332,22 @@ while True:
             "chain":         chain,
         }
         (THIS_DIR / "option_chain.json").write_text(json.dumps(chain_payload, indent=2))
+
+        # Write equity constituent ticks
+        equity_entries = []
+        for sym in EQUITY_SYMBOLS:
+            equity_entries.append({
+                "symbol": sym,
+                "last":   safe_float(getattr(raw.get((sym, "LAST")),   "value", None)),
+                "bid":    safe_float(getattr(raw.get((sym, "BID")),    "value", None)),
+                "ask":    safe_float(getattr(raw.get((sym, "ASK")),    "value", None)),
+                "volume": safe_float(getattr(raw.get((sym, "VOLUME")), "value", None)),
+            })
+        (THIS_DIR / "equity_ticks.json").write_text(json.dumps({
+            "tick":      tick,
+            "timestamp": datetime.now().isoformat(timespec="milliseconds"),
+            "equities":  equity_entries,
+        }, indent=2))
 
         # Write positions separately for fast access
         (THIS_DIR / "positions.json").write_text(json.dumps({
