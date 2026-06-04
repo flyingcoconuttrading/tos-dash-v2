@@ -1,6 +1,6 @@
 """
 tick_recorder.py — Independent tick history recorder for tos-dash-v2.
-Version: v2.56.1
+Version: v2.57.0
 
 Reads spy_price.json and option_chain.json on each poll cycle and appends
 rows to a DuckDB replay database. Designed to be managed as a subprocess by
@@ -89,11 +89,16 @@ def _open_db() -> duckdb.DuckDBPyConnection:
             qqq_price    DOUBLE,
             iwm_price    DOUBLE,
             nq_price     DOUBLE,
-            spy_volume   DOUBLE
+            spy_volume   DOUBLE,
+            es_price     DOUBLE
         )
     """)
     try:
         conn.execute("ALTER TABLE spy_ticks ADD COLUMN spy_volume DOUBLE")
+    except Exception:
+        pass  # column already exists
+    try:
+        conn.execute("ALTER TABLE spy_ticks ADD COLUMN es_price DOUBLE")
     except Exception:
         pass  # column already exists
     conn.execute("""
@@ -213,8 +218,8 @@ try:
             db_conn.execute("""
                 INSERT INTO spy_ticks
                 (recorded_at, date, spy_price, vix, tick_val, trin_val, trinq_val,
-                 add_val, qqq_price, iwm_price, nq_price, spy_volume)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 add_val, qqq_price, iwm_price, nq_price, spy_volume, es_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 recorded_at, date_str,
                 price_data.get("last"),
@@ -227,6 +232,7 @@ try:
                 price_data.get("iwm_last"),
                 price_data.get("nq_last"),
                 price_data.get("volume"),
+                price_data.get("es_last"),
             ))
 
             # Write chain rows (only symbols with a bid or last price)
